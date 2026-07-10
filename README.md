@@ -124,7 +124,7 @@ OpenChinaCode custom commands are grouped under `OpenChinaCode` in the TUI comma
 | `/lsp`              | View or toggle LSP diagnostics                                             |
 | `/task-policy`      | Inspect current task-routing policy                                        |
 | `/task-classify`    | Classify a task description against routing policy                         |
-| `/test-mcp`         | Configure built-in Playwright MCP from inside the TUI                      |
+| `/test-mcp`         | Configure built-in Playwright MCP from inside the TUI; checks Chrome first |
 | `/media-auth`       | Save Volcengine Ark API key for native media generation                    |
 | `/image-generate`   | Open the Seedream 5 Pro image generation wizard                            |
 | `/video-generate`   | Open the Seedance 2.0 Mini video generation wizard                         |
@@ -161,8 +161,8 @@ Usage:
 Generated outputs are downloaded immediately because provider URLs expire. Files are saved under:
 
 ```text
-.openchinacode/media/images
-.openchinacode/media/videos
+/tmp/openchinacode/media/images
+/tmp/openchinacode/media/videos
 ```
 
 Every successful tool call reports `output_path` and `metadata_path`.

@@ -21,7 +21,8 @@ export const Parameters = Schema.Struct({
     description: "Whether to download the video when the task has succeeded. Defaults to true.",
   }),
   output_dir: Schema.optional(Schema.String).annotate({
-    description: "Optional output directory relative to the worktree. Defaults to .openchinacode/media/videos.",
+    description:
+      "Optional output directory. Relative paths are resolved against the worktree. Defaults to /tmp/openchinacode/media/videos.",
   }),
   filename_hint: Schema.optional(Schema.String).annotate({
     description: "Optional short filename hint, without extension.",

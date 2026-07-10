@@ -171,11 +171,11 @@ Slash command 入口：
 /video-generate
 ```
 
-生成文件会立即下载到当前项目：
+生成文件会立即下载到本机临时目录：
 
 ```text
-.openchinacode/media/images
-.openchinacode/media/videos
+/tmp/openchinacode/media/images
+/tmp/openchinacode/media/videos
 ```
 
 每次成功调用都会返回 `output_path` 和 `metadata_path`。
@@ -344,6 +344,7 @@ explicit task model
 ```
 
 `/test-mcp on/headless/headed` 会写入配置并立即 hot-connect；`/test-mcp off` 会写入 disabled 并立即 disconnect。通常不需要重启。
+默认浏览器是系统 Google Chrome。执行 `/test-mcp on/headless/headed` 时会先做 Chrome 预检；如果没有安装，会直接提示安装方法，不会写入启用配置，也不会等开发任务跑到浏览器工具调用时才失败。
 内置 Playwright MCP 默认启用官方 `config/network/storage/testing/pdf/vision` 能力，因此模型可以看到官方的 screenshot、snapshot、evaluate 等工具，但默认不暴露 devtools 录屏工具。对于“是否在转、是否在动、动画是否生效”这类问题，OpenChinaCode 要求模型优先用 `getAnimations()`、computed transform 或裁剪区域像素差做确定性判断；截图和 `visual_check` 只用于理解用户可见外观。浏览器录屏默认不作为模型输入路径，除非用户明确要求生成视频证据。
 
 ### `/media-auth`
@@ -386,7 +387,7 @@ export ARK_API_KEY="your-volcengine-ark-api-key"
 
 - prompt
 - aspect ratio：`1:1`、`16:9`、`9:16`、`4:3`、`3:4`、`3:2`、`2:3`、`21:9`
-- size：`2K`、`3K`、`4K`
+- size：`1K`、`2K`，或符合 Seedream 5 Pro 限制的 `宽x高` 像素值。`3K/4K` 是 Seedream 5.0 Lite 档位，不适用于 Pro。
 - output format：`png`、`jpeg`
 - reference images：本地路径、`file://`、HTTP(S) URL 或 `data:image`
 - watermark
@@ -401,7 +402,7 @@ export ARK_API_KEY="your-volcengine-ark-api-key"
 如果参考图不存在、参考图数量超过 10 张、或比例不支持，工具会直接报出具体原因。成功后默认保存到：
 
 ```text
-.openchinacode/media/images
+/tmp/openchinacode/media/images
 ```
 
 ### `/video-generate`
@@ -420,8 +421,10 @@ export ARK_API_KEY="your-volcengine-ark-api-key"
 - resolution：`720p`、`480p`
 - duration：4 到 15 秒的整数
 - generate audio
-- reference images：本地路径、`file://`、HTTP(S) URL 或 `data:image`
-- reference video URLs：URL 或素材 asset id；当前 MVP 不支持本地视频文件直传
+- input mode：普通参考素材、首帧、首尾帧
+- reference images：最多 9 张，本地路径、`file://`、HTTP(S) URL 或 `data:image`
+- reference video URLs：最多 3 个，URL 或素材 asset id；当前 MVP 不支持本地视频文件直传
+- first frame / first + last frame：用于严格首帧或首尾帧控制，不能和普通 reference images / reference videos 混用
 - watermark
 
 自然语言也可以触发，例如：
@@ -434,7 +437,7 @@ export ARK_API_KEY="your-volcengine-ark-api-key"
 成功后默认保存到：
 
 ```text
-.openchinacode/media/videos
+/tmp/openchinacode/media/videos
 ```
 
 `video_generate` 默认会轮询任务完成并下载本地文件。如果任务仍在运行，会返回 `task_id`，之后可以让模型调用 `video_status` 查询并下载。

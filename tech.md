@@ -262,6 +262,8 @@ OpenChinaCode 定制 slash command 的 TUI 入口在 `packages/tui/src/component
 
 `/test-mcp on/headless/headed` 会先写入全局配置，再通过 runtime MCP API 立即 hot-connect 内置 Playwright MCP；`/test-mcp off` 会写入 disabled 并立即 disconnect。CLI 里的 `openchinacode test mcp` 保留给脚本、自动化或 TUI 外部使用；日常新用户优先用 `/test-mcp on`。
 
+默认浏览器是系统 Google Chrome。TUI 的 `/test-mcp on/headless/headed` 会先检查 Chrome 是否存在；底层 `openchinacode mcp playwright --browser=chrome` 也会做同样的硬预检。缺失时会立即给出安装提示，避免开发到一半才在 Playwright tool call 阶段失败。
+
 内置 Playwright MCP 入口：
 
 ```text
@@ -321,15 +323,16 @@ video model: doubao-seedance-2-0-mini-260615
 默认输出：
 
 ```text
-.openchinacode/media/images
-.openchinacode/media/videos
+/tmp/openchinacode/media/images
+/tmp/openchinacode/media/videos
 ```
 
 工具行为：
 
 - `image_generate` 支持本地图片路径、`file://`、HTTP(S) URL、`data:image` 作为参考图。
-- `image_generate` 最多 10 张参考图，默认 `2K`、`png`、不加 watermark。
-- `video_generate` 支持本地图片参考；本地视频文件在 MVP 中不上传，要求 URL 或 asset id。
+- `image_generate` 最多 10 张参考图，默认 `2K`、`png`、不加 watermark。Seedream 5 Pro size 仅支持 `1K`、`2K` 或合法 `宽x高` 像素值；`3K/4K` 属于 Seedream 5.0 Lite 档位。
+- `video_generate` 支持最多 9 张本地图片参考；参考视频最多 3 个，本地视频文件在 MVP 中不上传，要求 URL 或 asset id。
+- `video_generate` 支持严格首帧/首尾帧控制：`first_frame_image`、`last_frame_image`。该模式不能和普通 `reference_images` / `reference_videos` 混用。
 - `video_generate` 默认 `720p`、5 秒、`generate_audio=true`、不加 watermark。
 - Seedance 2.0 Mini 当前只暴露 `480p`、`720p`，显式 duration 限制为 4 到 15 秒整数。
 - 生成结果立即下载到本地，并写同名 `.json` metadata。模型必须把 `output_path` 和 `metadata_path` 告诉用户。

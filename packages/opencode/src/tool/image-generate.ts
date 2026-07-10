@@ -18,7 +18,9 @@ import { FSUtil } from "@opencode-ai/core/fs-util"
 import { InstanceState } from "@/effect/instance-state"
 
 const OUTPUT_FORMATS = ["png", "jpeg"] as const
-const IMAGE_SIZES = ["2K", "3K", "4K"] as const
+const IMAGE_SIZE_TIERS = ["1K", "2K"] as const
+const IMAGE_PIXEL_MIN = 1280 * 720
+const IMAGE_PIXEL_MAX = 4_624_220
 const MAX_REFERENCE_IMAGES = 10
 const MAX_ATTACHMENT_BYTES = 6 * 1024 * 1024
 
@@ -34,8 +36,9 @@ export const Parameters = Schema.Struct({
   aspect_ratio: Schema.optional(Schema.Literals(IMAGE_RATIOS)).annotate({
     description: "Optional desired aspect ratio intent. Supported: 1:1, 16:9, 9:16, 4:3, 3:4, 3:2, 2:3, 21:9.",
   }),
-  size: Schema.optional(Schema.Literals(IMAGE_SIZES)).annotate({
-    description: "Generation size tier. Defaults to 2K. Supported: 2K, 3K, 4K.",
+  size: Schema.optional(Schema.String).annotate({
+    description:
+      "Seedream 5 Pro image size. Defaults to 2K. Supported tiers: 1K, 2K. Also supports explicit WIDTHxHEIGHT pixels when total pixels are 921600-4624220 and aspect ratio is 1/16-16.",
   }),
   output_format: Schema.optional(Schema.Literals(OUTPUT_FORMATS)).annotate({
     description: "Saved image format. Defaults to png.",
@@ -44,7 +47,8 @@ export const Parameters = Schema.Struct({
     description: "Whether to request a provider watermark. Defaults to false.",
   }),
   output_dir: Schema.optional(Schema.String).annotate({
-    description: "Optional output directory relative to the worktree. Defaults to .openchinacode/media/images.",
+    description:
+      "Optional output directory. Relative paths are resolved against the worktree. Defaults to /tmp/openchinacode/media/images.",
   }),
   filename_hint: Schema.optional(Schema.String).annotate({
     description: "Optional short filename hint, without extension.",
@@ -70,6 +74,38 @@ type Metadata = {
   output_format: string
 }
 
+function validateSeedream5ProSize(input: string | undefined) {
+  const value = (input ?? "2K").trim()
+  if ((IMAGE_SIZE_TIERS as readonly string[]).includes(value)) return value
+
+  if (/^\d+[xX]\d+$/.test(value)) {
+    const [widthRaw, heightRaw] = value.toLowerCase().split("x")
+    const width = Number(widthRaw)
+    const height = Number(heightRaw)
+    const pixels = width * height
+    const ratio = width / height
+    if (
+      Number.isSafeInteger(width) &&
+      Number.isSafeInteger(height) &&
+      width > 0 &&
+      height > 0 &&
+      pixels >= IMAGE_PIXEL_MIN &&
+      pixels <= IMAGE_PIXEL_MAX &&
+      ratio >= 1 / 16 &&
+      ratio <= 16
+    ) {
+      return `${width}x${height}`
+    }
+    throw new Error(
+      `Invalid Seedream 5 Pro image size "${input}". Explicit WIDTHxHEIGHT must have total pixels in [921600, 4624220] and aspect ratio in [1/16, 16].`,
+    )
+  }
+
+  throw new Error(
+    `Invalid Seedream 5 Pro image size "${input}". Supported values are 1K, 2K, or explicit WIDTHxHEIGHT pixels. 3K/4K are Seedream 5.0 Lite tiers, not Seedream 5.0 Pro tiers.`,
+  )
+}
+
 export const ImageGenerateTool = Tool.define<typeof Parameters, Metadata, Auth.Service | FSUtil.Service>(
   "image_generate",
   Effect.gen(function* () {
@@ -92,7 +128,7 @@ export const ImageGenerateTool = Tool.define<typeof Parameters, Metadata, Auth.S
           }
 
           const outputFormat = params.output_format ?? "png"
-          const size = params.size ?? "2K"
+          const size = validateSeedream5ProSize(params.size)
           const ratioInstruction = params.aspect_ratio ? `\nAspect ratio requirement: ${params.aspect_ratio}.` : ""
           const finalPrompt = `${prompt}${ratioInstruction}`.trim()
           const apiKey = yield* getArkApiKey(auth)

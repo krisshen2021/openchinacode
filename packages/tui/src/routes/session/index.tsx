@@ -1898,12 +1898,12 @@ function GenericTool(props: ToolProps) {
       when={props.output && ctx.showGenericToolOutput()}
       fallback={
         <InlineTool icon="⚙" pending="Writing command..." complete={true} part={props.part}>
-          {props.tool} {input(props.input)}
+          {props.tool} {toolInput(props.tool, props.input)}
         </InlineTool>
       }
     >
       <BlockTool
-        title={`# ${props.tool} ${input(props.input)}`}
+        title={`# ${props.tool} ${toolInput(props.tool, props.input)}`}
         part={props.part}
         onClick={collapsed().overflow ? () => setExpanded((prev) => !prev) : undefined}
       >
@@ -2723,6 +2723,53 @@ function input(input: Record<string, unknown>, omit?: string[]): string {
   })
   if (primitives.length === 0) return ""
   return `[${primitives.map(([key, value]) => `${key}=${value}`).join(", ")}]`
+}
+
+function toolInput(tool: string, value: Record<string, unknown>): string {
+  if (tool === "image_generate") return mediaToolInput(value, ["reference_images"])
+  if (tool === "video_generate")
+    return mediaToolInput(value, ["reference_images", "reference_videos", "first_frame_image", "last_frame_image"])
+  return input(value)
+}
+
+function mediaToolInput(value: Record<string, unknown>, mediaKeys: string[]) {
+  const base = input(value, mediaKeys)
+  const parts: string[] = []
+  const referenceImages = arrayCount(value.reference_images)
+  const referenceVideos = arrayCount(value.reference_videos)
+  const firstFrame = safeMediaRef(value.first_frame_image)
+  const lastFrame = safeMediaRef(value.last_frame_image)
+
+  if (referenceImages > 0) parts.push(`reference_images=${referenceImages}`)
+  if (referenceVideos > 0) parts.push(`reference_videos=${referenceVideos}`)
+  if (firstFrame) parts.push(`first_frame=${firstFrame}`)
+  if (lastFrame) parts.push(`last_frame=${lastFrame}`)
+  if (parts.length === 0) return base
+  if (!base) return `[${parts.join(", ")}]`
+  return `${base.slice(0, -1)}, ${parts.join(", ")}]`
+}
+
+function arrayCount(value: unknown) {
+  return Array.isArray(value) ? value.length : 0
+}
+
+function safeMediaRef(value: unknown) {
+  if (typeof value !== "string" || !value.trim()) return
+  const raw = value.trim()
+  if (raw.startsWith("data:")) return raw.split(";")[0] ?? "data"
+  if (raw.startsWith("asset://") || raw.startsWith("qasset://")) return raw.slice(0, 36) + (raw.length > 36 ? "..." : "")
+  try {
+    const url = new URL(raw)
+    if (url.protocol === "http:" || url.protocol === "https:") {
+      const name = url.pathname.split("/").filter(Boolean).at(-1)
+      return name ? `${url.hostname}/${name}` : url.hostname
+    }
+    if (url.protocol === "file:") {
+      const name = url.pathname.split("/").filter(Boolean).at(-1)
+      return name || "file"
+    }
+  } catch {}
+  return raw.split(/[\\/]/).filter(Boolean).at(-1) ?? raw
 }
 
 function stringValue(value: unknown) {

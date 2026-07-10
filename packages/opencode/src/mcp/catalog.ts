@@ -7,9 +7,80 @@ import {
 } from "@modelcontextprotocol/sdk/types.js"
 import { dynamicTool, jsonSchema, type JSONSchema7, type Tool } from "ai"
 import { Effect } from "effect"
+import fs from "fs"
+import os from "os"
+import path from "path"
 
 const DEFAULT_TIMEOUT = 30_000
 const MAX_LIST_PAGES = 1_000
+const PLAYWRIGHT_ARTIFACT_DIR = path.join(os.tmpdir(), "openchinacode-playwright")
+const PLAYWRIGHT_ARTIFACT_TOOLS = new Set([
+  "browser_console_messages",
+  "browser_evaluate",
+  "browser_network_request",
+  "browser_network_requests",
+  "browser_pdf_save",
+  "browser_snapshot",
+  "browser_start_video",
+  "browser_storage_state",
+  "browser_take_screenshot",
+])
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+}
+
+function defaultArtifactExt(toolName: string, args: Record<string, unknown>) {
+  if (toolName === "browser_take_screenshot") return args.type === "jpeg" ? ".jpg" : ".png"
+  if (toolName === "browser_pdf_save") return ".pdf"
+  if (toolName === "browser_start_video") return ".webm"
+  if (toolName === "browser_snapshot") return ".yml"
+  if (toolName === "browser_storage_state") return ".json"
+  return ".log"
+}
+
+function safeArtifactName(toolName: string, args: Record<string, unknown>, filename: string) {
+  const trimmed = filename.trim()
+  const base = path.basename(trimmed).replace(/[^a-zA-Z0-9._-]+/g, "_")
+  const fallback = `${toolName.replace(/^browser_/, "").replaceAll("_", "-")}-${Date.now()}`
+  const safe = !base || base === "." || base === ".." ? fallback : base
+  return path.extname(safe) ? safe : safe + defaultArtifactExt(toolName, args)
+}
+
+async function rewritePlaywrightArtifactArgs(toolName: string, args: unknown) {
+  const input = isRecord(args) ? { ...args } : {}
+  if (!PLAYWRIGHT_ARTIFACT_TOOLS.has(toolName)) return { args: input }
+  const filename = input.filename
+  if (filename === undefined || filename === null) return { args: input }
+  if (typeof filename !== "string") return { args: input }
+
+  const trimmed = filename.trim()
+  if (!trimmed || trimmed === "<auto>") {
+    delete input.filename
+    return { args: input }
+  }
+
+  await fs.promises.mkdir(PLAYWRIGHT_ARTIFACT_DIR, { recursive: true })
+  const artifactPath = path.join(PLAYWRIGHT_ARTIFACT_DIR, safeArtifactName(toolName, input, trimmed))
+  input.filename = artifactPath
+  return { args: input, artifactPath }
+}
+
+function rewritePlaywrightArtifactResult<T extends { content: Array<{ type: string; text?: string }> }>(
+  result: T,
+  artifactPath: string | undefined,
+): T {
+  if (!artifactPath) return result
+  const relative = `./${path.basename(artifactPath)}`
+  return {
+    ...result,
+    content: result.content.map((item) =>
+      item.type === "text" && typeof item.text === "string"
+        ? { ...item, text: item.text.split(relative).join(artifactPath) }
+        : item,
+    ),
+  }
+}
 
 const TolerantListToolsResultSchema = ListToolsResultSchema.extend({
   tools: ToolSchema.omit({ outputSchema: true }).array(),
@@ -51,10 +122,11 @@ export function convertTool(mcpTool: MCPToolDef, client: Client, timeout?: numbe
     description: mcpTool.description ?? "",
     inputSchema: jsonSchema(inputSchema),
     execute: async (args: unknown, options) => {
+      const rewritten = await rewritePlaywrightArtifactArgs(mcpTool.name, args)
       const result = await client.callTool(
         {
           name: mcpTool.name,
-          arguments: (args || {}) as Record<string, unknown>,
+          arguments: rewritten.args,
         },
         CallToolResultSchema,
         {
@@ -65,18 +137,19 @@ export function convertTool(mcpTool: MCPToolDef, client: Client, timeout?: numbe
           onprogress: () => {},
         },
       )
-      if (result.isError)
+      const output = rewritePlaywrightArtifactResult(result, rewritten.artifactPath)
+      if (output.isError)
         throw new Error(
-          result.content
+          output.content
             .flatMap((item) => (item.type === "text" ? [item.text] : []))
             .filter((text) => text.trim())
             .join("\n\n") || "MCP tool returned an error",
         )
-      if (result.content.length > 0 || result.structuredContent === undefined || result.structuredContent === null)
-        return result
+      if (output.content.length > 0 || output.structuredContent === undefined || output.structuredContent === null)
+        return output
       return {
-        ...result,
-        content: [{ type: "text" as const, text: JSON.stringify(result.structuredContent) }],
+        ...output,
+        content: [{ type: "text" as const, text: JSON.stringify(output.structuredContent) }],
       }
     },
   })

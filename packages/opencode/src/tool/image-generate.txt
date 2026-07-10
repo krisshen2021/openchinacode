@@ -6,5 +6,6 @@ Important rules:
 - If the user gave a vague request and important creative choices are missing, ask follow-up questions first with the question tool.
 - Validate local reference image paths before calling this tool when possible.
 - If a requested aspect ratio is unsupported, ask the user to choose a supported one.
+- Seedream 5 Pro size supports 1K, 2K, or explicit WIDTHxHEIGHT pixels. 3K and 4K are Seedream 5.0 Lite tiers, not Pro tiers.
 - Always tell the user the returned output_path and metadata_path after the tool succeeds.
 - Do not use shell scripts or unrelated online image services for native OpenChinaCode image generation.

@@ -7,6 +7,8 @@ Important rules:
 - Seedance 2.0 Mini supports 480p and 720p in this integration, not 1080p.
 - Supported ratios are adaptive, 16:9, 4:3, 1:1, 3:4, 9:16, and 21:9.
 - Supported explicit durations are 4 to 15 seconds.
+- Multimodal reference mode supports up to 9 reference images and up to 3 reference videos.
+- For strict image-to-video frame control, use first_frame_image and optional last_frame_image. Do not mix first/last-frame mode with reference_images or reference_videos.
 - Local image references can be used. Local video file references are not supported in this MVP; ask for a URL or uploaded asset id instead.
 - Always tell the user the returned task_id, output_path, and metadata_path after the tool succeeds.
 - Do not use shell scripts or unrelated online video services for native OpenChinaCode video generation.

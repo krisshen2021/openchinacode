@@ -1,6 +1,7 @@
 import { Auth } from "@/auth"
 import { FSUtil } from "@opencode-ai/core/fs-util"
 import { Effect } from "effect"
+import os from "os"
 import path from "path"
 import { fileURLToPath } from "url"
 import type { InstanceContext } from "@/project/instance-context"
@@ -9,6 +10,7 @@ export const ARK_AUTH_PROVIDER_ID = "volcengine-ark"
 export const ARK_BASE_URL = "https://ark.cn-beijing.volces.com/api/v3"
 export const SEEDREAM_5_PRO_MODEL = "doubao-seedream-5-0-pro-260628"
 export const SEEDANCE_2_MINI_MODEL = "doubao-seedance-2-0-mini-260615"
+export const DEFAULT_MEDIA_ROOT = path.join(os.tmpdir(), "openchinacode", "media")
 
 export const IMAGE_RATIOS = ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "21:9"] as const
 export const VIDEO_RATIOS = ["adaptive", "16:9", "4:3", "1:1", "3:4", "9:16", "21:9"] as const
@@ -72,7 +74,7 @@ export function getArkApiKey(auth: Auth.Interface) {
 export function mediaRoot(instance: InstanceContext, kind: "images" | "videos", requested?: string) {
   return requested?.trim()
     ? path.resolve(instance.worktree, requested)
-    : path.join(instance.worktree, ".openchinacode", "media", kind)
+    : path.join(DEFAULT_MEDIA_ROOT, kind)
 }
 
 export function resolveInputPath(instance: InstanceContext, input: string) {

@@ -12,11 +12,13 @@ import type { CommandContext } from "@opentui/keymap"
 import { createEffect, createMemo, onMount, createSignal, onCleanup, on, Show, Switch, Match } from "solid-js"
 import { registerOpencodeSpinner } from "../register-spinner"
 import { mkdir, readFile, writeFile } from "node:fs/promises"
+import { existsSync } from "node:fs"
 import path from "path"
 import { fileURLToPath } from "url"
 import { useLocal } from "../../context/local"
 import { Flag } from "@opencode-ai/core/flag/flag"
 import { Global } from "@opencode-ai/core/global"
+import { which } from "@opencode-ai/core/util/which"
 import * as Jsonc from "@opencode-ai/core/jsonc"
 import { tint, useTheme } from "../../context/theme"
 import { EmptyBorder, SplitBorder } from "../../ui/border"
@@ -149,6 +151,35 @@ function isNotFoundError(error: unknown) {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
+}
+
+function chromeAbsoluteCandidates() {
+  if (process.platform === "darwin") return ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"]
+  if (process.platform === "win32") {
+    return [process.env.PROGRAMFILES, process.env["PROGRAMFILES(X86)"], process.env.LOCALAPPDATA]
+      .filter((item): item is string => !!item)
+      .map((base) => path.join(base, "Google", "Chrome", "Application", "chrome.exe"))
+  }
+  return []
+}
+
+function findChromeExecutable() {
+  for (const candidate of chromeAbsoluteCandidates()) {
+    if (existsSync(candidate)) return candidate
+  }
+  for (const candidate of ["google-chrome-stable", "google-chrome", "chrome"]) {
+    const found = which(candidate)
+    if (found) return found
+  }
+}
+
+function chromeMissingMessage() {
+  return [
+    "OpenChinaCode Playwright MCP defaults to Google Chrome.",
+    "Install Chrome first, then run /test-mcp on again.",
+    "Ubuntu/Debian: wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && sudo apt install ./google-chrome-stable_current_amd64.deb",
+    "macOS: brew install --cask google-chrome",
+  ].join("\n")
 }
 
 async function readGlobalConfigFile() {
@@ -478,9 +509,10 @@ export function Prompt(props: PromptProps) {
   function showTestMcpStatus() {
     const entry = currentTestMcpConfig()
     const runtime = testMcpRuntimeStatus()
+    const chrome = findChromeExecutable()
     toast.show({
       title: "Playwright MCP",
-      message: `${testMcpModeLabel(entry)}${runtime ? `, runtime: ${runtime}` : ""}. Usage: /test-mcp on, /test-mcp off, /test-mcp headed, /test-mcp status`,
+      message: `${testMcpModeLabel(entry)}${runtime ? `, runtime: ${runtime}` : ""}. Chrome: ${chrome ? `found (${chrome})` : "missing"}. Usage: /test-mcp on, /test-mcp off, /test-mcp headed, /test-mcp status`,
       variant: testMcpEnabled() ? "success" : "info",
       duration: 8000,
     })
@@ -488,6 +520,15 @@ export function Prompt(props: PromptProps) {
 
   async function setTestMcpEnabled(enabled: boolean, headless?: boolean) {
     try {
+      if (enabled && !findChromeExecutable()) {
+        toast.show({
+          title: "Chrome required for Playwright MCP",
+          message: chromeMissingMessage(),
+          variant: "error",
+          duration: 14_000,
+        })
+        return
+      }
       const result = await writeGlobalTestMcpConfig({ enabled, headless })
       const existing = currentTestMcpConfig()
       const runtimeConfig = playwrightMcpConfig({ enabled: true, headless })
@@ -562,7 +603,7 @@ export function Prompt(props: PromptProps) {
       case "help":
         toast.show({
           title: "Playwright MCP command",
-          message: "Usage: /test-mcp [status|on|off|toggle|headless|headed]",
+          message: "Usage: /test-mcp [status|on|off|toggle|headless|headed]. Requires Google Chrome by default.",
           variant: "info",
           duration: 8000,
         })
@@ -647,6 +688,12 @@ export function Prompt(props: PromptProps) {
 
   function selectDialog<T>(title: string, options: readonly DialogSelectOption<T>[], current?: T) {
     return new Promise<T | null>((resolve) => {
+      let settled = false
+      const finish = (value: T | null) => {
+        if (settled) return
+        settled = true
+        resolve(value)
+      }
       dialog.replace(
         () => (
           <DialogSelect<T>
@@ -654,12 +701,12 @@ export function Prompt(props: PromptProps) {
             options={[...options]}
             current={current}
             onSelect={(option) => {
+              finish(option.value)
               dialog.clear()
-              resolve(option.value)
             }}
           />
         ),
-        () => resolve(null),
+        () => finish(null),
       )
     })
   }
@@ -747,16 +794,26 @@ export function Prompt(props: PromptProps) {
     ] as const)
     if (!ratio) return
 
-    const size = await selectDialog(
+    const sizeChoice = await selectDialog(
       "Image size",
       [
-        { title: "2K", value: "2K", description: "Default, lower cost and faster" },
-        { title: "3K", value: "3K", description: "Higher detail" },
-        { title: "4K", value: "4K", description: "Maximum detail" },
+        { title: "2K", value: "2K", description: "Default, Seedream 5 Pro maximum tier" },
+        { title: "1K", value: "1K", description: "Faster and lower cost" },
+        { title: "Custom pixels", value: "custom", description: "Enter WIDTHxHEIGHT, for example 2048x1024" },
       ] as const,
       "2K",
     )
-    if (!size) return
+    if (!sizeChoice) return
+    const size =
+      sizeChoice === "custom"
+        ? await DialogPrompt.show(dialog, "Image size pixels", {
+            placeholder: "WIDTHxHEIGHT, e.g. 2048x1024",
+          })
+        : sizeChoice
+    if (!size?.trim()) {
+      dialog.clear()
+      return
+    }
 
     const outputFormat = await selectDialog(
       "Image format",
@@ -791,7 +848,7 @@ export function Prompt(props: PromptProps) {
         "Call the image_generate tool with these parameters. If a reference path is invalid or an option is unsupported, stop and report the exact problem.",
         `prompt: ${prompt.trim()}`,
         `aspect_ratio: ${ratio}`,
-        `size: ${size}`,
+        `size: ${size.trim()}`,
         `output_format: ${outputFormat}`,
         `watermark: ${watermark}`,
         refs.length ? `reference_images:\n${refs.map((item) => `- ${item}`).join("\n")}` : "reference_images: none",
@@ -869,19 +926,58 @@ export function Prompt(props: PromptProps) {
     )
     if (audio === null) return
 
-    const imageRefs = optionalLines(
-      await DialogPrompt.show(dialog, "Reference images", {
-        placeholder: "Optional image paths/URLs, comma or newline separated",
-      }),
+    const inputMode = await selectDialog(
+      "Video input mode",
+      [
+        { title: "Text/reference", value: "reference", description: "Prompt plus optional reference images/videos" },
+        { title: "First frame", value: "first_frame", description: "Use one image as the exact first frame" },
+        { title: "First + last frame", value: "first_last_frame", description: "Use two images as strict first and last frames" },
+      ] as const,
+      "reference",
     )
-    if (imageRefs === null) return
+    if (!inputMode) return
 
-    const videoRefs = optionalLines(
-      await DialogPrompt.show(dialog, "Reference video URLs", {
-        placeholder: "Optional URLs or asset ids; local video files are not supported",
-      }),
-    )
-    if (videoRefs === null) return
+    let imageRefs: string[] = []
+    let videoRefs: string[] = []
+    let firstFrameImage = ""
+    let lastFrameImage = ""
+    if (inputMode === "reference") {
+      const imageInput = optionalLines(
+        await DialogPrompt.show(dialog, "Reference images", {
+          placeholder: "Optional image paths/URLs, comma or newline separated; max 9",
+        }),
+      )
+      if (imageInput === null) return
+      imageRefs = imageInput
+
+      const videoInput = optionalLines(
+        await DialogPrompt.show(dialog, "Reference video URLs", {
+          placeholder: "Optional URLs or asset ids; max 3; local video files are not supported",
+        }),
+      )
+      if (videoInput === null) return
+      videoRefs = videoInput
+    } else {
+      const first = await DialogPrompt.show(dialog, "First frame image", {
+        placeholder: "Image path/URL/data URL/asset id",
+      })
+      if (!first?.trim()) {
+        dialog.clear()
+        return
+      }
+      firstFrameImage = first.trim()
+
+      if (inputMode === "first_last_frame") {
+        const last = await DialogPrompt.show(dialog, "Last frame image", {
+          placeholder: "Image path/URL/data URL/asset id",
+        })
+        if (!last?.trim()) {
+          dialog.clear()
+          return
+        }
+        lastFrameImage = last.trim()
+      }
+    }
 
     const watermark = await selectDialog(
       "Watermark",
@@ -903,12 +999,18 @@ export function Prompt(props: PromptProps) {
         `duration: ${duration.trim()}`,
         `generate_audio: ${audio}`,
         `watermark: ${watermark}`,
-        imageRefs.length
-          ? `reference_images:\n${imageRefs.map((item) => `- ${item}`).join("\n")}`
-          : "reference_images: none",
-        videoRefs.length
-          ? `reference_videos:\n${videoRefs.map((item) => `- ${item}`).join("\n")}`
-          : "reference_videos: none",
+        inputMode === "reference"
+          ? imageRefs.length
+            ? `reference_images:\n${imageRefs.map((item) => `- ${item}`).join("\n")}`
+            : "reference_images: none"
+          : `first_frame_image: ${firstFrameImage}`,
+        inputMode === "reference"
+          ? videoRefs.length
+            ? `reference_videos:\n${videoRefs.map((item) => `- ${item}`).join("\n")}`
+            : "reference_videos: none"
+          : lastFrameImage
+            ? `last_frame_image: ${lastFrameImage}`
+            : "last_frame_image: none",
         "After the tool succeeds, tell me the task_id, output_path, and metadata_path.",
       ].join("\n"),
     )
@@ -1184,7 +1286,7 @@ export function Prompt(props: PromptProps) {
       },
       {
         title: "Playwright MCP",
-        desc: "Usage: /test-mcp [status|on|off|toggle|headless|headed] - configure browser test MCP",
+        desc: "Usage: /test-mcp [status|on|off|toggle|headless|headed] - configure browser test MCP; requires Chrome by default",
         name: "openchinacode.test_mcp",
         category: "OpenChinaCode",
         slashName: "test-mcp",

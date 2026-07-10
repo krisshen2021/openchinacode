@@ -18,7 +18,8 @@ import {
   timestampSlug,
 } from "./media-common"
 
-const MAX_REFERENCE_IMAGES = 10
+const MAX_REFERENCE_IMAGES = 9
+const MAX_REFERENCE_VIDEOS = 3
 const POLL_INTERVAL_MS = 10_000
 const DEFAULT_POLL_TIMEOUT_SECONDS = 300
 const MAX_POLL_TIMEOUT_SECONDS = 900
@@ -35,6 +36,14 @@ export const Parameters = Schema.Struct({
   reference_videos: Schema.optional(Schema.mutable(Schema.Array(Schema.String))).annotate({
     description:
       "Optional reference video URLs. Local video files are not supported in this MVP; use a public URL or uploaded asset id.",
+  }),
+  first_frame_image: Schema.optional(Schema.String).annotate({
+    description:
+      "Optional first-frame image path, file:// URL, HTTP(S) URL, data:image URL, or asset id. Mutually exclusive with reference_images and reference_videos.",
+  }),
+  last_frame_image: Schema.optional(Schema.String).annotate({
+    description:
+      "Optional last-frame image path, file:// URL, HTTP(S) URL, data:image URL, or asset id. Requires first_frame_image and is mutually exclusive with reference_images and reference_videos.",
   }),
   ratio: Schema.optional(Schema.Literals(VIDEO_RATIOS)).annotate({
     description: "Video aspect ratio. Defaults to adaptive. Supported: adaptive, 16:9, 4:3, 1:1, 3:4, 9:16, 21:9.",
@@ -58,7 +67,8 @@ export const Parameters = Schema.Struct({
     description: "Maximum polling time in seconds, capped at 900. Defaults to 300.",
   }),
   output_dir: Schema.optional(Schema.String).annotate({
-    description: "Optional output directory relative to the worktree. Defaults to .openchinacode/media/videos.",
+    description:
+      "Optional output directory. Relative paths are resolved against the worktree. Defaults to /tmp/openchinacode/media/videos.",
   }),
   filename_hint: Schema.optional(Schema.String).annotate({
     description: "Optional short filename hint, without extension.",
@@ -114,9 +124,25 @@ export const VideoGenerateTool = Tool.define<typeof Parameters, Metadata, Auth.S
 
           const referenceImages = (params.reference_images ?? []).map((item) => item.trim()).filter(Boolean)
           const referenceVideos = (params.reference_videos ?? []).map((item) => item.trim()).filter(Boolean)
+          const firstFrameImage = params.first_frame_image?.trim()
+          const lastFrameImage = params.last_frame_image?.trim()
+          const frameMode = Boolean(firstFrameImage || lastFrameImage)
           if (referenceImages.length > MAX_REFERENCE_IMAGES) {
             throw new Error(
               `Seedance 2.0 Mini supports up to ${MAX_REFERENCE_IMAGES} reference images; received ${referenceImages.length}.`,
+            )
+          }
+          if (referenceVideos.length > MAX_REFERENCE_VIDEOS) {
+            throw new Error(
+              `Seedance 2.0 Mini supports up to ${MAX_REFERENCE_VIDEOS} reference videos; received ${referenceVideos.length}.`,
+            )
+          }
+          if (lastFrameImage && !firstFrameImage) {
+            throw new Error("Seedance first/last-frame mode requires first_frame_image when last_frame_image is provided.")
+          }
+          if (frameMode && (referenceImages.length > 0 || referenceVideos.length > 0)) {
+            throw new Error(
+              "Seedance first/last-frame mode cannot be mixed with reference_images or reference_videos. Use first_frame_image/last_frame_image for strict frame control, or reference_images/reference_videos for multimodal reference generation.",
             )
           }
 
@@ -131,7 +157,13 @@ export const VideoGenerateTool = Tool.define<typeof Parameters, Metadata, Auth.S
 
           yield* ctx.ask({
             permission: "media",
-            patterns: ["volcengine-ark/video_generate", ...referenceImages, ...referenceVideos],
+            patterns: [
+              "volcengine-ark/video_generate",
+              ...referenceImages,
+              ...referenceVideos,
+              ...(firstFrameImage ? [firstFrameImage] : []),
+              ...(lastFrameImage ? [lastFrameImage] : []),
+            ],
             always: ["*"],
             metadata: {
               provider: "volcengine-ark",
@@ -142,10 +174,16 @@ export const VideoGenerateTool = Tool.define<typeof Parameters, Metadata, Auth.S
               generate_audio: params.generate_audio ?? true,
               reference_image_count: referenceImages.length,
               reference_video_count: referenceVideos.length,
+              frame_mode: lastFrameImage ? "first_last_frame" : firstFrameImage ? "first_frame" : "reference",
               prompt_preview: prompt.slice(0, 160),
             },
           })
 
+          const frameInputs = yield* Effect.forEach(
+            [firstFrameImage, lastFrameImage].filter((item): item is string => Boolean(item)),
+            (item) => referenceToImageInput(fs, instance, item),
+            { concurrency: 2 },
+          )
           const imageInputs = yield* Effect.forEach(
             referenceImages,
             (item) => referenceToImageInput(fs, instance, item),
@@ -159,6 +197,11 @@ export const VideoGenerateTool = Tool.define<typeof Parameters, Metadata, Auth.S
 
           const content = [
             { type: "text", text: prompt },
+            ...frameInputs.map((url, index) => ({
+              type: "image_url",
+              role: index === 0 ? "first_frame" : "last_frame",
+              image_url: { url },
+            })),
             ...imageInputs.map((url) => ({
               type: "image_url",
               role: "reference_image",
@@ -273,7 +316,9 @@ export const VideoGenerateTool = Tool.define<typeof Parameters, Metadata, Auth.S
               task_id: taskID,
               request: {
                 ...body,
-                content: `[text + ${imageInputs.length} image reference(s) + ${videoInputs.length} video reference(s)]`,
+                content: frameInputs.length
+                  ? `[text + ${frameInputs.length === 1 ? "first frame" : "first/last frames"}]`
+                  : `[text + ${imageInputs.length} image reference(s) + ${videoInputs.length} video reference(s)]`,
               },
               task: latest,
               source_url_expires: "provider URL expires; local file downloaded immediately",

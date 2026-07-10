@@ -16,11 +16,14 @@ import { ConfigMCPV1 } from "@opencode-ai/core/v1/config/mcp"
 import { InstanceRef } from "@/effect/instance-ref"
 import { InstallationVersion } from "@opencode-ai/core/installation/version"
 import path from "path"
+import os from "os"
+import fs from "fs"
 import { Global } from "@opencode-ai/core/global"
 import { modify, applyEdits } from "jsonc-parser"
 import { Filesystem } from "@/util/filesystem"
 import { Effect } from "effect"
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
+import { which } from "@opencode-ai/core/util/which"
 
 function getAuthStatusIcon(status: MCP.AuthStatus): string {
   switch (status) {
@@ -110,6 +113,7 @@ export const McpCommand = cmd({
 
 const ALL_PLAYWRIGHT_CAPS = ["config", "network", "storage", "testing", "pdf", "vision", "devtools"] as const
 const DEFAULT_PLAYWRIGHT_CAPS = ["config", "network", "storage", "testing", "pdf", "vision"] as const
+const DEFAULT_PLAYWRIGHT_OUTPUT_DIR = path.join(os.tmpdir(), "openchinacode-playwright")
 
 type PlaywrightCapability = (typeof ALL_PLAYWRIGHT_CAPS)[number]
 
@@ -135,6 +139,8 @@ type McpPlaywrightArgs = {
   saveSession?: boolean
   sharedBrowserContext?: boolean
 }
+
+type PlaywrightBrowser = NonNullable<McpPlaywrightArgs["browser"]>
 
 function parseCaps(value: string | undefined): PlaywrightCapability[] {
   if (!value || value === "default") return [...DEFAULT_PLAYWRIGHT_CAPS]
@@ -167,6 +173,77 @@ function browserConfig(value: McpPlaywrightArgs["browser"]): {
   return { browserName: "chromium", channel: "chrome" }
 }
 
+function absoluteBrowserCandidates(browser: PlaywrightBrowser) {
+  if (process.platform === "darwin") {
+    if (browser === "chrome") return ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"]
+    if (browser === "msedge") return ["/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge"]
+  }
+  if (process.platform === "win32") {
+    const programFiles = [process.env.PROGRAMFILES, process.env["PROGRAMFILES(X86)"], process.env.LOCALAPPDATA].filter(
+      (item): item is string => !!item,
+    )
+    if (browser === "chrome") return programFiles.map((base) => path.join(base, "Google", "Chrome", "Application", "chrome.exe"))
+    if (browser === "msedge") return programFiles.map((base) => path.join(base, "Microsoft", "Edge", "Application", "msedge.exe"))
+  }
+  return []
+}
+
+function pathBrowserCandidates(browser: PlaywrightBrowser) {
+  if (browser === "chrome") return ["google-chrome-stable", "google-chrome", "chrome"]
+  if (browser === "msedge") return ["microsoft-edge-stable", "microsoft-edge", "msedge"]
+  return []
+}
+
+function findBrowserExecutable(browser: PlaywrightBrowser) {
+  for (const candidate of absoluteBrowserCandidates(browser)) {
+    if (fs.existsSync(candidate)) return candidate
+  }
+  for (const candidate of pathBrowserCandidates(browser)) {
+    const found = which(candidate)
+    if (found) return found
+  }
+}
+
+function browserInstallHint(browser: PlaywrightBrowser) {
+  if (browser === "chrome") {
+    return [
+      "Install Google Chrome, then retry.",
+      "Ubuntu/Debian:",
+      "  wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb",
+      "  sudo apt install ./google-chrome-stable_current_amd64.deb",
+      "macOS:",
+      "  brew install --cask google-chrome",
+    ].join("\n")
+  }
+  if (browser === "msedge") {
+    return [
+      "Install Microsoft Edge, then retry.",
+      "Ubuntu/Debian:",
+      "  wget https://packages.microsoft.com/repos/edge/pool/main/m/microsoft-edge-stable/microsoft-edge-stable_current_amd64.deb",
+      "  sudo apt install ./microsoft-edge-stable_current_amd64.deb",
+      "macOS:",
+      "  brew install --cask microsoft-edge",
+    ].join("\n")
+  }
+  return "Use a browser installed on this machine, or install the matching Playwright browser before enabling the MCP."
+}
+
+function assertPlaywrightBrowserReady(browser: PlaywrightBrowser) {
+  if (browser !== "chrome" && browser !== "msedge") return
+  const executable = findBrowserExecutable(browser)
+  if (executable) return
+  const label = browser === "chrome" ? "Google Chrome" : "Microsoft Edge"
+  throw new Error(
+    [
+      `${label} was not found, but OpenChinaCode Playwright MCP is configured with --browser=${browser}.`,
+      "",
+      browserInstallHint(browser),
+      "",
+      "OpenChinaCode checks this up front so browser testing does not fail halfway through a development task.",
+    ].join("\n"),
+  )
+}
+
 export const McpPlaywrightCommand = cmd<{}, McpPlaywrightArgs>({
   command: "playwright",
   describe: "run the built-in OpenChinaCode Playwright MCP server",
@@ -187,7 +264,7 @@ export const McpPlaywrightCommand = cmd<{}, McpPlaywrightArgs>({
       })
       .option("output-dir", {
         type: "string",
-        default: ".openchinacode/mcp/playwright",
+        default: DEFAULT_PLAYWRIGHT_OUTPUT_DIR,
         describe: "directory for screenshots, traces, and other output files",
       })
       .option("output-max-size", { type: "number", describe: "max output directory size before eviction, in bytes" })
@@ -213,14 +290,20 @@ export const McpPlaywrightCommand = cmd<{}, McpPlaywrightArgs>({
       .option("save-session", { type: "boolean", describe: "save Playwright MCP session into the output directory" })
       .option("shared-browser-context", { type: "boolean", describe: "reuse context between connected clients" }),
   async handler(args) {
+    assertPlaywrightBrowserReady(args.browser ?? "chrome")
     const { createConnection } = await import("@playwright/mcp")
+    const startCwd = process.cwd()
+    const outputDir = path.resolve(startCwd, args.outputDir ?? DEFAULT_PLAYWRIGHT_OUTPUT_DIR)
+    const userDataDir = args.userDataDir ? path.resolve(startCwd, args.userDataDir) : undefined
+    await fs.promises.mkdir(outputDir, { recursive: true })
+    process.chdir(outputDir)
     const { browserName, channel } = browserConfig(args.browser)
     const headless = args.headed ? false : args.headless !== false
     const server = await createConnection({
       browser: {
         browserName,
         isolated: args.isolated,
-        userDataDir: args.userDataDir,
+        userDataDir,
         launchOptions: {
           headless,
           ...(channel ? { channel } : {}),
@@ -232,7 +315,7 @@ export const McpPlaywrightCommand = cmd<{}, McpPlaywrightArgs>({
         },
       },
       capabilities: parseCaps(args.caps),
-      outputDir: args.outputDir,
+      outputDir,
       outputMaxSize: args.outputMaxSize,
       imageResponses: args.imageResponses,
       snapshot: args.snapshotMode ? { mode: args.snapshotMode } : undefined,
