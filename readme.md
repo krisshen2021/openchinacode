@@ -18,6 +18,39 @@ openchinacode
 
 不会和系统里已有的 `opencode` 冲突。
 
+## 安装与升级
+
+安装最新 GitHub Release：
+
+```bash
+curl -fsSL https://openchinacode.muffin-labs.com/install | bash
+```
+
+安装指定版本：
+
+```bash
+curl -fsSL https://openchinacode.muffin-labs.com/install | bash -s -- --version 0.1.1
+```
+
+安装脚本会从 `krisshen2021/openchinacode` 的 GitHub Releases 下载匹配当前系统的二进制，默认安装到：
+
+```text
+~/.local/bin/openchinacode
+```
+
+已安装用户可以在 TUI 提示或命令行中使用：
+
+```bash
+openchinacode upgrade
+openchinacode upgrade 0.1.1
+```
+
+`openchinacode upgrade` 默认读取 GitHub latest release，并复用同一套安装脚本 / release 资产。备用 raw 安装入口：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/krisshen2021/openchinacode/main/install | bash
+```
+
 ## 主要定制功能
 
 ### 1. Provider 精简
@@ -347,6 +380,14 @@ explicit task model
 默认浏览器是系统 Google Chrome。执行 `/test-mcp on/headless/headed` 时会先做 Chrome 预检；如果没有安装，会直接提示安装方法，不会写入启用配置，也不会等开发任务跑到浏览器工具调用时才失败。
 内置 Playwright MCP 默认启用官方 `config/network/storage/testing/pdf/vision` 能力，因此模型可以看到官方的 screenshot、snapshot、evaluate 等工具，但默认不暴露 devtools 录屏工具。对于“是否在转、是否在动、动画是否生效”这类问题，OpenChinaCode 要求模型优先用 `getAnimations()`、computed transform 或裁剪区域像素差做确定性判断；截图和 `visual_check` 只用于理解用户可见外观。浏览器录屏默认不作为模型输入路径，除非用户明确要求生成视频证据。
 
+Playwright MCP 产物默认写入系统临时目录，避免截图、snapshot、console log 被丢到项目根目录：
+
+```text
+/tmp/openchinacode-playwright
+```
+
+如果模型给 screenshot / snapshot / PDF 等工具传了 `filename`，OpenChinaCode 会把相对文件名安全改写到这个目录下；需要自定义时可在 MCP 命令里显式传 `--output-dir`。
+
 ### `/media-auth`
 
 保存火山方舟 API key，供 `image_generate`、`video_generate`、`video_status` 使用。
@@ -392,6 +433,8 @@ export ARK_API_KEY="your-volcengine-ark-api-key"
 - reference images：本地路径、`file://`、HTTP(S) URL 或 `data:image`
 - watermark
 
+本地参考图会被读取并转成 `data:image/...;base64,...` 传给方舟；HTTP(S) URL 和已有 `data:image` 会保持原样。
+
 自然语言也可以触发，例如：
 
 ```text
@@ -404,6 +447,8 @@ export ARK_API_KEY="your-volcengine-ark-api-key"
 ```text
 /tmp/openchinacode/media/images
 ```
+
+同时会写入同名 metadata JSON。模型回复用户时应该明确给出 `output_path` 和 `metadata_path`。
 
 ### `/video-generate`
 
@@ -427,6 +472,8 @@ export ARK_API_KEY="your-volcengine-ark-api-key"
 - first frame / first + last frame：用于严格首帧或首尾帧控制，不能和普通 reference images / reference videos 混用
 - watermark
 
+图生视频时，本地图片会被转成 base64 data URL 上传；参考视频当前只接受公网 URL 或 `asset://...` 素材 ID，不上传本地视频文件。严格首尾帧模式会分别以 `first_frame` / `last_frame` role 发送给 Seedance。
+
 自然语言也可以触发，例如：
 
 ```text
@@ -441,6 +488,16 @@ export ARK_API_KEY="your-volcengine-ark-api-key"
 ```
 
 `video_generate` 默认会轮询任务完成并下载本地文件。如果任务仍在运行，会返回 `task_id`，之后可以让模型调用 `video_status` 查询并下载。
+
+TUI 工具调用行会显示安全摘要，不展示完整路径、URL 或 base64：
+
+```text
+⚙image_generate [prompt=..., aspect_ratio=16:9, size=2K, reference_images=1]
+⚙video_generate [prompt=..., ratio=9:16, duration=5, first_frame=home.png]
+⚙video_generate [prompt=..., reference_images=2, reference_videos=1]
+```
+
+其中 `reference_images=N`、`reference_videos=N` 表示数量；`first_frame` / `last_frame` 会显示安全 basename、host/name、`asset://...` 摘要或 `data:image` 类型。
 
 ### `/task-policy`
 

@@ -264,6 +264,24 @@ OpenChinaCode 定制 slash command 的 TUI 入口在 `packages/tui/src/component
 
 默认浏览器是系统 Google Chrome。TUI 的 `/test-mcp on/headless/headed` 会先检查 Chrome 是否存在；底层 `openchinacode mcp playwright --browser=chrome` 也会做同样的硬预检。缺失时会立即给出安装提示，避免开发到一半才在 Playwright tool call 阶段失败。
 
+Playwright MCP 默认产物目录：
+
+```text
+/tmp/openchinacode-playwright
+```
+
+实现入口：
+
+- `packages/opencode/src/cli/cmd/mcp.ts`：`DEFAULT_PLAYWRIGHT_OUTPUT_DIR`，启动 `@playwright/mcp` 时设置 `outputDir`。
+- `packages/opencode/src/mcp/catalog.ts`：对 screenshot、snapshot、PDF、console、network、storage、video 等 artifact tool 的 `filename` 做安全重写。
+
+规则：
+
+- 模型传相对 `filename` 时，OpenChinaCode 会改写到 `/tmp/openchinacode-playwright/<safe-name>`。
+- 模型传空 filename 或 `<auto>` 时，删除 filename，让 Playwright MCP 自己处理。
+- 可以通过 `openchinacode mcp playwright --output-dir <dir>` 覆盖默认目录。
+- 目标是避免截图、`.yml` snapshot、console log 等临时产物落到用户项目根目录。
+
 内置 Playwright MCP 入口：
 
 ```text
@@ -330,12 +348,23 @@ video model: doubao-seedance-2-0-mini-260615
 工具行为：
 
 - `image_generate` 支持本地图片路径、`file://`、HTTP(S) URL、`data:image` 作为参考图。
+- 本地图片参考会通过 `referenceToImageInput` 转成 `data:image/<format>;base64,...`；HTTP(S)、`data:image` 和支持的 asset URL 保持原样。
 - `image_generate` 最多 10 张参考图，默认 `2K`、`png`、不加 watermark。Seedream 5 Pro size 仅支持 `1K`、`2K` 或合法 `宽x高` 像素值；`3K/4K` 属于 Seedream 5.0 Lite 档位。
 - `video_generate` 支持最多 9 张本地图片参考；参考视频最多 3 个，本地视频文件在 MVP 中不上传，要求 URL 或 asset id。
 - `video_generate` 支持严格首帧/首尾帧控制：`first_frame_image`、`last_frame_image`。该模式不能和普通 `reference_images` / `reference_videos` 混用。
+- `first_frame_image` / `last_frame_image` 会以 Seedance 的 `first_frame` / `last_frame` role 发送；普通 `reference_images` 以 `reference_image` role 发送。
+- 图生视频里的本地图片同样转成 base64 data URL；参考视频只允许公网 URL 或素材 ID，不做本地视频 base64 上传。
 - `video_generate` 默认 `720p`、5 秒、`generate_audio=true`、不加 watermark。
 - Seedance 2.0 Mini 当前只暴露 `480p`、`720p`，显式 duration 限制为 4 到 15 秒整数。
 - 生成结果立即下载到本地，并写同名 `.json` metadata。模型必须把 `output_path` 和 `metadata_path` 告诉用户。
+
+TUI 工具调用摘要：
+
+- 实现入口：`packages/tui/src/routes/session/index.tsx` 的 `toolInput()` / `mediaToolInput()`。
+- `image_generate` 隐藏完整 `reference_images`，只显示 `reference_images=N`。
+- `video_generate` 隐藏完整 `reference_images` / `reference_videos` / `first_frame_image` / `last_frame_image`。
+- 首尾帧显示安全摘要：basename、`host/name`、`asset://...` 前缀，或 `data:image` 类型。
+- 目的是让用户看到 role 和数量，但不把完整本地路径、临时 URL 或 base64 刷满 TUI。
 
 ### `/task-policy`
 
@@ -819,7 +848,16 @@ openchinacode --version
 
 ```bash
 # 用户安装入口
+curl -fsSL https://openchinacode.muffin-labs.com/install | bash
+
+# 备用 raw 安装入口
 curl -fsSL https://raw.githubusercontent.com/krisshen2021/openchinacode/main/install | bash
+
+# 升级到 latest release
+openchinacode upgrade
+
+# 升级到指定版本
+openchinacode upgrade 0.1.1
 
 # 本地验证 installer，不依赖 GitHub Release
 ./install --binary packages/opencode/dist/openchinacode-linux-x64/bin/openchinacode --install-dir /tmp/occ-bin --no-modify-path
@@ -833,10 +871,10 @@ OPENCODE_VERSION=0.1.0 OPENCODE_CHANNEL=latest bun run build --archive
 
 # 触发 GitHub release workflow
 cd ~/Projects/OpenChinaCode
-script/release 0.1.0
+script/release 0.1.1
 ```
 
-GitHub Release 资产命名必须和 `install` 中的 target 映射保持一致，例如 `openchinacode-linux-x64.tar.gz`、`openchinacode-darwin-arm64.zip`、`openchinacode-windows-x64.zip`。
+GitHub Release 资产命名必须和 `install` 中的 target 映射保持一致，例如 `openchinacode-linux-x64.tar.gz`、`openchinacode-darwin-arm64.zip`、`openchinacode-windows-x64.zip`。`openchinacode upgrade` 通过 `packages/opencode/src/installation/index.ts` 读取 `krisshen2021/openchinacode/releases/latest`，curl 安装方式会调用 `https://openchinacode.muffin-labs.com/install`。
 
 ## 后续维护原则
 
