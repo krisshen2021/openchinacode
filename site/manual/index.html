@@ -8,693 +8,262 @@
   <meta property="og:title" content="OpenChinaCode Manual">
   <meta property="og:description" content="Usage and configuration guide for the China-model focused coding agent.">
   <meta property="og:type" content="article">
-  <meta name="theme-color" content="#050507">
-  <style>
-    :root {
-      color-scheme: dark;
-      --bg: #050507;
-      --panel: #101015;
-      --panel-2: #17171d;
-      --line: #2a2a35;
-      --text: #f6f4ff;
-      --muted: #b7b3c9;
-      --cyan: #43f4ff;
-      --pink: #ff4fd8;
-      --gold: #ffd166;
-      --green: #51ff9f;
-      --red: #ff5d73;
-    }
-
-    * {
-      box-sizing: border-box;
-    }
-
-    html {
-      scroll-behavior: smooth;
-    }
-
-    body {
-      margin: 0;
-      min-height: 100svh;
-      background:
-        radial-gradient(circle at 15% 10%, rgba(171, 20, 38, 0.25), transparent 32%),
-        radial-gradient(circle at 80% 24%, rgba(80, 12, 22, 0.26), transparent 34%),
-        linear-gradient(135deg, #050507 0%, #101015 48%, #07070a 100%);
-      color: var(--text);
-      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      letter-spacing: 0;
-      overflow-x: hidden;
-    }
-
-    body::before,
-    body::after {
-      content: "";
-      position: fixed;
-      inset: auto -12vw;
-      z-index: -1;
-      height: 26vh;
-      pointer-events: none;
-      filter: blur(2px);
-      transform: skewY(-5deg);
-      animation: drift 18s ease-in-out infinite alternate;
-    }
-
-    body::before {
-      top: 12vh;
-      background: linear-gradient(90deg, rgba(210, 35, 52, 0), rgba(210, 35, 52, 0.36), rgba(45, 46, 55, 0.48), rgba(210, 35, 52, 0));
-    }
-
-    body::after {
-      top: 48vh;
-      background: linear-gradient(90deg, rgba(45, 46, 55, 0), rgba(45, 46, 55, 0.62), rgba(152, 22, 34, 0.34), rgba(45, 46, 55, 0));
-      animation-duration: 23s;
-      animation-direction: alternate-reverse;
-    }
-
-    @keyframes drift {
-      from {
-        transform: translate3d(-3vw, 0, 0) skewY(-5deg);
-      }
-      to {
-        transform: translate3d(4vw, 2vh, 0) skewY(-3deg);
-      }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      html {
-        scroll-behavior: auto;
-      }
-
-      body::before,
-      body::after {
-        animation: none;
-      }
-    }
-
-    a {
-      color: inherit;
-      text-decoration: none;
-    }
-
-    .nav {
-      position: sticky;
-      top: 0;
-      z-index: 5;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      min-height: 64px;
-      padding: 16px clamp(18px, 4vw, 56px);
-      border-bottom: 1px solid rgba(255,255,255,0.08);
-      background: rgba(5, 5, 7, 0.82);
-      backdrop-filter: blur(18px);
-    }
-
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      font-weight: 800;
-      font-size: 15px;
-    }
-
-    .mark {
-      display: grid;
-      place-items: center;
-      width: 34px;
-      height: 34px;
-      border: 1px solid rgba(67, 244, 255, 0.72);
-      border-radius: 8px;
-      color: var(--cyan);
-      box-shadow: 0 0 22px rgba(67, 244, 255, 0.25), inset 0 0 16px rgba(255, 79, 216, 0.18);
-    }
-
-    .nav-actions {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .nav-link {
-      color: var(--muted);
-      font-size: 14px;
-      padding: 9px 10px;
-    }
-
-    .nav-link:hover {
-      color: var(--cyan);
-    }
-
-    .button {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 42px;
-      padding: 0 16px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: rgba(255,255,255,0.05);
-      color: var(--text);
-      cursor: pointer;
-      transition: transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
-    }
-
-    .button:hover {
-      transform: translateY(-1px);
-      border-color: rgba(67, 244, 255, 0.7);
-      box-shadow: 0 0 24px rgba(67, 244, 255, 0.16);
-    }
-
-    .button.primary {
-      border-color: rgba(255, 79, 216, 0.75);
-      background: var(--pink);
-      color: #050507;
-      font-weight: 800;
-      box-shadow: 0 0 28px rgba(255, 79, 216, 0.35);
-    }
-
-    .hero {
-      padding: 76px clamp(20px, 5vw, 72px) 38px;
-    }
-
-    .hero-inner,
-    .section-inner {
-      width: min(1180px, 100%);
-      margin: 0 auto;
-    }
-
-    .eyebrow {
-      color: var(--text);
-      font-size: 13px;
-      font-weight: 800;
-      text-transform: uppercase;
-      margin-bottom: 16px;
-    }
-
-    h1 {
-      max-width: 960px;
-      margin: 0;
-      font-size: 64px;
-      line-height: 0.98;
-      letter-spacing: 0;
-      text-transform: uppercase;
-      text-shadow: 0 4px 0 #1d1d24, 0 0 28px rgba(255,79,216,0.26);
-    }
-
-    h1 span {
-      color: var(--pink);
-    }
-
-    .lead {
-      max-width: 850px;
-      margin: 24px 0 0;
-      color: var(--muted);
-      font-size: 19px;
-      line-height: 1.65;
-    }
-
-    .hero-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-      margin-top: 30px;
-    }
-
-    .toc {
-      padding: 20px clamp(20px, 5vw, 72px) 50px;
-    }
-
-    .toc-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 12px;
-    }
-
-    .toc a,
-    .card {
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: rgba(255,255,255,0.055);
-      box-shadow: 0 14px 36px rgba(0,0,0,0.22);
-    }
-
-    .toc a {
-      display: block;
-      min-height: 86px;
-      padding: 16px;
-      color: var(--muted);
-    }
-
-    .toc strong {
-      display: block;
-      color: var(--text);
-      margin-bottom: 6px;
-    }
-
-    .band {
-      padding: 50px clamp(20px, 5vw, 72px);
-      border-top: 1px solid rgba(255,255,255,0.08);
-      background: rgba(5, 5, 7, 0.76);
-    }
-
-    .band.alt {
-      background: rgba(14, 14, 19, 0.78);
-    }
-
-    h2 {
-      margin: 0 0 16px;
-      font-size: 34px;
-      line-height: 1.15;
-      letter-spacing: 0;
-    }
-
-    h3 {
-      margin: 0 0 12px;
-      font-size: 21px;
-    }
-
-    p {
-      color: var(--muted);
-      line-height: 1.65;
-    }
-
-    .section-copy {
-      max-width: 820px;
-      margin: 0 0 26px;
-      font-size: 17px;
-    }
-
-    .cards {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 14px;
-    }
-
-    .card {
-      padding: 20px;
-      min-width: 0;
-    }
-
-    .tag {
-      display: inline-flex;
-      margin-bottom: 16px;
-      color: #050507;
-      background: var(--gold);
-      border-radius: 6px;
-      padding: 4px 8px;
-      font-size: 12px;
-      font-weight: 900;
-      text-transform: uppercase;
-    }
-
-    .card:nth-child(2) .tag {
-      background: var(--pink);
-    }
-
-    .card:nth-child(3) .tag {
-      background: var(--cyan);
-    }
-
-    .code {
-      margin: 14px 0 0;
-      padding: 16px;
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 8px;
-      background: rgba(3, 3, 6, 0.74);
-      color: var(--text);
-      overflow-x: auto;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-      font-size: 14px;
-      line-height: 1.7;
-      white-space: pre;
-    }
-
-    code {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-    }
-
-    p code,
-    li code {
-      color: var(--cyan);
-      background: rgba(255,255,255,0.06);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 5px;
-      padding: 2px 5px;
-    }
-
-    ul {
-      margin: 0;
-      padding-left: 20px;
-      color: var(--muted);
-      line-height: 1.65;
-    }
-
-    li + li {
-      margin-top: 8px;
-    }
-
-    .table-wrap {
-      overflow-x: auto;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: rgba(255,255,255,0.04);
-    }
-
-    table {
-      width: 100%;
-      min-width: 780px;
-      border-collapse: collapse;
-      font-size: 14px;
-    }
-
-    th,
-    td {
-      padding: 13px 14px;
-      border-bottom: 1px solid rgba(255,255,255,0.08);
-      text-align: left;
-      vertical-align: top;
-    }
-
-    th {
-      color: var(--text);
-      background: rgba(255,255,255,0.06);
-    }
-
-    td {
-      color: var(--muted);
-    }
-
-    tr:last-child td {
-      border-bottom: 0;
-    }
-
-    .footer {
-      display: flex;
-      justify-content: space-between;
-      gap: 18px;
-      padding: 28px clamp(20px, 5vw, 72px);
-      border-top: 1px solid rgba(255,255,255,0.08);
-      color: var(--muted);
-      background: #050507;
-      font-size: 14px;
-    }
-
-    .footer a {
-      color: var(--cyan);
-    }
-
-    @media (max-width: 920px) {
-      .nav-actions .nav-link {
-        display: none;
-      }
-
-      .toc-grid,
-      .cards {
-        grid-template-columns: 1fr;
-      }
-
-      h1 {
-        font-size: 48px;
-      }
-
-      .lead {
-        font-size: 17px;
-      }
-
-      .footer {
-        flex-direction: column;
-      }
-    }
-
-    @media (max-width: 520px) {
-      .nav {
-        padding-inline: 16px;
-      }
-
-      .nav-actions {
-        display: none;
-      }
-
-      h1 {
-        font-size: 38px;
-      }
-
-      .hero-actions {
-        flex-direction: column;
-        align-items: stretch;
-      }
-
-      .button {
-        width: 100%;
-      }
-
-      .code {
-        font-size: 13px;
-      }
-    }
-  </style>
+  <meta name="theme-color" content="#08080C">
+  <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
+  <div class="bg-mesh"></div>
+  <div class="bg-lattice"></div>
+
+  <!-- ═══ Navigation ═══ -->
   <nav class="nav">
     <a class="brand" href="/">
-      <span class="mark">OC</span>
+      <span class="seal">华</span>
       <span>OpenChinaCode</span>
     </a>
-    <div class="nav-actions">
-      <a class="nav-link" href="#commands">Commands</a>
-      <a class="nav-link" href="#routing">Routing</a>
-      <a class="nav-link" href="#config">Config</a>
-      <a class="button" href="/github">GitHub</a>
+    <div class="nav-links">
+      <a class="nav-link" href="/#providers"><i data-lucide="brain"></i><span>Providers</span></a>
+      <a class="nav-link" href="/#features"><i data-lucide="layers"></i><span>Features</span></a>
+      <a class="nav-link" href="#quickstart"><i data-lucide="terminal"></i><span>Quick Start</span></a>
+      <a class="btn btn-primary" href="/github"><svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56 0-.27-.01-1-.02-1.96-3.2.7-3.88-1.54-3.88-1.54-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11.1 11.1 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14 0 1.55-.01 2.8-.01 3.18 0 .31.21.68.8.56A11.51 11.51 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z"/></svg><span>GitHub</span></a>
     </div>
   </nav>
 
-  <main>
-    <section class="hero">
-      <div class="hero-inner">
-        <div class="eyebrow">Usage and configuration guide</div>
-        <h1>OpenChinaCode <span>Manual</span></h1>
-        <p class="lead">
-          This page covers the OpenChinaCode-specific workflow: GLM/Kimi/DeepSeek provider setup,
-          custom slash commands, task policy routing, smart compaction, LSP diagnostics, and Playwright testing.
-        </p>
-        <div class="hero-actions">
-          <a class="button primary" href="#quickstart">Quick start</a>
-          <a class="button" href="#commands">Slash commands</a>
-          <a class="button" href="#config">Configuration</a>
-        </div>
-      </div>
-    </section>
+  <!-- ═══ Hero ═══ -->
+  <section class="section" style="padding-bottom: 0;">
+    <span class="watermark" style="font-size: 28rem; top: -6rem; right: -4rem;">手册</span>
+    <div class="container" style="position: relative; z-index: 1;">
+      <div class="eyebrow"><i data-lucide="book-open"></i>USAGE &amp; CONFIGURATION GUIDE</div>
+      <h1><span class="gradient-text">OpenChinaCode Manual</span></h1>
+      <p class="lead" style="margin-top: 20px;">
+        This page covers the OpenChinaCode-specific workflow: GLM/Kimi/DeepSeek provider setup,
+        custom slash commands, task policy routing, smart compaction, LSP diagnostics, and Playwright testing.
+      </p>
+    </div>
+  </section>
 
-    <section class="toc">
-      <div class="section-inner toc-grid">
-        <a href="#quickstart"><strong>Quick Start</strong>Install and add provider credentials.</a>
-        <a href="#commands"><strong>Commands</strong>OpenChinaCode slash commands and when to use them.</a>
-        <a href="#routing"><strong>Routing</strong>Task policy for GLM, Kimi, DeepSeek, and GLM-5V.</a>
-        <a href="#compaction"><strong>Compaction</strong>Smart context compression and raw tail retention.</a>
-      </div>
-    </section>
+  <!-- ═══ Two-column layout ═══ -->
+  <section class="section" style="padding-top: 40px;">
+    <div class="container">
+      <div class="manual-layout">
 
-    <section class="band" id="quickstart">
-      <div class="section-inner">
-        <h2>Quick Start</h2>
-        <p class="section-copy">
-          OpenChinaCode installs as a separate command, so it can coexist with upstream <code>opencode</code>.
-        </p>
-        <div class="cards">
-          <article class="card">
-            <span class="tag">Install</span>
-            <h3>Install the release binary</h3>
-            <div class="code">curl -fsSL https://openchinacode.muffin-labs.com/install | bash</div>
-          </article>
-          <article class="card">
-            <span class="tag">Auth</span>
-            <h3>Add provider credentials</h3>
-            <div class="code">openchinacode providers login --provider zhipuai-pay2go
+        <!-- ── Sidebar TOC ── -->
+        <aside class="manual-sidebar">
+          <nav>
+            <ul class="manual-toc">
+              <li><a href="#quickstart" data-section="quickstart"><i data-lucide="package"></i>Quick Start</a></li>
+              <li><a href="#config" data-section="config"><i data-lucide="settings"></i>Configuration</a></li>
+              <li><a href="#commands" data-section="commands"><i data-lucide="terminal"></i>Slash Commands</a></li>
+              <li><a href="#routing" data-section="routing"><i data-lucide="route"></i>Task Routing</a></li>
+              <li><a href="#compaction" data-section="compaction"><i data-lucide="layers"></i>Compaction</a></li>
+              <li><a href="#testing" data-section="testing"><i data-lucide="app-window"></i>LSP &amp; Testing</a></li>
+              <li><a href="#debugging" data-section="debugging"><i data-lucide="bug"></i>Debugging</a></li>
+            </ul>
+          </nav>
+        </aside>
+
+        <!-- ── Content ── -->
+        <div class="manual-content">
+
+          <!-- Quick Start -->
+          <section class="manual-section reveal" id="quickstart">
+            <div class="manual-section-header">
+              <i data-lucide="package"></i>
+              <h2>Quick Start</h2>
+            </div>
+            <p>OpenChinaCode installs as a separate command, so it can coexist with upstream <code>opencode</code>.</p>
+            <div class="manual-cards">
+              <div class="card" style="--accent: var(--cinnabar);">
+                <span class="tag tag-cinnabar">Install</span>
+                <h3>Install the binary</h3>
+                <div class="code-block">curl -fsSL https://openchinacode.muffin-labs.com/install | bash</div>
+              </div>
+              <div class="card" style="--accent: var(--jade);">
+                <span class="tag tag-jade">Auth</span>
+                <h3>Add provider credentials</h3>
+                <div class="code-block">openchinacode providers login --provider zhipuai-pay2go
 openchinacode providers login --provider moonshotai-cn
 openchinacode providers login --provider deepseek</div>
-          </article>
-          <article class="card">
-            <span class="tag">Run</span>
-            <h3>Start inside a project</h3>
-            <div class="code">cd /path/to/project
+              </div>
+              <div class="card" style="--accent: var(--gold);">
+                <span class="tag tag-gold">Run</span>
+                <h3>Start in a project</h3>
+                <div class="code-block">cd /path/to/project
 openchinacode</div>
-          </article>
-        </div>
-      </div>
-    </section>
+              </div>
+            </div>
+          </section>
 
-    <section class="band alt" id="config">
-      <div class="section-inner">
-        <h2>Configuration Files</h2>
-        <p class="section-copy">
-          OpenChinaCode uses independent config and data paths. Do not put API keys in the repository.
-        </p>
-        <div class="cards">
-          <article class="card">
-            <span class="tag">Global</span>
-            <h3>User config</h3>
-            <div class="code">~/.config/openchinacode/openchinacode.jsonc</div>
-            <p>Use this for personal defaults: model, task policy overrides, LSP, compaction, and MCP.</p>
-          </article>
-          <article class="card">
-            <span class="tag">Auth</span>
-            <h3>Local credentials</h3>
-            <div class="code">~/.local/share/openchinacode/auth.json</div>
-            <p>Written by <code>openchinacode providers login</code>. File mode is restricted when written by the CLI.</p>
-          </article>
-          <article class="card">
-            <span class="tag">Project</span>
-            <h3>Project overrides</h3>
-            <div class="code">./openchinacode.jsonc
+          <!-- Configuration -->
+          <section class="manual-section reveal" id="config">
+            <div class="manual-section-header">
+              <i data-lucide="settings"></i>
+              <h2>Configuration Files</h2>
+            </div>
+            <p>OpenChinaCode uses independent config and data paths. Do not put API keys in the repository.</p>
+            <div class="manual-cards">
+              <div class="card" style="--accent: var(--cinnabar);">
+                <span class="tag tag-cinnabar">Global</span>
+                <h3>User config</h3>
+                <div class="code-block">~/.config/openchinacode/openchinacode.jsonc</div>
+                <p>Use this for personal defaults: model, task policy overrides, LSP, compaction, and MCP.</p>
+              </div>
+              <div class="card" style="--accent: var(--jade);">
+                <span class="tag tag-jade">Auth</span>
+                <h3>Local credentials</h3>
+                <div class="code-block">~/.local/share/openchinacode/auth.json</div>
+                <p>Written by <code>openchinacode providers login</code>. File mode is restricted when written by the CLI.</p>
+              </div>
+              <div class="card" style="--accent: var(--gold);">
+                <span class="tag tag-gold">Project</span>
+                <h3>Project overrides</h3>
+                <div class="code-block">./openchinacode.jsonc
 ./.openchinacode/openchinacode.jsonc</div>
-            <p>Use this when one codebase needs a different task policy or testing setup.</p>
-          </article>
-        </div>
+                <p>Use this when one codebase needs a different task policy or testing setup.</p>
+              </div>
+            </div>
 
-        <h3 style="margin-top:32px">Auth file shape</h3>
-        <div class="code">{
+            <h3 style="margin-top: 32px; margin-bottom: 12px;">Auth file shape</h3>
+            <div class="code-block">{
   "zhipuai-pay2go": { "type": "api", "key": "YOUR_GLM_API_KEY" },
   "moonshotai-cn": { "type": "api", "key": "YOUR_KIMI_API_KEY" },
   "deepseek": { "type": "api", "key": "YOUR_DEEPSEEK_API_KEY" }
 }</div>
 
-        <h3 style="margin-top:32px">Main provider IDs</h3>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Provider</th>
-                <th>Purpose</th>
-                <th>Protocol</th>
-                <th>Notes</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><code>zhipuai-pay2go</code></td>
-                <td>GLM / BigModel pay-as-you-go</td>
-                <td>OpenAI compatible</td>
-                <td>Base URL is fixed to <code>https://open.bigmodel.cn/api/paas/v4</code>.</td>
-              </tr>
-              <tr>
-                <td><code>moonshotai-cn</code></td>
-                <td>Kimi / Moonshot China</td>
-                <td>OpenAI compatible</td>
-                <td>Used for fast implementation, review, summarize, and quick routes.</td>
-              </tr>
-              <tr>
-                <td><code>deepseek</code></td>
-                <td>DeepSeek official API</td>
-                <td>OpenAI compatible</td>
-                <td>Used for debug/test-fix loops and low-cost judge paths.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </section>
+            <h3 style="margin-top: 32px; margin-bottom: 12px;">Main provider IDs</h3>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Provider</th>
+                    <th>Purpose</th>
+                    <th>Protocol</th>
+                    <th>Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>zhipuai-pay2go</code></td>
+                    <td>GLM / BigModel pay-as-you-go</td>
+                    <td>OpenAI compatible</td>
+                    <td>Base URL is fixed to <code>https://open.bigmodel.cn/api/paas/v4</code>.</td>
+                  </tr>
+                  <tr>
+                    <td><code>moonshotai-cn</code></td>
+                    <td>Kimi / Moonshot China</td>
+                    <td>OpenAI compatible</td>
+                    <td>Used for fast implementation, review, summarize, and quick routes.</td>
+                  </tr>
+                  <tr>
+                    <td><code>deepseek</code></td>
+                    <td>DeepSeek official API</td>
+                    <td>OpenAI compatible</td>
+                    <td>Used for debug/test-fix loops and low-cost judge paths.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
 
-    <section class="band" id="commands">
-      <div class="section-inner">
-        <h2>Custom Slash Commands</h2>
-        <p class="section-copy">
-          OpenChinaCode-specific commands are grouped under <code>OpenChinaCode</code> in the TUI command palette.
-        </p>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Command</th>
-                <th>Usage</th>
-                <th>Effect</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><code>/auto-maxtokens</code></td>
-                <td><code>/auto-maxtokens heuristic</code><br><code>/auto-maxtokens llm deepseek/deepseek-v4-flash</code></td>
-                <td>Controls sliding output-token budgeting. Heuristic is the recommended daily mode; LLM mode uses a low-cost judge for ambiguous turns.</td>
-              </tr>
-              <tr>
-                <td><code>/compact</code></td>
-                <td><code>/compact</code><br><code>/compact keep 3</code><br><code>/compact keep auto</code></td>
-                <td>Runs smart compaction. <code>keep N</code> also preserves the latest N raw user turns and follow-up assistant/tool messages.</td>
-              </tr>
-              <tr>
-                <td><code>/lsp</code></td>
-                <td><code>/lsp status</code><br><code>/lsp on</code><br><code>/lsp off</code></td>
-                <td>Enables language-server diagnostics so the model can see and fix type, syntax, and reference errors.</td>
-              </tr>
-              <tr>
-                <td><code>/task-policy</code></td>
-                <td><code>/task-policy</code><br><code>/task-policy compaction</code></td>
-                <td>Opens the local TUI task-route table. It does not call the current model and does not inject the table into the conversation.</td>
-              </tr>
-              <tr>
-                <td><code>/task-classify</code></td>
-                <td><code>/task-classify do a full code review</code></td>
-                <td>Asks the current model to explain task kind, complexity, route, and classification signals.</td>
-              </tr>
-              <tr>
-                <td><code>/test-mcp</code></td>
-                <td><code>/test-mcp on</code><br><code>/test-mcp headed</code><br><code>/test-mcp off</code></td>
-                <td>Writes Playwright MCP config and hot-connects or disconnects it from inside the TUI.</td>
-              </tr>
-              <tr>
-                <td><code>/browser-check</code></td>
-                <td><code>/browser-check http://127.0.0.1:5173</code></td>
-                <td>Prompts the agent to run browser-level checks, preferably through Playwright MCP.</td>
-              </tr>
-              <tr>
-                <td><code>/integration-test</code></td>
-                <td><code>/integration-test check login flow</code></td>
-                <td>Prompts the agent to use the OpenChinaCode integration-test workflow: run, inspect report, define bug, fix, rerun.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </section>
+          <!-- Slash Commands -->
+          <section class="manual-section reveal" id="commands">
+            <div class="manual-section-header">
+              <i data-lucide="terminal"></i>
+              <h2>Custom Slash Commands</h2>
+            </div>
+            <p>OpenChinaCode-specific commands are grouped under <code>OpenChinaCode</code> in the TUI command palette.</p>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Command</th>
+                    <th>Usage</th>
+                    <th>Effect</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>/auto-maxtokens</code></td>
+                    <td><code>/auto-maxtokens heuristic</code><br><code>/auto-maxtokens llm deepseek/deepseek-v4-flash</code></td>
+                    <td>Controls sliding output-token budgeting. Heuristic is the recommended daily mode; LLM mode uses a low-cost judge for ambiguous turns.</td>
+                  </tr>
+                  <tr>
+                    <td><code>/compact</code></td>
+                    <td><code>/compact</code><br><code>/compact keep 3</code><br><code>/compact keep auto</code></td>
+                    <td>Runs smart compaction. <code>keep N</code> also preserves the latest N raw user turns and follow-up assistant/tool messages.</td>
+                  </tr>
+                  <tr>
+                    <td><code>/lsp</code></td>
+                    <td><code>/lsp status</code><br><code>/lsp on</code><br><code>/lsp off</code></td>
+                    <td>Enables language-server diagnostics so the model can see and fix type, syntax, and reference errors.</td>
+                  </tr>
+                  <tr>
+                    <td><code>/task-policy</code></td>
+                    <td><code>/task-policy</code><br><code>/task-policy compaction</code></td>
+                    <td>Opens the local TUI task-route table. It does not call the current model and does not inject the table into the conversation.</td>
+                  </tr>
+                  <tr>
+                    <td><code>/task-classify</code></td>
+                    <td><code>/task-classify do a full code review</code></td>
+                    <td>Asks the current model to explain task kind, complexity, route, and classification signals.</td>
+                  </tr>
+                  <tr>
+                    <td><code>/test-mcp</code></td>
+                    <td><code>/test-mcp on</code><br><code>/test-mcp headed</code><br><code>/test-mcp off</code></td>
+                    <td>Writes Playwright MCP config and hot-connects or disconnects it from inside the TUI.</td>
+                  </tr>
+                  <tr>
+                    <td><code>/browser-check</code></td>
+                    <td><code>/browser-check http://127.0.0.1:5173</code></td>
+                    <td>Prompts the agent to run browser-level checks, preferably through Playwright MCP.</td>
+                  </tr>
+                  <tr>
+                    <td><code>/integration-test</code></td>
+                    <td><code>/integration-test check login flow</code></td>
+                    <td>Prompts the agent to use the OpenChinaCode integration-test workflow: run, inspect report, define bug, fix, rerun.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
 
-    <section class="band alt" id="routing">
-      <div class="section-inner">
-        <h2>Task Routing Policy</h2>
-        <p class="section-copy">
-          Subagents are routed by task kind and complexity. General tasks inherit the parent model; specialized tasks
-          use opinionated GLM/Kimi/DeepSeek defaults.
-        </p>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Task kind</th>
-                <th>Quick</th>
-                <th>Medium</th>
-                <th>Complex</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr><td><code>general</code></td><td>inherit</td><td>inherit</td><td>inherit</td></tr>
-              <tr><td><code>plan</code></td><td>GLM-5.2 high</td><td>GLM-5.2 high</td><td>GLM-5.2 max</td></tr>
-              <tr><td><code>architecture</code></td><td>GLM-5.2 high</td><td>GLM-5.2 high</td><td>GLM-5.2 max</td></tr>
-              <tr><td><code>refactor</code></td><td>GLM-5.2 high</td><td>GLM-5.2 high</td><td>GLM-5.2 max</td></tr>
-              <tr><td><code>review</code></td><td>Kimi K2.7 highspeed</td><td>Kimi K2.7 highspeed</td><td>GLM-5.2 high</td></tr>
-              <tr><td><code>implement</code></td><td>Kimi K2.7 highspeed</td><td>Kimi K2.7 highspeed</td><td>GLM-5.2 high</td></tr>
-              <tr><td><code>explore</code></td><td>Kimi K2.7 highspeed</td><td>GLM-5.2 high</td><td>GLM-5.2 max</td></tr>
-              <tr><td><code>visual_check</code></td><td>GLM-5V Turbo</td><td>GLM-5V Turbo</td><td>GLM-5V Turbo</td></tr>
-              <tr><td><code>debug</code></td><td>DeepSeek V4 Pro</td><td>DeepSeek V4 Pro</td><td>DeepSeek V4 Pro</td></tr>
-              <tr><td><code>test_fix</code></td><td>DeepSeek V4 Pro</td><td>DeepSeek V4 Pro</td><td>DeepSeek V4 Pro</td></tr>
-              <tr><td><code>summarize</code></td><td>Kimi K2.7 highspeed</td><td>Kimi K2.7 highspeed</td><td>GLM-5.2 high</td></tr>
-              <tr><td><code>compaction</code></td><td>GLM-5.2 high</td><td>GLM-5.2 high</td><td>GLM-5.2 high</td></tr>
-            </tbody>
-          </table>
-        </div>
+          <!-- Task Routing -->
+          <section class="manual-section reveal" id="routing">
+            <div class="manual-section-header">
+              <i data-lucide="route"></i>
+              <h2>Task Routing Policy</h2>
+            </div>
+            <p>Subagents are routed by task kind and complexity. General tasks inherit the parent model; specialized tasks use opinionated GLM/Kimi/DeepSeek defaults.</p>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Task kind</th>
+                    <th>Quick</th>
+                    <th>Medium</th>
+                    <th>Complex</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td><code>general</code></td><td class="route-inherit">inherit</td><td class="route-inherit">inherit</td><td class="route-inherit">inherit</td></tr>
+                  <tr><td><code>plan</code></td><td class="route-glm">GLM-5.2 high</td><td class="route-glm">GLM-5.2 high</td><td class="route-glm">GLM-5.2 max</td></tr>
+                  <tr><td><code>architecture</code></td><td class="route-glm">GLM-5.2 high</td><td class="route-glm">GLM-5.2 high</td><td class="route-glm">GLM-5.2 max</td></tr>
+                  <tr><td><code>refactor</code></td><td class="route-glm">GLM-5.2 high</td><td class="route-glm">GLM-5.2 high</td><td class="route-glm">GLM-5.2 max</td></tr>
+                  <tr><td><code>review</code></td><td class="route-kimi">Kimi K2.7 highspeed</td><td class="route-kimi">Kimi K2.7 highspeed</td><td class="route-glm">GLM-5.2 high</td></tr>
+                  <tr><td><code>implement</code></td><td class="route-kimi">Kimi K2.7 highspeed</td><td class="route-kimi">Kimi K2.7 highspeed</td><td class="route-glm">GLM-5.2 high</td></tr>
+                  <tr><td><code>explore</code></td><td class="route-kimi">Kimi K2.7 highspeed</td><td class="route-glm">GLM-5.2 high</td><td class="route-glm">GLM-5.2 max</td></tr>
+                  <tr><td><code>visual_check</code></td><td class="route-glm5v">GLM-5V Turbo</td><td class="route-glm5v">GLM-5V Turbo</td><td class="route-glm5v">GLM-5V Turbo</td></tr>
+                  <tr><td><code>debug</code></td><td class="route-deepseek">DeepSeek V4 Pro</td><td class="route-deepseek">DeepSeek V4 Pro</td><td class="route-deepseek">DeepSeek V4 Pro</td></tr>
+                  <tr><td><code>test_fix</code></td><td class="route-deepseek">DeepSeek V4 Pro</td><td class="route-deepseek">DeepSeek V4 Pro</td><td class="route-deepseek">DeepSeek V4 Pro</td></tr>
+                  <tr><td><code>summarize</code></td><td class="route-kimi">Kimi K2.7 highspeed</td><td class="route-kimi">Kimi K2.7 highspeed</td><td class="route-glm">GLM-5.2 high</td></tr>
+                  <tr><td><code>compaction</code></td><td class="route-glm">GLM-5.2 high</td><td class="route-glm">GLM-5.2 high</td><td class="route-glm">GLM-5.2 high</td></tr>
+                </tbody>
+              </table>
+            </div>
 
-        <h3 style="margin-top:32px">Override example</h3>
-        <p>
-          Put this in <code>~/.config/openchinacode/openchinacode.jsonc</code> or in a project-level OpenChinaCode config.
-        </p>
-        <div class="code">{
+            <h3 style="margin-top: 32px; margin-bottom: 12px;">Override example</h3>
+            <p>Put this in <code>~/.config/openchinacode/openchinacode.jsonc</code> or in a project-level OpenChinaCode config.</p>
+            <div class="code-block">{
   "task_policy": {
     "enabled": true,
     "routes": {
@@ -714,95 +283,128 @@ openchinacode</div>
     }
   }
 }</div>
-      </div>
-    </section>
+          </section>
 
-    <section class="band" id="compaction">
-      <div class="section-inner">
-        <h2>Smart Compaction</h2>
-        <p class="section-copy">
-          OpenChinaCode compaction is routed through task policy and defaults to <code>zhipuai-pay2go/glm-5.2#high</code>.
-          It uses three layers: general summary, active-task extraction, and minimal raw recent tail.
-        </p>
-        <div class="cards">
-          <article class="card">
-            <span class="tag">Strategy</span>
-            <h3>Profile-aware summary</h3>
-            <p>A judge model first emits a stable JSON profile, then OpenChinaCode builds a fixed Markdown compaction prompt from that profile.</p>
-          </article>
-          <article class="card">
-            <span class="tag">Recent</span>
-            <h3>Active task extraction</h3>
-            <p>The recent active task is extracted at higher granularity than the general summary, so long debugging or refactor context survives.</p>
-          </article>
-          <article class="card">
-            <span class="tag">Manual</span>
-            <h3>Raw tail retention</h3>
-            <p><code>/compact keep N</code> asks OpenChinaCode to keep the latest N raw user turns and their following assistant/tool messages.</p>
-          </article>
-        </div>
-        <div class="code">/compact
+          <!-- Smart Compaction -->
+          <section class="manual-section reveal" id="compaction">
+            <div class="manual-section-header">
+              <i data-lucide="layers"></i>
+              <h2>Smart Compaction</h2>
+            </div>
+            <p>OpenChinaCode compaction is routed through task policy and defaults to <code>zhipuai-pay2go/glm-5.2#high</code>. It uses three layers: general summary, active-task extraction, and minimal raw recent tail.</p>
+            <div class="manual-cards">
+              <div class="card" style="--accent: var(--cinnabar);">
+                <span class="tag tag-cinnabar">Strategy</span>
+                <h3>Profile-aware summary</h3>
+                <p>A judge model first emits a stable JSON profile, then OpenChinaCode builds a fixed Markdown compaction prompt from that profile.</p>
+              </div>
+              <div class="card" style="--accent: var(--jade);">
+                <span class="tag tag-jade">Recent</span>
+                <h3>Active task extraction</h3>
+                <p>The recent active task is extracted at higher granularity than the general summary, so long debugging or refactor context survives.</p>
+              </div>
+              <div class="card" style="--accent: var(--gold);">
+                <span class="tag tag-gold">Manual</span>
+                <h3>Raw tail retention</h3>
+                <p><code>/compact keep N</code> asks OpenChinaCode to keep the latest N raw user turns and their following assistant/tool messages.</p>
+              </div>
+            </div>
+            <div class="code-block">/compact
 /compact keep 3
 /compact keep auto</div>
-      </div>
-    </section>
+          </section>
 
-    <section class="band alt" id="testing">
-      <div class="section-inner">
-        <h2>LSP and Browser Testing</h2>
-        <div class="cards">
-          <article class="card">
-            <span class="tag">LSP</span>
-            <h3>Diagnostics in coding turns</h3>
-            <p>Use <code>/lsp on</code>. When enabled, language-server diagnostics can be fed into the model during code edits.</p>
-          </article>
-          <article class="card">
-            <span class="tag">MCP</span>
-            <h3>Playwright from the TUI</h3>
-            <p>Use <code>/test-mcp on</code>. This writes Playwright MCP config and hot-connects it without leaving OpenChinaCode.</p>
-          </article>
-          <article class="card">
-            <span class="tag">Vision</span>
-            <h3>Screenshot interpretation</h3>
-            <p>Visual checks route to <code>zhipuai-pay2go/glm-5v-turbo</code>. Animation checks should prefer DOM/CSS telemetry and pixel diffs.</p>
-          </article>
-        </div>
-      </div>
-    </section>
+          <!-- LSP & Browser Testing -->
+          <section class="manual-section reveal" id="testing">
+            <div class="manual-section-header">
+              <i data-lucide="app-window"></i>
+              <h2>LSP and Browser Testing</h2>
+            </div>
+            <div class="manual-cards">
+              <div class="card" style="--accent: var(--cinnabar);">
+                <span class="tag tag-cinnabar">LSP</span>
+                <h3>Diagnostics in coding turns</h3>
+                <p>Use <code>/lsp on</code>. When enabled, language-server diagnostics can be fed into the model during code edits.</p>
+              </div>
+              <div class="card" style="--accent: var(--jade);">
+                <span class="tag tag-jade">MCP</span>
+                <h3>Playwright from the TUI</h3>
+                <p>Use <code>/test-mcp on</code>. This writes Playwright MCP config and hot-connects it without leaving OpenChinaCode.</p>
+              </div>
+              <div class="card" style="--accent: var(--gold);">
+                <span class="tag tag-gold">Vision</span>
+                <h3>Screenshot interpretation</h3>
+                <p>Visual checks route to <code>zhipuai-pay2go/glm-5v-turbo</code>. Animation checks should prefer DOM/CSS telemetry and pixel diffs.</p>
+              </div>
+            </div>
+          </section>
 
-    <section class="band" id="debugging">
-      <div class="section-inner">
-        <h2>Debugging and Observability</h2>
-        <p class="section-copy">
-          Subagent rows in the TUI show the selected provider, model, variant, task classification, and route source.
-        </p>
-        <div class="code">-> zhipuai-pay2go/glm-5.2#high - review.complex - openchinacode.default</div>
-        <div class="cards" style="margin-top:14px">
-          <article class="card">
-            <span class="tag">Route</span>
-            <h3>Subagent route logs</h3>
-            <div class="code">tail -f ~/.local/share/openchinacode/log/openchinacode.log | grep --line-buffered "subagent route"</div>
-          </article>
-          <article class="card">
-            <span class="tag">Compact</span>
-            <h3>Compaction profile logs</h3>
-            <div class="code">tail -f ~/.local/share/openchinacode/log/openchinacode.log | grep --line-buffered "compaction profile"</div>
-          </article>
-          <article class="card">
-            <span class="tag">Test</span>
-            <h3>Integration report</h3>
-            <div class="code">openchinacode test init
+          <!-- Debugging -->
+          <section class="manual-section reveal" id="debugging">
+            <div class="manual-section-header">
+              <i data-lucide="bug"></i>
+              <h2>Debugging and Observability</h2>
+            </div>
+            <p>Subagent rows in the TUI show the selected provider, model, variant, task classification, and route source.</p>
+            <div class="code-block">-> zhipuai-pay2go/glm-5.2#high - review.complex - openchinacode.default</div>
+            <div class="manual-cards" style="margin-top: 14px;">
+              <div class="card" style="--accent: var(--cinnabar);">
+                <span class="tag tag-cinnabar">Route</span>
+                <h3>Subagent route logs</h3>
+                <div class="code-block">tail -f ~/.local/share/openchinacode/log/openchinacode.log | grep --line-buffered "subagent route"</div>
+              </div>
+              <div class="card" style="--accent: var(--jade);">
+                <span class="tag tag-jade">Compact</span>
+                <h3>Compaction profile logs</h3>
+                <div class="code-block">tail -f ~/.local/share/openchinacode/log/openchinacode.log | grep --line-buffered "compaction profile"</div>
+              </div>
+              <div class="card" style="--accent: var(--gold);">
+                <span class="tag tag-gold">Test</span>
+                <h3>Integration report</h3>
+                <div class="code-block">openchinacode test init
 openchinacode test run
 ls .openchinacode/reports/</div>
-          </article>
-        </div>
-      </div>
-    </section>
-  </main>
+              </div>
+            </div>
+          </section>
 
+        </div><!-- /manual-content -->
+      </div><!-- /manual-layout -->
+    </div>
+  </section>
+
+  <!-- ═══ Footer ═══ -->
   <footer class="footer">
-    <span>OpenChinaCode is an independent fork built with respect for the opencode project.</span>
-    <span><a href="/">Home</a> | <a href="/github">GitHub</a> | <a href="/install">Install script</a></span>
+    <div class="container footer-inner">
+      <span class="footer-text">OpenChinaCode is an independent fork built with respect for the opencode project.</span>
+      <div class="footer-links">
+        <a href="/"><i data-lucide="home"></i>Home</a>
+        <a href="/github"><svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56 0-.27-.01-1-.02-1.96-3.2.7-3.88-1.54-3.88-1.54-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11.1 11.1 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14 0 1.55-.01 2.8-.01 3.18 0 .31.21.68.8.56A11.51 11.51 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z"/></svg>GitHub</a>
+        <a href="/install"><i data-lucide="terminal"></i>Install</a>
+      </div>
+    </div>
   </footer>
+
+  <script src="https://unpkg.com/lucide@1.24.0"></script>
+  <script>
+    lucide.createIcons();
+
+    // Scroll-spy: highlight active TOC link
+    const sections = document.querySelectorAll('.manual-section');
+    const tocLinks = document.querySelectorAll('.manual-toc a');
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const id = entry.target.id;
+          tocLinks.forEach(link => {
+            link.classList.toggle('active', link.dataset.section === id);
+          });
+        }
+      });
+    }, { rootMargin: '-20% 0px -60% 0px' });
+
+    sections.forEach(s => observer.observe(s));
+  </script>
 </body>
 </html>
