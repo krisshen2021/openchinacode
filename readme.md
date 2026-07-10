@@ -153,6 +153,33 @@ deepseek/deepseek-v4-flash
 
 可用于查看或切换 LSP。LSP 打开后，模型在改代码时可以看到语言服务器诊断，帮助它修复类型错误、语法错误、引用错误等。
 
+### 9. 原生生图 / 生视频
+
+OpenChinaCode 新增了原生媒体生成工具：
+
+- `image_generate`：火山方舟 Seedream 5 Pro
+- `video_generate`：火山方舟 Seedance 2.0 Mini
+- `video_status`：查询并下载 Seedance 任务结果
+
+自然语言触发时，模型会优先使用这些工具。参数不明确时，会先用 TUI question 追问用户，而不是随意猜关键参数。
+
+Slash command 入口：
+
+```text
+/media-auth
+/image-generate
+/video-generate
+```
+
+生成文件会立即下载到当前项目：
+
+```text
+.openchinacode/media/images
+.openchinacode/media/videos
+```
+
+每次成功调用都会返回 `output_path` 和 `metadata_path`。
+
 ## 当前内置任务路由表
 
 优先级：
@@ -318,6 +345,99 @@ explicit task model
 
 `/test-mcp on/headless/headed` 会写入配置并立即 hot-connect；`/test-mcp off` 会写入 disabled 并立即 disconnect。通常不需要重启。
 内置 Playwright MCP 默认启用官方 `config/network/storage/testing/pdf/vision` 能力，因此模型可以看到官方的 screenshot、snapshot、evaluate 等工具，但默认不暴露 devtools 录屏工具。对于“是否在转、是否在动、动画是否生效”这类问题，OpenChinaCode 要求模型优先用 `getAnimations()`、computed transform 或裁剪区域像素差做确定性判断；截图和 `visual_check` 只用于理解用户可见外观。浏览器录屏默认不作为模型输入路径，除非用户明确要求生成视频证据。
+
+### `/media-auth`
+
+保存火山方舟 API key，供 `image_generate`、`video_generate`、`video_status` 使用。
+
+```text
+/media-auth
+/media-auth <ARK_API_KEY>
+```
+
+保存位置：
+
+```text
+~/.local/share/openchinacode/auth.json
+```
+
+provider id：
+
+```text
+volcengine-ark
+```
+
+也可以使用环境变量兜底：
+
+```bash
+export ARK_API_KEY="your-volcengine-ark-api-key"
+```
+
+### `/image-generate`
+
+打开 Seedream 5 Pro 生图向导。支持无参数 wizard，也支持把 slash 后面的文字作为初始 prompt。
+
+```text
+/image-generate
+/image-generate 一只赛博朋克猫 mascot，粉色霓虹，干净矢量风
+```
+
+向导会询问：
+
+- prompt
+- aspect ratio：`1:1`、`16:9`、`9:16`、`4:3`、`3:4`、`3:2`、`2:3`、`21:9`
+- size：`2K`、`3K`、`4K`
+- output format：`png`、`jpeg`
+- reference images：本地路径、`file://`、HTTP(S) URL 或 `data:image`
+- watermark
+
+自然语言也可以触发，例如：
+
+```text
+帮我生成一张小猫的图
+用 ./assets/logo.png 作为参考图，生成 16:9 项目海报
+```
+
+如果参考图不存在、参考图数量超过 10 张、或比例不支持，工具会直接报出具体原因。成功后默认保存到：
+
+```text
+.openchinacode/media/images
+```
+
+### `/video-generate`
+
+打开 Seedance 2.0 Mini 生视频向导。支持无参数 wizard，也支持把 slash 后面的文字作为初始 prompt。
+
+```text
+/video-generate
+/video-generate 一个 5 秒项目宣传短片，镜头缓慢推进，科技感但不浮夸
+```
+
+向导会询问：
+
+- prompt
+- ratio：`adaptive`、`16:9`、`4:3`、`1:1`、`3:4`、`9:16`、`21:9`
+- resolution：`720p`、`480p`
+- duration：4 到 15 秒的整数
+- generate audio
+- reference images：本地路径、`file://`、HTTP(S) URL 或 `data:image`
+- reference video URLs：URL 或素材 asset id；当前 MVP 不支持本地视频文件直传
+- watermark
+
+自然语言也可以触发，例如：
+
+```text
+给这个页面增加一段项目宣传视频
+用 ./screenshots/home.png 做参考图，生成 8 秒 16:9 视频
+```
+
+成功后默认保存到：
+
+```text
+.openchinacode/media/videos
+```
+
+`video_generate` 默认会轮询任务完成并下载本地文件。如果任务仍在运行，会返回 `task_id`，之后可以让模型调用 `video_status` 查询并下载。
 
 ### `/task-policy`
 

@@ -278,6 +278,62 @@ Playwright MCP telemetry / computed transform / cropped pixel diff -> optional s
 
 DOM/CSS `getComputedStyle()`、`getAnimations()`、computed transform 采样、裁剪区域像素差，是判断“动画是否实际运行”的主证据。GLM-5V 只负责截图和视觉外观语义；如果两者冲突，应该明确报告冲突，并以浏览器 telemetry / 像素变化判断动画状态。浏览器录屏默认不作为模型输入路径，除非用户明确要求生成视频证据。
 
+### `/media-auth`, `/image-generate`, `/video-generate`
+
+原生媒体生成入口。
+
+TUI slash command：
+
+```text
+/media-auth
+/image-generate [prompt]
+/video-generate [prompt]
+```
+
+工具入口：
+
+- `packages/opencode/src/tool/media-common.ts`
+- `packages/opencode/src/tool/image-generate.ts`
+- `packages/opencode/src/tool/video-generate.ts`
+- `packages/opencode/src/tool/video-status.ts`
+- `packages/opencode/src/tool/registry.ts`
+
+模型提示词合约：
+
+- `packages/opencode/src/session/prompt/china-tools.txt`
+
+认证：
+
+```text
+provider id: volcengine-ark
+env fallback: ARK_API_KEY
+auth file: ~/.local/share/openchinacode/auth.json
+```
+
+火山方舟配置：
+
+```text
+base url: https://ark.cn-beijing.volces.com/api/v3
+image model: doubao-seedream-5-0-pro-260628
+video model: doubao-seedance-2-0-mini-260615
+```
+
+默认输出：
+
+```text
+.openchinacode/media/images
+.openchinacode/media/videos
+```
+
+工具行为：
+
+- `image_generate` 支持本地图片路径、`file://`、HTTP(S) URL、`data:image` 作为参考图。
+- `image_generate` 最多 10 张参考图，默认 `2K`、`png`、不加 watermark。
+- `video_generate` 支持本地图片参考；本地视频文件在 MVP 中不上传，要求 URL 或 asset id。
+- `video_generate` 默认 `720p`、5 秒、`generate_audio=true`、不加 watermark。
+- Seedance 2.0 Mini 当前只暴露 `480p`、`720p`，显式 duration 限制为 4 到 15 秒整数。
+- 生成结果立即下载到本地，并写同名 `.json` metadata。模型必须把 `output_path` 和 `metadata_path` 告诉用户。
+
 ### `/task-policy`
 
 本地 TUI 面板，不调用模型，不把策略表写入上下文。

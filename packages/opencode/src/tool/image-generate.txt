@@ -1,0 +1,10 @@
+Generate an image with OpenChinaCode's native Volcengine Ark Seedream 5 Pro integration.
+
+Use this tool for user requests to create a new image, poster, illustration, product visual, concept art, UI mock image, reference-based image, or other generated bitmap asset.
+
+Important rules:
+- If the user gave a vague request and important creative choices are missing, ask follow-up questions first with the question tool.
+- Validate local reference image paths before calling this tool when possible.
+- If a requested aspect ratio is unsupported, ask the user to choose a supported one.
+- Always tell the user the returned output_path and metadata_path after the tool succeeds.
+- Do not use shell scripts or unrelated online image services for native OpenChinaCode image generation.

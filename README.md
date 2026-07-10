@@ -37,6 +37,7 @@ OpenChinaCode is not a theme-only fork. The current fork includes:
 - LSP toggle command for code diagnostics.
 - Built-in Playwright MCP launcher and testing commands.
 - Visual-check routing to GLM-5V for screenshot/layout inspection.
+- Native Seedream 5 Pro image generation and Seedance 2.0 Mini video generation through Volcengine Ark.
 
 For the full feature manual, see [readme.md](./readme.md).
 
@@ -124,10 +125,47 @@ OpenChinaCode custom commands are grouped under `OpenChinaCode` in the TUI comma
 | `/task-policy`      | Inspect current task-routing policy                                        |
 | `/task-classify`    | Classify a task description against routing policy                         |
 | `/test-mcp`         | Configure built-in Playwright MCP from inside the TUI                      |
+| `/media-auth`       | Save Volcengine Ark API key for native media generation                    |
+| `/image-generate`   | Open the Seedream 5 Pro image generation wizard                            |
+| `/video-generate`   | Open the Seedance 2.0 Mini video generation wizard                         |
 | `/browser-check`    | Ask the agent to run browser-level checks                                  |
 | `/integration-test` | Ask the agent to create/run an integration test plan                       |
 
 See [readme.md](./readme.md) for command usage.
+
+## Native Media Generation
+
+OpenChinaCode can generate media with Volcengine Ark:
+
+- Images: `image_generate` tool, Seedream 5 Pro model `doubao-seedream-5-0-pro-260628`
+- Videos: `video_generate` and `video_status` tools, Seedance 2.0 Mini model `doubao-seedance-2-0-mini-260615`
+
+Configure credentials in the TUI:
+
+```text
+/media-auth
+```
+
+Or use an environment variable:
+
+```bash
+export ARK_API_KEY="your-volcengine-ark-api-key"
+```
+
+Usage:
+
+- Natural language: ask OpenChinaCode to generate an image/video. If key choices are missing, it should ask follow-up questions and then call the native tool.
+- Slash wizard: run `/image-generate` or `/video-generate` with no arguments to choose parameters interactively.
+- Quick slash: `/image-generate a cyberpunk cat mascot` or `/video-generate a 5 second product promo clip`.
+
+Generated outputs are downloaded immediately because provider URLs expire. Files are saved under:
+
+```text
+.openchinacode/media/images
+.openchinacode/media/videos
+```
+
+Every successful tool call reports `output_path` and `metadata_path`.
 
 ## Model Routing
 

@@ -17,8 +17,12 @@ import { WriteTool } from "./write"
 import { InvalidTool } from "./invalid"
 import { SkillTool } from "./skill"
 import { ProcessLogsTool, ProcessStartTool, ProcessStatusTool, ProcessStopTool } from "./process"
+import { ImageGenerateTool } from "./image-generate"
+import { VideoGenerateTool } from "./video-generate"
+import { VideoStatusTool } from "./video-status"
 import * as Tool from "./tool"
 import { Config } from "@/config/config"
+import { Auth } from "@/auth"
 import { type ToolContext as PluginToolContext, type ToolDefinition } from "@opencode-ai/plugin"
 import type { JSONSchema7, JSONSchema7Definition } from "@ai-sdk/provider"
 import { Schema } from "effect"
@@ -115,6 +119,9 @@ const layer = Layer.effect(
     const processStatus = yield* ProcessStatusTool
     const processLogs = yield* ProcessLogsTool
     const processStop = yield* ProcessStopTool
+    const imageGenerate = yield* ImageGenerateTool
+    const videoGenerate = yield* VideoGenerateTool
+    const videoStatus = yield* VideoStatusTool
     const agent = yield* Agent.Service
     const codeMode = flags.experimentalCodeMode ? yield* Effect.promise(() => import("./code-mode")) : undefined
     const codeModeTool = codeMode ? yield* codeMode.CodeModeTool : undefined
@@ -225,6 +232,9 @@ const layer = Layer.effect(
           processStatus: Tool.init(processStatus),
           processLogs: Tool.init(processLogs),
           processStop: Tool.init(processStop),
+          imageGenerate: Tool.init(imageGenerate),
+          videoGenerate: Tool.init(videoGenerate),
+          videoStatus: Tool.init(videoStatus),
           question: Tool.init(question),
           lsp: Tool.init(lsptool),
           plan: Tool.init(plan),
@@ -243,6 +253,9 @@ const layer = Layer.effect(
             tool.edit,
             tool.write,
             tool.task,
+            tool.imageGenerate,
+            tool.videoGenerate,
+            tool.videoStatus,
             tool.fetch,
             tool.todo,
             tool.search,
@@ -459,6 +472,7 @@ export const node = LayerNode.make({
     Database.node,
     Ripgrep.node,
     ManagedProcess.node,
+    Auth.node,
   ],
 })
 

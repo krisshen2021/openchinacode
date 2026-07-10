@@ -44,6 +44,10 @@ export type CompactionProgressItem = EventSessionCompactionProgress["properties"
   time: number
 }
 
+function isCompactionTerminalStage(stage: CompactionProgressItem["stage"]) {
+  return stage === "summary_finished" || stage === "summary_failed"
+}
+
 function search<T>(items: T[], target: string, key: (item: T) => string) {
   let left = 0
   let right = items.length - 1
@@ -154,6 +158,21 @@ export const {
     const fullSyncedSessions = new Set<string>()
     const syncingSessions = new Map<string, Promise<void>>()
     const hydratingSessions = new Map<string, { messages: Set<string>; parts: Set<string> }>()
+
+    function clearCompletedCompactionProgressForNewMessage(info: Message) {
+      const progress = store.compaction_progress[info.sessionID]
+      if (!progress?.length) return
+      const terminal = progress.findLast((item) => isCompactionTerminalStage(item.stage))
+      if (!terminal) return
+
+      // The compaction assistant message itself can still receive updates after
+      // progress events. Hide the finished debug panel only once a genuinely
+      // newer message appears, so users can read it until the next turn.
+      const messageCreated = info.time.created
+      if (messageCreated <= terminal.time) return
+      setStore("compaction_progress", info.sessionID, [])
+    }
+
     const touchMessage = (sessionID: string, messageID: string) => {
       hydratingSessions.get(sessionID)?.messages.add(messageID)
     }
@@ -337,6 +356,7 @@ export const {
         }
 
         case "message.updated": {
+          clearCompletedCompactionProgressForNewMessage(event.properties.info)
           touchMessage(event.properties.info.sessionID, event.properties.info.id)
           const messages = store.message[event.properties.info.sessionID]
           if (!messages) {

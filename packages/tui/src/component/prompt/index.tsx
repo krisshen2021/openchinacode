@@ -48,6 +48,8 @@ import { createColors, createFrames } from "../../ui/spinner"
 import { useDialog } from "../../ui/dialog"
 import { DialogProvider as DialogProviderConnect } from "../dialog-provider"
 import { DialogAlert } from "../../ui/dialog-alert"
+import { DialogPrompt } from "../../ui/dialog-prompt"
+import { DialogSelect, type DialogSelectOption } from "../../ui/dialog-select"
 import { useToast } from "../../ui/toast"
 import { useKV } from "../../context/kv"
 import { createFadeIn } from "../../util/signal"
@@ -124,6 +126,7 @@ const GLOBAL_CONFIG_FILES = ["openchinacode.jsonc", "openchinacode.json", "confi
 const BUILTIN_PROMPT_COMMANDS = new Set(["task-policy", "task-classify"])
 const TEST_MCP_NAME = "playwright"
 const TEST_MCP_TIMEOUT_MS = 30_000
+const ARK_AUTH_PROVIDER_ID = "volcengine-ark"
 
 function randomIndex(count: number) {
   if (count <= 0) return 0
@@ -642,6 +645,275 @@ export function Prompt(props: PromptProps) {
     }
   }
 
+  function selectDialog<T>(title: string, options: readonly DialogSelectOption<T>[], current?: T) {
+    return new Promise<T | null>((resolve) => {
+      dialog.replace(
+        () => (
+          <DialogSelect<T>
+            title={title}
+            options={[...options]}
+            current={current}
+            onSelect={(option) => {
+              dialog.clear()
+              resolve(option.value)
+            }}
+          />
+        ),
+        () => resolve(null),
+      )
+    })
+  }
+
+  function optionalLines(value: string | null) {
+    if (value === null) return null
+    return value
+      .split(/[\n,]/)
+      .map((item) => item.trim())
+      .filter(Boolean)
+  }
+
+  function submitSyntheticPrompt(text: string) {
+    input.setText(text)
+    setStore("prompt", {
+      input: text,
+      parts: [],
+    })
+    input.gotoBufferEnd()
+    dialog.clear()
+    setTimeout(() => {
+      void submit()
+    }, 0)
+  }
+
+  async function handleMediaAuthSlash(args: string) {
+    try {
+      const key =
+        args.trim() ||
+        (await DialogPrompt.show(dialog, "Volcengine Ark API key", {
+          placeholder: "ARK API key",
+          description: () => (
+            <text fg={theme.textMuted}>Stored as {ARK_AUTH_PROVIDER_ID}. Environment fallback: ARK_API_KEY.</text>
+          ),
+        }))
+      if (!key?.trim()) {
+        dialog.clear()
+        return
+      }
+      dialog.clear()
+      await sdk.client.auth.set({
+        providerID: ARK_AUTH_PROVIDER_ID,
+        auth: {
+          type: "api",
+          key: key.trim(),
+        },
+      })
+      await sdk.client.instance.dispose()
+      await sync.bootstrap()
+      toast.show({
+        title: "Media auth saved",
+        message: `Saved API key for ${ARK_AUTH_PROVIDER_ID}.`,
+        variant: "success",
+        duration: 6000,
+      })
+    } catch (error) {
+      toast.show({
+        title: "Failed to save media auth",
+        message: errorMessage(error),
+        variant: "error",
+        duration: 7000,
+      })
+    }
+  }
+
+  async function runImageGenerateWizard(initialPrompt = "") {
+    const prompt = await DialogPrompt.show(dialog, "Image prompt", {
+      value: initialPrompt,
+      placeholder: "Describe the image to generate",
+    })
+    if (!prompt?.trim()) {
+      dialog.clear()
+      return
+    }
+
+    const ratio = await selectDialog("Image aspect ratio", [
+      { title: "1:1", value: "1:1", description: "Square" },
+      { title: "16:9", value: "16:9", description: "Wide landscape" },
+      { title: "9:16", value: "9:16", description: "Vertical phone/poster" },
+      { title: "4:3", value: "4:3", description: "Classic landscape" },
+      { title: "3:4", value: "3:4", description: "Classic portrait" },
+      { title: "3:2", value: "3:2", description: "Photo landscape" },
+      { title: "2:3", value: "2:3", description: "Photo portrait" },
+      { title: "21:9", value: "21:9", description: "Cinematic wide" },
+    ] as const)
+    if (!ratio) return
+
+    const size = await selectDialog(
+      "Image size",
+      [
+        { title: "2K", value: "2K", description: "Default, lower cost and faster" },
+        { title: "3K", value: "3K", description: "Higher detail" },
+        { title: "4K", value: "4K", description: "Maximum detail" },
+      ] as const,
+      "2K",
+    )
+    if (!size) return
+
+    const outputFormat = await selectDialog(
+      "Image format",
+      [
+        { title: "PNG", value: "png", description: "Lossless, best for UI/assets" },
+        { title: "JPEG", value: "jpeg", description: "Smaller photo-style output" },
+      ] as const,
+      "png",
+    )
+    if (!outputFormat) return
+
+    const refs = optionalLines(
+      await DialogPrompt.show(dialog, "Reference images", {
+        placeholder: "Optional paths/URLs, comma or newline separated",
+      }),
+    )
+    if (refs === null) return
+
+    const watermark = await selectDialog(
+      "Watermark",
+      [
+        { title: "Off", value: false, description: "Default" },
+        { title: "On", value: true, description: "Request provider watermark" },
+      ] as const,
+      false,
+    )
+    if (watermark === null) return
+
+    submitSyntheticPrompt(
+      [
+        "Use OpenChinaCode native image generation.",
+        "Call the image_generate tool with these parameters. If a reference path is invalid or an option is unsupported, stop and report the exact problem.",
+        `prompt: ${prompt.trim()}`,
+        `aspect_ratio: ${ratio}`,
+        `size: ${size}`,
+        `output_format: ${outputFormat}`,
+        `watermark: ${watermark}`,
+        refs.length ? `reference_images:\n${refs.map((item) => `- ${item}`).join("\n")}` : "reference_images: none",
+        "After the tool succeeds, tell me the output_path and metadata_path.",
+      ].join("\n"),
+    )
+  }
+
+  async function runVideoGenerateWizard(initialPrompt = "") {
+    const prompt = await DialogPrompt.show(dialog, "Video prompt", {
+      value: initialPrompt,
+      placeholder: "Describe the video to generate",
+    })
+    if (!prompt?.trim()) {
+      dialog.clear()
+      return
+    }
+
+    const ratio = await selectDialog(
+      "Video aspect ratio",
+      [
+        { title: "Adaptive", value: "adaptive", description: "Let Seedance choose from prompt/references" },
+        { title: "16:9", value: "16:9", description: "Wide landscape" },
+        { title: "9:16", value: "9:16", description: "Vertical short video" },
+        { title: "1:1", value: "1:1", description: "Square" },
+        { title: "4:3", value: "4:3", description: "Classic landscape" },
+        { title: "3:4", value: "3:4", description: "Classic portrait" },
+        { title: "21:9", value: "21:9", description: "Cinematic wide" },
+      ] as const,
+      "adaptive",
+    )
+    if (!ratio) return
+
+    const resolution = await selectDialog(
+      "Video resolution",
+      [
+        { title: "720p", value: "720p", description: "Default for Seedance Mini" },
+        { title: "480p", value: "480p", description: "Faster and lower cost" },
+      ] as const,
+      "720p",
+    )
+    if (!resolution) return
+
+    const durationChoice = await selectDialog(
+      "Video duration",
+      [
+        { title: "5s", value: "5", description: "Default" },
+        { title: "8s", value: "8", description: "Short promo clip" },
+        { title: "10s", value: "10", description: "Longer narrative beat" },
+        { title: "15s", value: "15", description: "Maximum explicit duration" },
+        { title: "Custom", value: "custom", description: "Enter 4-15 seconds" },
+      ] as const,
+      "5",
+    )
+    if (!durationChoice) return
+    const duration =
+      durationChoice === "custom"
+        ? await DialogPrompt.show(dialog, "Video duration seconds", {
+            placeholder: "Integer from 4 to 15",
+            value: "5",
+          })
+        : durationChoice
+    if (!duration?.trim()) {
+      dialog.clear()
+      return
+    }
+
+    const audio = await selectDialog(
+      "Generate audio",
+      [
+        { title: "On", value: true, description: "Default" },
+        { title: "Off", value: false, description: "Silent video" },
+      ] as const,
+      true,
+    )
+    if (audio === null) return
+
+    const imageRefs = optionalLines(
+      await DialogPrompt.show(dialog, "Reference images", {
+        placeholder: "Optional image paths/URLs, comma or newline separated",
+      }),
+    )
+    if (imageRefs === null) return
+
+    const videoRefs = optionalLines(
+      await DialogPrompt.show(dialog, "Reference video URLs", {
+        placeholder: "Optional URLs or asset ids; local video files are not supported",
+      }),
+    )
+    if (videoRefs === null) return
+
+    const watermark = await selectDialog(
+      "Watermark",
+      [
+        { title: "Off", value: false, description: "Default" },
+        { title: "On", value: true, description: "Request provider watermark" },
+      ] as const,
+      false,
+    )
+    if (watermark === null) return
+
+    submitSyntheticPrompt(
+      [
+        "Use OpenChinaCode native video generation.",
+        "Call the video_generate tool with these parameters. If a reference path is invalid or an option is unsupported, stop and report the exact problem.",
+        `prompt: ${prompt.trim()}`,
+        `ratio: ${ratio}`,
+        `resolution: ${resolution}`,
+        `duration: ${duration.trim()}`,
+        `generate_audio: ${audio}`,
+        `watermark: ${watermark}`,
+        imageRefs.length
+          ? `reference_images:\n${imageRefs.map((item) => `- ${item}`).join("\n")}`
+          : "reference_images: none",
+        videoRefs.length
+          ? `reference_videos:\n${videoRefs.map((item) => `- ${item}`).join("\n")}`
+          : "reference_videos: none",
+        "After the tool succeeds, tell me the task_id, output_path, and metadata_path.",
+      ].join("\n"),
+    )
+  }
+
   function insertPromptCommand(command: string) {
     const text = `/${command} `
     input.setText(text)
@@ -923,6 +1195,39 @@ export function Prompt(props: PromptProps) {
         },
       },
       {
+        title: "Generate image",
+        desc: "Usage: /image-generate [prompt] - Seedream 5 Pro native image wizard",
+        name: "openchinacode.image_generate",
+        category: "OpenChinaCode",
+        slashName: "image-generate",
+        slashAliases: ["image"],
+        run: () => {
+          void runImageGenerateWizard()
+        },
+      },
+      {
+        title: "Generate video",
+        desc: "Usage: /video-generate [prompt] - Seedance 2.0 Mini native video wizard",
+        name: "openchinacode.video_generate",
+        category: "OpenChinaCode",
+        slashName: "video-generate",
+        slashAliases: ["video"],
+        run: () => {
+          void runVideoGenerateWizard()
+        },
+      },
+      {
+        title: "Media auth",
+        desc: "Usage: /media-auth - save Volcengine Ark API key for native image/video generation",
+        name: "openchinacode.media_auth",
+        category: "OpenChinaCode",
+        slashName: "media-auth",
+        slashAliases: ["ark-auth"],
+        run: () => {
+          void handleMediaAuthSlash("")
+        },
+      },
+      {
         title: "Task policy",
         desc: "Usage: /task-policy [focus] - show OpenChinaCode task routing",
         name: "openchinacode.task_policy",
@@ -1095,6 +1400,9 @@ export function Prompt(props: PromptProps) {
       "lsp.status",
       "auto-maxtokens.status",
       "openchinacode.test_mcp",
+      "openchinacode.image_generate",
+      "openchinacode.video_generate",
+      "openchinacode.media_auth",
       "openchinacode.task_policy",
       "openchinacode.task_classify",
       "session.interrupt",
@@ -1831,6 +2139,21 @@ export function Prompt(props: PromptProps) {
     if (parsed.command === "test-mcp" || parsed.command === "playwright-mcp") {
       clearPrompt()
       handleTestMcpSlash(parsed.args)
+      return true
+    }
+    if (parsed.command === "image-generate" || parsed.command === "image") {
+      clearPrompt()
+      void runImageGenerateWizard(parsed.args)
+      return true
+    }
+    if (parsed.command === "video-generate" || parsed.command === "video") {
+      clearPrompt()
+      void runVideoGenerateWizard(parsed.args)
+      return true
+    }
+    if (parsed.command === "media-auth" || parsed.command === "ark-auth") {
+      clearPrompt()
+      void handleMediaAuthSlash(parsed.args)
       return true
     }
     if (parsed.command === "compact" || parsed.command === "summarize") {

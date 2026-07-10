@@ -1,0 +1,5 @@
+Check a Volcengine Ark Seedance video generation task and download it if it has succeeded.
+
+Use this tool when video_generate returned a running task, when a previous Seedance task id needs to be checked, or when the user asks for the status/output of a native OpenChinaCode video generation task.
+
+Always tell the user the status. If the video is downloaded, also tell the user the output_path and metadata_path.

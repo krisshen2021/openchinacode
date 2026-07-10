@@ -1,0 +1,12 @@
+Generate a video with OpenChinaCode's native Volcengine Ark Seedance 2.0 Mini integration.
+
+Use this tool for user requests to create generated video, promo video, page/project demo video, animation clip, image-to-video, or short concept video.
+
+Important rules:
+- If the user gave a vague request and important choices are missing, ask follow-up questions first with the question tool.
+- Seedance 2.0 Mini supports 480p and 720p in this integration, not 1080p.
+- Supported ratios are adaptive, 16:9, 4:3, 1:1, 3:4, 9:16, and 21:9.
+- Supported explicit durations are 4 to 15 seconds.
+- Local image references can be used. Local video file references are not supported in this MVP; ask for a URL or uploaded asset id instead.
+- Always tell the user the returned task_id, output_path, and metadata_path after the tool succeeds.
+- Do not use shell scripts or unrelated online video services for native OpenChinaCode video generation.
