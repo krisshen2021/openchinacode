@@ -20,7 +20,6 @@ import { Global } from "@opencode-ai/core/global"
 import { modify, applyEdits } from "jsonc-parser"
 import { Filesystem } from "@/util/filesystem"
 import { Effect } from "effect"
-import { createConnection } from "@playwright/mcp"
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 
 function getAuthStatusIcon(status: MCP.AuthStatus): string {
@@ -214,6 +213,7 @@ export const McpPlaywrightCommand = cmd<{}, McpPlaywrightArgs>({
       .option("save-session", { type: "boolean", describe: "save Playwright MCP session into the output directory" })
       .option("shared-browser-context", { type: "boolean", describe: "reuse context between connected clients" }),
   async handler(args) {
+    const { createConnection } = await import("@playwright/mcp")
     const { browserName, channel } = browserConfig(args.browser)
     const headless = args.headed ? false : args.headless !== false
     const server = await createConnection({
