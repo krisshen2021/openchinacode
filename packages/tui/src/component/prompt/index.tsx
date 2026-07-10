@@ -69,6 +69,7 @@ import { usePromptMove } from "./move"
 import { readLocalAttachment } from "./local-attachment"
 import {
   parseAutoMaxTokensSlashAction,
+  parseCompactSlashAction,
   parseDirectSlashCommand,
   parseLspSlashAction,
   parseTestMcpSlashAction,
@@ -395,6 +396,55 @@ export function Prompt(props: PromptProps) {
     }
   }
 
+  function handleCompactSlash(args: string) {
+    const action = parseCompactSlashAction(args)
+    if (action.type === "help") {
+      toast.show({
+        title: "Compact command",
+        message: "Usage: /compact, /compact keep N, /compact keep auto",
+        variant: "info",
+        duration: 7000,
+      })
+      return
+    }
+
+    if (!props.sessionID) {
+      toast.show({
+        title: "Compact session",
+        message: "No active session to compact.",
+        variant: "warning",
+        duration: 4000,
+      })
+      return
+    }
+
+    const selectedModel = local.model.current()
+    if (!selectedModel) {
+      toast.show({
+        variant: "warning",
+        message: "Connect a provider to summarize this session",
+        duration: 3000,
+      })
+      return
+    }
+
+    void sdk.client.session.summarize({
+      sessionID: props.sessionID,
+      modelID: selectedModel.modelID,
+      providerID: selectedModel.providerID,
+      manual_keep_turns: action.manualKeepTurns,
+    })
+    toast.show({
+      title: "Smart compaction started",
+      message:
+        action.manualKeepTurns === undefined
+          ? "Using active-task extraction with minimal raw recent tail."
+          : `Using active-task extraction and raw tail keep ${action.manualKeepTurns} turn${action.manualKeepTurns === 1 ? "" : "s"}.`,
+      variant: "info",
+      duration: 5000,
+    })
+  }
+
   function currentMcpConfig() {
     const mcp = (sync.data.config as { mcp?: unknown }).mcp
     return isRecord(mcp) ? mcp : {}
@@ -445,10 +495,14 @@ export function Prompt(props: PromptProps) {
               ...existing,
               enabled: false,
             }
-      sync.set("config", "mcp" as any, {
-        ...currentMcpConfig(),
-        [TEST_MCP_NAME]: nextEntry,
-      } as any)
+      sync.set(
+        "config",
+        "mcp" as any,
+        {
+          ...currentMcpConfig(),
+          [TEST_MCP_NAME]: nextEntry,
+        } as any,
+      )
 
       if (enabled) {
         const added = await sdk.client.mcp.add({ name: TEST_MCP_NAME, config: runtimeConfig })
@@ -580,8 +634,7 @@ export function Prompt(props: PromptProps) {
       case "help":
         toast.show({
           title: "Auto max tokens command",
-          message:
-            "Usage: /auto-maxtokens [status|off|heuristic|llm [provider/model]|model provider/model]",
+          message: "Usage: /auto-maxtokens [status|off|heuristic|llm [provider/model]|model provider/model]",
           variant: "info",
           duration: 8000,
         })
@@ -1765,6 +1818,11 @@ export function Prompt(props: PromptProps) {
     if (parsed.command === "test-mcp" || parsed.command === "playwright-mcp") {
       clearPrompt()
       handleTestMcpSlash(parsed.args)
+      return true
+    }
+    if (parsed.command === "compact" || parsed.command === "summarize") {
+      clearPrompt()
+      handleCompactSlash(parsed.args)
       return true
     }
     if (parsed.command === "task-policy") {

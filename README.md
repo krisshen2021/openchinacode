@@ -33,7 +33,7 @@ OpenChinaCode is not a theme-only fork. The current fork includes:
 - Sliding max-token strategy with `/auto-maxtokens`.
 - RMB pricing and model-aware context usage display.
 - Subagent task routing by task kind and complexity.
-- Smart compaction routed through task policy, with debug output.
+- Smart compaction routed through task policy, with active-task extraction and debug output.
 - LSP toggle command for code diagnostics.
 - Built-in Playwright MCP launcher and testing commands.
 - Visual-check routing to GLM-5V for screenshot/layout inspection.
@@ -94,15 +94,16 @@ API keys should stay in local auth/config files. Do not commit credentials.
 
 OpenChinaCode custom commands are grouped under `OpenChinaCode` in the TUI command palette.
 
-| Command | Purpose |
-|---|---|
-| `/auto-maxtokens` | View or change automatic output-token budgeting |
-| `/lsp` | View or toggle LSP diagnostics |
-| `/task-policy` | Inspect current task-routing policy |
-| `/task-classify` | Classify a task description against routing policy |
-| `/test-mcp` | Configure built-in Playwright MCP from inside the TUI |
-| `/browser-check` | Ask the agent to run browser-level checks |
-| `/integration-test` | Ask the agent to create/run an integration test plan |
+| Command             | Purpose                                                                    |
+| ------------------- | -------------------------------------------------------------------------- |
+| `/auto-maxtokens`   | View or change automatic output-token budgeting                            |
+| `/compact`          | Run smart compaction; use `/compact keep N` to preserve N recent raw turns |
+| `/lsp`              | View or toggle LSP diagnostics                                             |
+| `/task-policy`      | Inspect current task-routing policy                                        |
+| `/task-classify`    | Classify a task description against routing policy                         |
+| `/test-mcp`         | Configure built-in Playwright MCP from inside the TUI                      |
+| `/browser-check`    | Ask the agent to run browser-level checks                                  |
+| `/integration-test` | Ask the agent to create/run an integration test plan                       |
 
 See [readme.md](./readme.md) for command usage.
 
@@ -110,15 +111,15 @@ See [readme.md](./readme.md) for command usage.
 
 OpenChinaCode routes subagent work by task kind and complexity. Examples:
 
-| Task kind | Quick | Medium | Complex |
-|---|---|---|---|
-| `plan` | GLM-5.2 high | GLM-5.2 high | GLM-5.2 max |
-| `refactor` | GLM-5.2 high | GLM-5.2 high | GLM-5.2 max |
-| `review` | Kimi K2.7 highspeed | Kimi K2.7 highspeed | GLM-5.2 high |
-| `implement` | Kimi K2.7 highspeed | Kimi K2.7 highspeed | GLM-5.2 high |
-| `debug` | DeepSeek V4 Pro | DeepSeek V4 Pro | DeepSeek V4 Pro |
-| `visual_check` | GLM-5V Turbo | GLM-5V Turbo | GLM-5V Turbo |
-| `compaction` | GLM-5.2 high | GLM-5.2 high | GLM-5.2 high |
+| Task kind      | Quick               | Medium              | Complex         |
+| -------------- | ------------------- | ------------------- | --------------- |
+| `plan`         | GLM-5.2 high        | GLM-5.2 high        | GLM-5.2 max     |
+| `refactor`     | GLM-5.2 high        | GLM-5.2 high        | GLM-5.2 max     |
+| `review`       | Kimi K2.7 highspeed | Kimi K2.7 highspeed | GLM-5.2 high    |
+| `implement`    | Kimi K2.7 highspeed | Kimi K2.7 highspeed | GLM-5.2 high    |
+| `debug`        | DeepSeek V4 Pro     | DeepSeek V4 Pro     | DeepSeek V4 Pro |
+| `visual_check` | GLM-5V Turbo        | GLM-5V Turbo        | GLM-5V Turbo    |
+| `compaction`   | GLM-5.2 high        | GLM-5.2 high        | GLM-5.2 high    |
 
 The table is intentionally opinionated. Users can override routing through config when needed.
 

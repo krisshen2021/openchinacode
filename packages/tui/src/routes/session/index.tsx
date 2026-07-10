@@ -1384,6 +1384,18 @@ function formatCompactionDebugLine(item: CompactionProgressItem) {
     return `profile: ${item.profile.source} - ${profiles || "none"} - risk ${item.profile.risk} - preserve ${item.profile.mustPreserve.length}`
   }
 
+  if (item.stage === "strategy") {
+    return `strategy: ${item.message}`
+  }
+
+  if (item.stage === "retention") {
+    return `retention: ${item.message}`
+  }
+
+  if (item.stage === "active_task") {
+    return `active-task: ${item.message}`
+  }
+
   if (item.stage === "selection") {
     return `selection: ${item.message}`
   }

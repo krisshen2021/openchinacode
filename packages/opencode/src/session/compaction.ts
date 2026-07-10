@@ -65,6 +65,12 @@ type Tail = {
   id: MessageID
 }
 
+type RetentionRequest = {
+  turns: number
+  source: "manual" | "config" | "auto"
+  message: string
+}
+
 type CompletedCompaction = {
   userIndex: number
   assistantIndex: number
@@ -132,6 +138,33 @@ function preserveRecentBudget(input: { cfg: ConfigV1.Info; model: Provider.Model
   )
 }
 
+function retentionRequest(input: { cfg: ConfigV1.Info; manualKeepTurns?: number }): RetentionRequest {
+  if (input.manualKeepTurns !== undefined) {
+    const turns = Math.max(0, Math.floor(input.manualKeepTurns))
+    return {
+      turns,
+      source: "manual",
+      message: `manual raw tail keep ${turns} turn${turns === 1 ? "" : "s"}`,
+    }
+  }
+
+  const configured = input.cfg.compaction?.tail_turns
+  if (typeof configured === "number") {
+    const turns = Math.max(0, Math.floor(configured))
+    return {
+      turns,
+      source: "config",
+      message: `config raw tail keep ${turns} turn${turns === 1 ? "" : "s"}`,
+    }
+  }
+
+  return {
+    turns: DEFAULT_TAIL_TURNS,
+    source: "auto",
+    message: `auto minimal raw tail keep ${DEFAULT_TAIL_TURNS} turns`,
+  }
+}
+
 function turns(messages: SessionV1.WithParts[]) {
   const result: Turn[] = []
   for (let i = 0; i < messages.length; i++) {
@@ -194,6 +227,7 @@ export interface Interface {
     model: { providerID: ProviderV2.ID; modelID: ModelV2.ID }
     auto: boolean
     overflow?: boolean
+    manual_keep_turns?: number
   }) => Effect.Effect<void>
 }
 
@@ -275,8 +309,9 @@ const layer = Layer.effect(
       messages: SessionV1.WithParts[]
       cfg: ConfigV1.Info
       model: Provider.Model
+      retention: RetentionRequest
     }) {
-      const limit = input.cfg.compaction?.tail_turns ?? DEFAULT_TAIL_TURNS
+      const limit = input.retention.turns
       if (limit <= 0) return { head: input.messages, tail_start_id: undefined }
       const budget = preserveRecentBudget({ cfg: input.cfg, model: input.model })
       const all = turns(input.messages)
@@ -621,10 +656,25 @@ const layer = Layer.effect(
       const hidden = new Set(prior.flatMap((item) => [item.userIndex, item.assistantIndex]))
       const previousSummary = prior.at(-1)?.summary
       const visibleHistory = history.filter((_, index) => !hidden.has(index))
+      const retention = retentionRequest({
+        cfg,
+        manualKeepTurns: compactionPart?.manual_keep_turns,
+      })
+      yield* publishProgress({
+        sessionID: input.sessionID,
+        stage: "strategy",
+        message: "general summary + active task essential extraction + minimal raw recent tail",
+      })
+      yield* publishProgress({
+        sessionID: input.sessionID,
+        stage: "retention",
+        message: `${retention.message} (${retention.source})`,
+      })
       const selected = yield* select({
         messages: visibleHistory,
         cfg,
         model,
+        retention,
       })
       const retainedMessages = Math.max(0, visibleHistory.length - selected.head.length)
       yield* publishProgress({
@@ -633,6 +683,7 @@ const layer = Layer.effect(
         message: [
           `summary head ${selected.head.length}/${visibleHistory.length} messages`,
           `retained tail ${retainedMessages} messages`,
+          `requested raw tail ${retention.turns} turn${retention.turns === 1 ? "" : "s"}`,
           selected.tail_start_id ? `tail starts at ${selected.tail_start_id}` : "tail not retained",
           previousSummary ? "previous summary yes" : "previous summary no",
         ].join(" - "),
@@ -669,6 +720,13 @@ const layer = Layer.effect(
           stage: "profile_ready",
           message: `Compaction profile ready from ${profile.source}`,
           profile: profileProgress(profile),
+        })
+        yield* publishProgress({
+          sessionID: input.sessionID,
+          stage: "active_task",
+          message: profile.active_task.present
+            ? `${profile.active_task.kind}, window ${profile.active_task.window_turns} turns - ${profile.active_task.reason}`
+            : "none detected",
         })
       }
       if (profile) {
@@ -885,6 +943,7 @@ const layer = Layer.effect(
       model: { providerID: ProviderV2.ID; modelID: ModelV2.ID }
       auto: boolean
       overflow?: boolean
+      manual_keep_turns?: number
     }) {
       const msg = yield* session.updateMessage({
         id: MessageID.ascending(),
@@ -901,6 +960,7 @@ const layer = Layer.effect(
         type: "compaction",
         auto: input.auto,
         overflow: input.overflow,
+        manual_keep_turns: input.manual_keep_turns,
       })
     })
 

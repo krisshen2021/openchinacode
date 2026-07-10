@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import {
   parseAutoMaxTokensSlashAction,
+  parseCompactSlashAction,
   parseDirectSlashCommand,
   parseLspSlashAction,
   parseTestMcpSlashAction,
@@ -35,6 +36,16 @@ describe("prompt slash commands", () => {
     expect(parseTestMcpSlashAction("off")).toEqual({ type: "off" })
     expect(parseTestMcpSlashAction("toggle")).toEqual({ type: "toggle" })
     expect(parseTestMcpSlashAction("tool on")).toEqual({ type: "help" })
+  })
+
+  test("parses compact actions", () => {
+    expect(parseCompactSlashAction("")).toEqual({ type: "run" })
+    expect(parseCompactSlashAction("auto")).toEqual({ type: "run" })
+    expect(parseCompactSlashAction("smart")).toEqual({ type: "run" })
+    expect(parseCompactSlashAction("keep 3")).toEqual({ type: "run", manualKeepTurns: 3 })
+    expect(parseCompactSlashAction("keep auto")).toEqual({ type: "run" })
+    expect(parseCompactSlashAction("keep -1")).toEqual({ type: "help" })
+    expect(parseCompactSlashAction("keep 1 extra")).toEqual({ type: "help" })
   })
 
   test("parses auto max tokens actions", () => {

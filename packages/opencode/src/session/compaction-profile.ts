@@ -9,7 +9,10 @@ export const ProfileTypes = [
   "general_summary",
 ] as const
 
+export const ActiveTaskKinds = ["debug", "implement", "refactor", "review", "research", "plan", "mixed"] as const
+
 export type ProfileType = (typeof ProfileTypes)[number]
+export type ActiveTaskKind = (typeof ActiveTaskKinds)[number]
 export type ProfileWeight = "low" | "medium" | "high"
 export type ProfileRisk = "low" | "medium" | "high"
 
@@ -18,9 +21,17 @@ export type Profile = {
   weight: number
 }
 
+export type ActiveTask = {
+  present: boolean
+  kind: ActiveTaskKind
+  window_turns: number
+  reason: string
+}
+
 export type Decision = {
   profiles: Profile[]
   must_preserve: string[]
+  active_task: ActiveTask
   risk: ProfileRisk
   source: "llm" | "heuristic" | "fallback"
 }
@@ -35,6 +46,9 @@ const TYPE_SET = new Set<string>(ProfileTypes)
 const TEXT_SCAN_LIMIT = 120_000
 const JUDGE_PREVIOUS_SUMMARY_CHARS = 4_000
 const JUDGE_RECENT_CONTEXT_CHARS = 20_000
+const ACTIVE_TASK_MIN_TURNS = 1
+const ACTIVE_TASK_MAX_TURNS = 12
+const ACTIVE_TASK_DEFAULT_TURNS = 4
 
 const SECTION_BY_TYPE: Record<ProfileType, string[]> = {
   debug_trace: ["Debug Trace", "Known Failures"],
@@ -48,6 +62,8 @@ const SECTION_BY_TYPE: Record<ProfileType, string[]> = {
 const SECTION_INSTRUCTION: Record<string, string> = {
   "Current Goal": "the user's current objective and why it matters",
   "Critical Continuity Facts": "facts that future turns must not lose",
+  "Active Task Essential State":
+    "fine-grained state of the current active task, especially recent files, errors, decisions, checks, and next steps",
   "Architecture Decisions": "architecture, design, stack, migration, and tradeoff decisions",
   "Implementation State": "files changed, partial edits, verified behavior, unfinished code work",
   "Debug Trace": "errors, commands, logs, hypotheses, attempts, and what each attempt proved",
@@ -62,8 +78,18 @@ function isProfileType(value: unknown): value is ProfileType {
   return typeof value === "string" && TYPE_SET.has(value)
 }
 
+function isActiveTaskKind(value: unknown): value is ActiveTaskKind {
+  return typeof value === "string" && (ActiveTaskKinds as readonly string[]).includes(value)
+}
+
 function rounded(value: number) {
   return Math.round(value * 100) / 100
+}
+
+function clampInt(value: unknown, min: number, max: number, fallback: number) {
+  const next = Math.floor(Number(value))
+  if (!Number.isFinite(next)) return fallback
+  return Math.max(min, Math.min(max, next))
 }
 
 function level(weight: number): ProfileWeight {
@@ -94,15 +120,18 @@ export function normalize(input: Partial<Decision> | undefined): Decision {
           .slice(0, 4)
       : [{ type: "general_summary" as const, weight: 1 }]
 
-  const risk = input?.risk === "high" || input?.risk === "medium" || input?.risk === "low" ? input.risk : riskOf(profiles)
+  const risk =
+    input?.risk === "high" || input?.risk === "medium" || input?.risk === "low" ? input.risk : riskOf(profiles)
   const must_preserve = (input?.must_preserve ?? [])
     .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
     .map((item) => item.trim())
     .slice(0, 8)
+  const active_task = normalizeActiveTask(input?.active_task, profiles)
 
   return {
     profiles,
     must_preserve,
+    active_task,
     risk,
     source:
       input?.source === "llm"
@@ -113,6 +142,38 @@ export function normalize(input: Partial<Decision> | undefined): Decision {
             ? "fallback"
             : "fallback",
   }
+}
+
+function normalizeActiveTask(input: Partial<ActiveTask> | undefined, profiles: Profile[]): ActiveTask {
+  const profileTypes = new Set(profiles.map((item) => item.type))
+  const inferredPresent = profiles.some((item) => item.type !== "general_summary" && item.weight >= 0.15)
+  const present = typeof input?.present === "boolean" ? input.present : inferredPresent
+  const kind = isActiveTaskKind(input?.kind) ? input.kind : kindOfProfiles(profileTypes)
+  const reason =
+    typeof input?.reason === "string" && input.reason.trim()
+      ? input.reason.trim().slice(0, 240)
+      : present
+        ? "recent conversation contains active coding task state"
+        : "no distinct active task detected"
+  return {
+    present,
+    kind,
+    window_turns: present
+      ? clampInt(input?.window_turns, ACTIVE_TASK_MIN_TURNS, ACTIVE_TASK_MAX_TURNS, ACTIVE_TASK_DEFAULT_TURNS)
+      : 0,
+    reason,
+  }
+}
+
+function kindOfProfiles(types: Set<ProfileType>): ActiveTaskKind {
+  const nonGeneral = [...types].filter((type) => type !== "general_summary")
+  if (nonGeneral.length >= 3) return "mixed"
+  if (types.has("debug_trace")) return "debug"
+  if (types.has("review_findings")) return "review"
+  if (types.has("implementation_state")) return "implement"
+  if (types.has("architecture_memory")) return "plan"
+  if (types.has("tool_research")) return "research"
+  return "mixed"
 }
 
 function riskOf(profiles: Profile[]): ProfileRisk {
@@ -209,12 +270,37 @@ export function infer(input: { messages: readonly SessionV1.WithParts[]; previou
   const profiles = [...scores.entries()]
     .filter(([, score]) => score > 0)
     .map(([type, score]) => ({ type, weight: score }))
+  const active = inferActiveTask({ text, messages: input.messages, profiles })
 
   return normalize({
     profiles,
     must_preserve: mustPreserve(text),
+    active_task: active,
     source: "heuristic",
   })
+}
+
+function inferActiveTask(input: {
+  text: string
+  messages: readonly SessionV1.WithParts[]
+  profiles: Profile[]
+}): ActiveTask {
+  const normalized = normalize({ profiles: input.profiles, source: "heuristic" })
+  const profileTypes = new Set(normalized.profiles.map((item) => item.type))
+  const present = normalized.profiles.some((item) => item.type !== "general_summary" && item.weight >= 0.15)
+  const userTurns = input.messages.filter(
+    (message) => message.info.role === "user" && !message.parts.some((part) => part.type === "compaction"),
+  ).length
+  let kind = kindOfProfiles(profileTypes)
+  if (hit(input.text, /\b(refactor|rewrite|migration)\b|重构|迁移|改造/)) kind = "refactor"
+  else if (hit(input.text, /\b(review|audit)\b|审查|审核|评审|审计/)) kind = "review"
+  else if (hit(input.text, /\b(debug|bug|failed|traceback|diagnostic)\b|调试|排查|报错|错误|失败|诊断/)) kind = "debug"
+  return {
+    present,
+    kind,
+    window_turns: present ? Math.max(1, Math.min(ACTIVE_TASK_MAX_TURNS, userTurns || ACTIVE_TASK_DEFAULT_TURNS)) : 0,
+    reason: present ? "recent conversation contains active coding task state" : "no distinct active task detected",
+  }
 }
 
 function tail(value: string, length: number) {
@@ -239,6 +325,7 @@ export function parseJudgeOutput(text: string): Decision | undefined {
     const normalized = normalize({
       profiles: parsed.profiles,
       must_preserve: parsed.must_preserve,
+      active_task: parsed.active_task,
       risk: parsed.risk,
       source: "llm",
     })
@@ -262,13 +349,15 @@ export function judgeMessages(input: { messages: readonly SessionV1.WithParts[];
         "Return one compact JSON object only. Do not include Markdown, commentary, analysis, or explanatory text.",
         "The profile type value must be one of the exact enum strings below. Do not translate or invent type names.",
         "Schema:",
-        '{"profiles":[{"type":"debug_trace|implementation_state|architecture_memory|review_findings|tool_research|general_summary","weight":0.0}],"must_preserve":["short durable preservation rule"],"risk":"low|medium|high"}',
+        '{"profiles":[{"type":"debug_trace|implementation_state|architecture_memory|review_findings|tool_research|general_summary","weight":0.0}],"must_preserve":["short durable preservation rule"],"active_task":{"present":true,"kind":"debug|implement|refactor|review|research|plan|mixed","window_turns":4,"reason":"short reason"},"risk":"low|medium|high"}',
         "Use debug_trace for failures, diagnostics, test/build output, debugging hypotheses.",
         "Use implementation_state for changed files, partial edits, current work state, verification.",
         "Use architecture_memory for system design, refactor plans, stack choices, migration constraints.",
         "Use review_findings for audit/review findings, risks, severity, evidence locations.",
         "Use tool_research for files inspected, symbols traced, commands used, research map.",
         "Use general_summary for user preferences and durable context that does not fit the other profiles.",
+        "Set active_task.present true when recent turns are part of a current coding task that needs fine-grained continuity.",
+        "Set active_task.window_turns to the recent user-turn window that contains the current task state. This is advisory, not raw retention.",
         "Keep must_preserve to at most 8 short items.",
       ].join("\n"),
     },
@@ -301,7 +390,12 @@ function mustPreserve(text: string) {
 }
 
 function sections(decision: Decision) {
-  const result = new Set<string>(["Current Goal", "Critical Continuity Facts"])
+  const result = new Set<string>([
+    "Current Goal",
+    "Critical Continuity Facts",
+    "General Context",
+    "Active Task Essential State",
+  ])
   for (const profile of decision.profiles) {
     if (profile.weight < 0.12 && profile.type !== "general_summary") continue
     for (const section of SECTION_BY_TYPE[profile.type]) result.add(section)
@@ -329,6 +423,7 @@ export function buildPrompt(input: BuildInput) {
     {
       profiles: decision.profiles,
       must_preserve: decision.must_preserve,
+      active_task: decision.active_task,
       risk: decision.risk,
       source: decision.source,
     },
@@ -340,9 +435,13 @@ export function buildPrompt(input: BuildInput) {
     input.previousSummary
       ? `Update the anchored working memory below using the conversation history above.\nPreserve still-true details, remove stale details, and merge in the new facts.\n<previous-summary>\n${input.previousSummary}\n</previous-summary>`
       : "Create a new anchored working memory from the conversation history.",
+    "Use this three-layer compaction strategy: 1) general context summary, 2) active task essential extraction, 3) minimal raw recent tail handled by the runtime outside this summary.",
     "Use the stable compaction profile JSON below to decide what to preserve and how much detail each section needs.",
     `<compaction-profile-json>\n${profileJson}\n</compaction-profile-json>`,
     "Profile priorities:\n" + profileLines(decision).join("\n"),
+    decision.active_task.present
+      ? `Active task: ${decision.active_task.kind}, recent window ${decision.active_task.window_turns} user turns, reason: ${decision.active_task.reason}`
+      : "Active task: none detected; keep the Active Task Essential State section concise.",
     decision.must_preserve.length
       ? "Must preserve:\n" + decision.must_preserve.map((item) => `- ${item}`).join("\n")
       : "Must preserve:\n- exact file paths, symbols, commands, error strings, URLs, identifiers, and next actions when known",

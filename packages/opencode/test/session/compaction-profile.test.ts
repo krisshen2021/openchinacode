@@ -98,6 +98,9 @@ describe("CompactionProfile", () => {
 
     expect(prompt).toContain("<compaction-profile-json>")
     expect(prompt).toContain('"type": "debug_trace"')
+    expect(prompt).toContain('"active_task"')
+    expect(prompt).toContain("three-layer")
+    expect(prompt).toContain("## Active Task Essential State")
     expect(prompt).toContain("## Debug Trace")
     expect(prompt).toContain("## Implementation State")
     expect(prompt).toContain("## Architecture Decisions")
@@ -113,6 +116,12 @@ describe("CompactionProfile", () => {
         { "type": "architecture_memory", "weight": 0.25 }
       ],
       "must_preserve": ["exact error", "changed files"],
+      "active_task": {
+        "present": true,
+        "kind": "debug",
+        "window_turns": 5,
+        "reason": "recent turns are debugging a failing build"
+      },
       "risk": "high"
     }`)
 
@@ -123,6 +132,12 @@ describe("CompactionProfile", () => {
       { type: "implementation_state", weight: 0.25 },
     ])
     expect(decision?.must_preserve).toEqual(["exact error", "changed files"])
+    expect(decision?.active_task).toEqual({
+      present: true,
+      kind: "debug",
+      window_turns: 5,
+      reason: "recent turns are debugging a failing build",
+    })
     expect(decision?.risk).toBe("high")
   })
 

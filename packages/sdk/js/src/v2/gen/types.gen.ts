@@ -622,6 +622,7 @@ export type CompactionPart = {
   type: "compaction"
   auto: boolean
   overflow?: boolean
+  manual_keep_turns?: number
   tail_start_id?: string
 }
 
@@ -1551,9 +1552,12 @@ export type GlobalEvent = {
           stage:
             | "started"
             | "route"
+            | "strategy"
+            | "retention"
             | "judge_started"
             | "judge_result"
             | "profile_ready"
+            | "active_task"
             | "selection"
             | "summary_started"
             | "summary_finished"
@@ -2049,7 +2053,7 @@ export type Config = {
   compaction?: {
     auto?: boolean
     prune?: boolean
-    tail_turns?: number
+    tail_turns?: number | "auto"
     preserve_recent_tokens?: number
     reserved?: number
   }
@@ -7029,9 +7033,12 @@ export type EventSessionCompactionProgress = {
     stage:
       | "started"
       | "route"
+      | "strategy"
+      | "retention"
       | "judge_started"
       | "judge_result"
       | "profile_ready"
+      | "active_task"
       | "selection"
       | "summary_started"
       | "summary_finished"
@@ -10180,6 +10187,7 @@ export type SessionSummarizeData = {
     providerID: string
     modelID: string
     auto?: boolean
+    manual_keep_turns?: number
   }
   path: {
     sessionID: string

@@ -185,6 +185,27 @@ OpenChinaCode 定制 slash command 的 TUI 入口在 `packages/tui/src/component
 /auto-max-tokens
 ```
 
+### `/compact`
+
+本地 TUI command，不调用当前对话模型来解释命令本身。实际压缩模型由 task policy 路由，默认是 `zhipuai-pay2go/glm-5.2#high`。
+
+```text
+/compact
+/compact auto
+/compact smart
+/compact keep N
+/compact keep auto
+/summarize
+/summarize keep N
+```
+
+行为：
+
+- `/compact` 使用 OpenChinaCode 三层智能压缩：general summary、active task essential extraction、minimal raw recent tail。
+- `/compact keep N` 是手动 override，会在三层策略外额外请求保留最近 N 个原始用户轮次及其后续 assistant/tool 消息。
+- `/compact keep auto` 回到默认智能策略。
+- TUI Smart Compaction 面板会显示 `strategy`、`retention`、`route`、`judge`、`profile`、`active-task`、`selection`、`summary` 等阶段。
+
 ### `/lsp`
 
 本地 TUI command，不调用当前对话模型。写入全局配置。
@@ -564,12 +585,14 @@ TUI subagent 行应显示：
 - compaction 通过同一套 task policy 路由。
 - 默认 `compaction.* -> zhipuai-pay2go/glm-5.2#high`。
 - 如果 compaction agent 自己显式配置了 model，则优先使用 agent model。
-- compaction 会保留最近 tail turns，并把已完成 compaction summary 作为后续压缩的锚点。
+- compaction 使用三层策略：general summary、active task essential extraction、minimal raw recent tail。
+- 默认 `compaction.tail_turns` 为 `auto` 语义，即 minimal raw tail；如果配置为数字或使用 `/compact keep N`，会额外保留对应最近原始轮次。
+- 已完成 compaction summary 会作为后续压缩的锚点。
 - 输出预算层如果发现当前上下文留给输出的空间不足，会触发 compaction，而不是盲目降低到无效输出。
 
 智能 profile：
 
-- 压缩前先由轻量 judge 模型输出稳定 JSON：`profiles`、`must_preserve`、`risk`。
+- 压缩前先由 judge 模型输出稳定 JSON：`profiles`、`must_preserve`、`active_task`、`risk`。
 - 默认 judge 候选：当前 compaction 路由选中的模型，然后 `moonshotai-cn/kimi-k2.7-code-highspeed`，然后 `deepseek/deepseek-v4-flash`，最后当前 provider 的 small model。
 - 默认 compaction 路由是 `zhipuai-pay2go/glm-5.2#high`，因此默认 profile judge 也使用 GLM high。
 - judge 只拿截断后的判断上下文：previous summary tail 和 recent conversation tail，不会把完整超大历史再塞给 judge。
@@ -588,6 +611,19 @@ Profile 类型：
 | `review_findings`      | `Review Findings`               | 保留审查发现、风险、证据位置           |
 | `tool_research`        | `Research Map`                  | 保留已搜索/阅读的文件、符号和代码路径  |
 | `general_summary`      | `General Context`               | 保留普通上下文和用户偏好               |
+
+Active task：
+
+```json
+{
+  "present": true,
+  "kind": "debug|implement|refactor|review|research|plan|mixed",
+  "window_turns": 4,
+  "reason": "short reason"
+}
+```
+
+`window_turns` 是给 summary prompt 的活动任务窗口提示，不等同于原始轮次保留。原始保留由 `compaction.tail_turns` 或 `/compact keep N` 控制。
 
 日志：
 

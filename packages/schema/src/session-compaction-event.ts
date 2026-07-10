@@ -19,9 +19,12 @@ export const Progress = Event.define({
     stage: Schema.Literals([
       "started",
       "route",
+      "strategy",
+      "retention",
       "judge_started",
       "judge_result",
       "profile_ready",
+      "active_task",
       "selection",
       "summary_started",
       "summary_finished",

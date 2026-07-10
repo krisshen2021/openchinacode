@@ -336,7 +336,10 @@ function compactionProcessLayer(options?: CompactionProcessOptions) {
   if (!options?.llm) {
     return AppNodeBuilder.build(compactionTestNode, [
       ...replacements,
-      [SessionProcessorModule.SessionProcessor.node, processorLayer(options?.result ?? "continue", options?.processorCapture)],
+      [
+        SessionProcessorModule.SessionProcessor.node,
+        processorLayer(options?.result ?? "continue", options?.processorCapture),
+      ],
       ...(options?.plugin ? ([[Plugin.node, options.plugin]] as const) : []),
       ...(options?.config ? ([[Config.node, options.config]] as const) : []),
     ])
@@ -413,7 +416,9 @@ function modelMessageText(value: unknown): string {
   if (Array.isArray(value)) return value.map(modelMessageText).join("\n")
   if (typeof value !== "object" || value === null) return ""
   const record = value as Record<string, unknown>
-  return ["text", "content", "value"].flatMap((key) => (key in record ? [modelMessageText(record[key])] : [])).join("\n")
+  return ["text", "content", "value"]
+    .flatMap((key) => (key in record ? [modelMessageText(record[key])] : []))
+    .join("\n")
 }
 
 function plugin(ready: Deferred.Deferred<void>) {
@@ -654,6 +659,32 @@ describe("session.compaction.create", () => {
           type: "compaction",
           auto: true,
           overflow: true,
+        })
+      }),
+    ),
+  )
+
+  it.live(
+    "stores manual keep turns on compaction part",
+    provideTmpdirInstance(() =>
+      Effect.gen(function* () {
+        const compact = yield* SessionCompaction.Service
+        const ssn = yield* SessionNs.Service
+        const info = yield* ssn.create({})
+
+        yield* compact.create({
+          sessionID: info.id,
+          agent: "build",
+          model: ref,
+          auto: false,
+          manual_keep_turns: 3,
+        })
+
+        const msgs = yield* ssn.messages({ sessionID: info.id })
+        expect(msgs[0].parts[0]).toMatchObject({
+          type: "compaction",
+          auto: false,
+          manual_keep_turns: 3,
         })
       }),
     ),
@@ -1142,6 +1173,39 @@ describe("session.compaction.process", () => {
       expect(part?.type).toBe("compaction")
       expect(part?.tail_start_id).toBe(keep.id)
     }).pipe(withCompaction({ config: cfg({ tail_turns: 2, preserve_recent_tokens: 10_000 }) })),
+  )
+
+  itCompaction.instance(
+    "manual keep turns override configured raw tail retention",
+    Effect.gen(function* () {
+      const ssn = yield* SessionNs.Service
+      const session = yield* ssn.create({})
+      yield* createUserMessage(session.id, "first")
+      yield* createUserMessage(session.id, "second")
+      const keep = yield* createUserMessage(session.id, "third")
+      yield* SessionCompaction.use.create({
+        sessionID: session.id,
+        agent: "build",
+        model: ref,
+        auto: false,
+        manual_keep_turns: 1,
+      })
+
+      const msgs = yield* ssn.messages({ sessionID: session.id })
+      const parent = msgs.at(-1)?.info.id
+      expect(parent).toBeTruthy()
+      yield* SessionCompaction.use.process({
+        parentID: parent!,
+        messages: msgs,
+        sessionID: session.id,
+        auto: false,
+      })
+
+      const part = yield* readCompactionPart(session.id)
+      expect(part?.type).toBe("compaction")
+      expect(part?.manual_keep_turns).toBe(1)
+      expect(part?.tail_start_id).toBe(keep.id)
+    }).pipe(withCompaction({ config: cfg({ tail_turns: 3, preserve_recent_tokens: 10_000 }) })),
   )
 
   itCompaction.instance(

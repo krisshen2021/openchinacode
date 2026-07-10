@@ -379,6 +379,7 @@ export type CompactionPart = {
   messageID: string
   type: "compaction"
   auto: boolean
+  manual_keep_turns?: number
 }
 
 export type Part =
@@ -2510,6 +2511,7 @@ export type SessionSummarizeData = {
   body?: {
     providerID: string
     modelID: string
+    manual_keep_turns?: number
   }
   path: {
     /**

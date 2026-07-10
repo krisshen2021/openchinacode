@@ -23,6 +23,23 @@ export function parseLspSlashAction(args: string): "status" | "on" | "off" | "he
   return "help"
 }
 
+export type CompactSlashAction = { type: "run"; manualKeepTurns?: number } | { type: "help" }
+
+export function parseCompactSlashAction(args: string): CompactSlashAction {
+  const trimmed = args.trim()
+  if (!trimmed) return { type: "run" }
+
+  const [command = "", value = "", ...rest] = trimmed.split(/\s+/)
+  const normalized = command.toLowerCase()
+  if (["auto", "smart"].includes(normalized)) return { type: "run" }
+  if (normalized !== "keep" || rest.length > 0) return { type: "help" }
+  if (["auto", "smart"].includes(value.toLowerCase())) return { type: "run" }
+
+  const turns = Number(value)
+  if (!Number.isInteger(turns) || turns < 0) return { type: "help" }
+  return { type: "run", manualKeepTurns: turns }
+}
+
 export type TestMcpSlashAction =
   | { type: "status" }
   | { type: "on"; headless?: boolean }

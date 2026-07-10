@@ -109,18 +109,28 @@ compaction.* -> zhipuai-pay2go/glm-5.2#high
 
 这样压缩摘要更偏向保留后续编程所需的结构化上下文。
 
-同时，compaction prompt 已加入 OpenChinaCode 的 profile 判断层。压缩发生时会先用轻量 judge 模型根据当前上下文生成稳定 profile JSON，再拼出对应的 Markdown 分区模板，避免所有任务都被压成同一种摘要。
+同时，compaction prompt 已加入 OpenChinaCode 的 profile 判断层。压缩发生时会先用 judge 模型根据当前上下文生成稳定 profile JSON，再拼出对应的 Markdown 分区模板，避免所有任务都被压成同一种摘要。
+
+当前压缩采用三层策略：
+
+```text
+1. General Compaction Summary
+2. Active Task Essential Extraction
+3. Minimal Raw Recent Tail
+```
+
+默认 `/compact` 使用智能策略；`/compact keep N` 是手动 override，会额外保留最近 N 个原始用户轮次及其后续 assistant/tool 消息。TUI 的 Smart Compaction 面板会显示 `strategy`、`retention`、`active-task`、`selection` 等调试阶段。
 
 当前 profile 类型：
 
-| Profile | 重点保留 |
-|---|---|
-| `debug_trace` | 报错、失败命令、诊断、排查假设 |
+| Profile                | 重点保留                       |
+| ---------------------- | ------------------------------ |
+| `debug_trace`          | 报错、失败命令、诊断、排查假设 |
 | `implementation_state` | 已改文件、未完成实现、验证结果 |
-| `architecture_memory` | 架构决策、技术栈、迁移约束 |
-| `review_findings` | 审查发现、风险、证据位置 |
-| `tool_research` | 已读文件、代码路径、搜索结果 |
-| `general_summary` | 用户偏好、长期约束、普通上下文 |
+| `architecture_memory`  | 架构决策、技术栈、迁移约束     |
+| `review_findings`      | 审查发现、风险、证据位置       |
+| `tool_research`        | 已读文件、代码路径、搜索结果   |
+| `general_summary`      | 用户偏好、长期约束、普通上下文 |
 
 默认 judge 候选优先级：
 
@@ -159,20 +169,20 @@ explicit task model
 
 内置默认策略：
 
-| Task kind | quick | medium | complex |
-|---|---|---|---|
-| `general` | 继承父模型 | 继承父模型 | 继承父模型 |
-| `plan` | `zhipuai-pay2go/glm-5.2#high` | `zhipuai-pay2go/glm-5.2#high` | `zhipuai-pay2go/glm-5.2#max` |
-| `architecture` | `zhipuai-pay2go/glm-5.2#high` | `zhipuai-pay2go/glm-5.2#high` | `zhipuai-pay2go/glm-5.2#max` |
-| `refactor` | `zhipuai-pay2go/glm-5.2#high` | `zhipuai-pay2go/glm-5.2#high` | `zhipuai-pay2go/glm-5.2#max` |
-| `review` | `moonshotai-cn/kimi-k2.7-code-highspeed` | `moonshotai-cn/kimi-k2.7-code-highspeed` | `zhipuai-pay2go/glm-5.2#high` |
-| `implement` | `moonshotai-cn/kimi-k2.7-code-highspeed` | `moonshotai-cn/kimi-k2.7-code-highspeed` | `zhipuai-pay2go/glm-5.2#high` |
-| `explore` | `moonshotai-cn/kimi-k2.7-code-highspeed` | `zhipuai-pay2go/glm-5.2#high` | `zhipuai-pay2go/glm-5.2#max` |
-| `visual_check` | `zhipuai-pay2go/glm-5v-turbo` | `zhipuai-pay2go/glm-5v-turbo` | `zhipuai-pay2go/glm-5v-turbo` |
-| `debug` | `deepseek/deepseek-v4-pro` | `deepseek/deepseek-v4-pro` | `deepseek/deepseek-v4-pro` |
-| `test_fix` | `deepseek/deepseek-v4-pro` | `deepseek/deepseek-v4-pro` | `deepseek/deepseek-v4-pro` |
-| `summarize` | `moonshotai-cn/kimi-k2.7-code-highspeed` | `moonshotai-cn/kimi-k2.7-code-highspeed` | `zhipuai-pay2go/glm-5.2#high` |
-| `compaction` | `zhipuai-pay2go/glm-5.2#high` | `zhipuai-pay2go/glm-5.2#high` | `zhipuai-pay2go/glm-5.2#high` |
+| Task kind      | quick                                    | medium                                   | complex                       |
+| -------------- | ---------------------------------------- | ---------------------------------------- | ----------------------------- |
+| `general`      | 继承父模型                               | 继承父模型                               | 继承父模型                    |
+| `plan`         | `zhipuai-pay2go/glm-5.2#high`            | `zhipuai-pay2go/glm-5.2#high`            | `zhipuai-pay2go/glm-5.2#max`  |
+| `architecture` | `zhipuai-pay2go/glm-5.2#high`            | `zhipuai-pay2go/glm-5.2#high`            | `zhipuai-pay2go/glm-5.2#max`  |
+| `refactor`     | `zhipuai-pay2go/glm-5.2#high`            | `zhipuai-pay2go/glm-5.2#high`            | `zhipuai-pay2go/glm-5.2#max`  |
+| `review`       | `moonshotai-cn/kimi-k2.7-code-highspeed` | `moonshotai-cn/kimi-k2.7-code-highspeed` | `zhipuai-pay2go/glm-5.2#high` |
+| `implement`    | `moonshotai-cn/kimi-k2.7-code-highspeed` | `moonshotai-cn/kimi-k2.7-code-highspeed` | `zhipuai-pay2go/glm-5.2#high` |
+| `explore`      | `moonshotai-cn/kimi-k2.7-code-highspeed` | `zhipuai-pay2go/glm-5.2#high`            | `zhipuai-pay2go/glm-5.2#max`  |
+| `visual_check` | `zhipuai-pay2go/glm-5v-turbo`            | `zhipuai-pay2go/glm-5v-turbo`            | `zhipuai-pay2go/glm-5v-turbo` |
+| `debug`        | `deepseek/deepseek-v4-pro`               | `deepseek/deepseek-v4-pro`               | `deepseek/deepseek-v4-pro`    |
+| `test_fix`     | `deepseek/deepseek-v4-pro`               | `deepseek/deepseek-v4-pro`               | `deepseek/deepseek-v4-pro`    |
+| `summarize`    | `moonshotai-cn/kimi-k2.7-code-highspeed` | `moonshotai-cn/kimi-k2.7-code-highspeed` | `zhipuai-pay2go/glm-5.2#high` |
+| `compaction`   | `zhipuai-pay2go/glm-5.2#high`            | `zhipuai-pay2go/glm-5.2#high`            | `zhipuai-pay2go/glm-5.2#high` |
 
 ## 定制 Slash Commands
 
@@ -194,15 +204,15 @@ explicit task model
 
 含义：
 
-| 命令 | 作用 |
-|---|---|
-| `/auto-maxtokens` | 查看当前策略 |
-| `/auto-maxtokens status` | 查看当前策略 |
-| `/auto-maxtokens off` | 关闭自动输出预算，尽量使用模型/provider 默认值 |
-| `/auto-maxtokens heuristic` | 使用本地启发式判断，不调用额外 judge 模型 |
-| `/auto-maxtokens llm` | 开启 LLM 判断，模糊场景用 judge 模型决定输出档位；默认 judge 是 `deepseek/deepseek-v4-flash` |
-| `/auto-maxtokens llm provider/model` | 开启 LLM 判断并指定 judge 模型 |
-| `/auto-maxtokens model provider/model` | 修改 judge 模型，并保持 LLM 判断模式 |
+| 命令                                   | 作用                                                                                         |
+| -------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `/auto-maxtokens`                      | 查看当前策略                                                                                 |
+| `/auto-maxtokens status`               | 查看当前策略                                                                                 |
+| `/auto-maxtokens off`                  | 关闭自动输出预算，尽量使用模型/provider 默认值                                               |
+| `/auto-maxtokens heuristic`            | 使用本地启发式判断，不调用额外 judge 模型                                                    |
+| `/auto-maxtokens llm`                  | 开启 LLM 判断，模糊场景用 judge 模型决定输出档位；默认 judge 是 `deepseek/deepseek-v4-flash` |
+| `/auto-maxtokens llm provider/model`   | 开启 LLM 判断并指定 judge 模型                                                               |
+| `/auto-maxtokens model provider/model` | 修改 judge 模型，并保持 LLM 判断模式                                                         |
 
 推荐日常设置：
 
@@ -215,6 +225,27 @@ explicit task model
 ```text
 /auto-maxtokens llm deepseek/deepseek-v4-flash
 ```
+
+### `/compact`
+
+执行智能压缩。
+
+```text
+/compact
+/compact keep 3
+/compact keep auto
+/summarize
+/summarize keep 3
+```
+
+含义：
+
+| 命令                 | 作用                                                                                         |
+| -------------------- | -------------------------------------------------------------------------------------------- |
+| `/compact`           | 使用三层智能压缩：general summary、active task essential extraction、minimal raw recent tail |
+| `/compact keep N`    | 在智能压缩之外，额外保留最近 N 个原始用户轮次                                                |
+| `/compact keep auto` | 回到默认智能策略                                                                             |
+| `/summarize`         | `/compact` 的别名                                                                            |
 
 ### `/lsp`
 
@@ -229,12 +260,12 @@ explicit task model
 
 含义：
 
-| 命令 | 作用 |
-|---|---|
-| `/lsp` | 查看当前 LSP 状态 |
-| `/lsp status` | 查看当前 LSP 状态 |
-| `/lsp on` | 写入配置，启用内置 LSP |
-| `/lsp off` | 写入配置，关闭 LSP |
+| 命令          | 作用                   |
+| ------------- | ---------------------- |
+| `/lsp`        | 查看当前 LSP 状态      |
+| `/lsp status` | 查看当前 LSP 状态      |
+| `/lsp on`     | 写入配置，启用内置 LSP |
+| `/lsp off`    | 写入配置，关闭 LSP     |
 
 修改后通常需要重启 OpenChinaCode。
 
@@ -254,15 +285,15 @@ explicit task model
 
 含义：
 
-| 命令 | 作用 |
-|---|---|
-| `/test-mcp` | 查看当前 Playwright MCP 配置状态 |
-| `/test-mcp status` | 查看当前 Playwright MCP 配置状态 |
-| `/test-mcp on` | 写入全局配置，立即连接 Playwright MCP，默认 headless |
-| `/test-mcp off` | 写入全局配置，立即断开 Playwright MCP |
-| `/test-mcp toggle` | 在启用/关闭之间切换 |
-| `/test-mcp headless` | 启用 Playwright MCP，并使用无头浏览器 |
-| `/test-mcp headed` | 启用 Playwright MCP，并使用可见浏览器窗口 |
+| 命令                 | 作用                                                 |
+| -------------------- | ---------------------------------------------------- |
+| `/test-mcp`          | 查看当前 Playwright MCP 配置状态                     |
+| `/test-mcp status`   | 查看当前 Playwright MCP 配置状态                     |
+| `/test-mcp on`       | 写入全局配置，立即连接 Playwright MCP，默认 headless |
+| `/test-mcp off`      | 写入全局配置，立即断开 Playwright MCP                |
+| `/test-mcp toggle`   | 在启用/关闭之间切换                                  |
+| `/test-mcp headless` | 启用 Playwright MCP，并使用无头浏览器                |
+| `/test-mcp headed`   | 启用 Playwright MCP，并使用可见浏览器窗口            |
 
 写入位置：
 
@@ -409,27 +440,27 @@ OpenChinaCode 的 task policy 已切换到新 schema，不再兼容旧的 `tasks
     "routes": {
       "review.complex": {
         "model": "zhipuai-pay2go/glm-5.2",
-        "variant": "high"
+        "variant": "high",
       },
       "explore.quick": {
-        "model": "moonshotai-cn/kimi-k2.7-code-highspeed"
+        "model": "moonshotai-cn/kimi-k2.7-code-highspeed",
       },
       "visual_check": {
-        "model": "zhipuai-pay2go/glm-5v-turbo"
+        "model": "zhipuai-pay2go/glm-5v-turbo",
       },
       "general": {
-        "inherit": true
-      }
+        "inherit": true,
+      },
     },
     "agents": {
       "explore": {
         "review.complex": {
           "model": "zhipuai-pay2go/glm-5.2",
-          "variant": "high"
-        }
-      }
-    }
-  }
+          "variant": "high",
+        },
+      },
+    },
+  },
 }
 ```
 
