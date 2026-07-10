@@ -24,6 +24,12 @@ curl -fsSL https://openchinacode.muffin-labs.com/install | bash
 
 The existing custom domain can stay unchanged.
 
+The Worker source intentionally keeps the top level limited to `export default`.
+Cloudflare Workers supports JavaScript modules, but the dashboard editor has been
+observed to reject this Worker when the large homepage HTML is stored in a
+top-level constant. Keep the homepage HTML inside the `/` request branch unless
+the deployment path is changed to Wrangler with a config file.
+
 ## Wrangler Deploy
 
 If Wrangler is authenticated locally:

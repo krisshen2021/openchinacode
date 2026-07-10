@@ -1,4 +1,33 @@
-const home = String.raw`<!doctype html>
+export default {
+  async fetch(request) {
+    const url = new URL(request.url)
+
+    if (url.pathname === "/install" || url.pathname === "/install.sh") {
+      const response = await fetch("https://raw.githubusercontent.com/krisshen2021/openchinacode/main/install", {
+        headers: {
+          "user-agent": "OpenChinaCode website installer",
+        },
+      })
+      return new Response(response.body, {
+        status: response.status,
+        headers: {
+          "content-type": "text/plain; charset=utf-8",
+          "cache-control": "public, max-age=300",
+          "x-content-type-options": "nosniff",
+        },
+      })
+    }
+
+    if (url.pathname === "/github") {
+      return Response.redirect("https://github.com/krisshen2021/openchinacode", 302)
+    }
+
+    if (url.pathname === "/releases") {
+      return Response.redirect("https://github.com/krisshen2021/openchinacode/releases/latest", 302)
+    }
+
+    if (url.pathname === "/" || url.pathname === "/index.html") {
+      return new Response(String.raw`<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -699,38 +728,7 @@ const home = String.raw`<!doctype html>
     });
   </script>
 </body>
-</html>`
-
-export default {
-  async fetch(request) {
-    const url = new URL(request.url)
-
-    if (url.pathname === "/install" || url.pathname === "/install.sh") {
-      const response = await fetch("https://raw.githubusercontent.com/krisshen2021/openchinacode/main/install", {
-        headers: {
-          "user-agent": "OpenChinaCode website installer",
-        },
-      })
-      return new Response(response.body, {
-        status: response.status,
-        headers: {
-          "content-type": "text/plain; charset=utf-8",
-          "cache-control": "public, max-age=300",
-          "x-content-type-options": "nosniff",
-        },
-      })
-    }
-
-    if (url.pathname === "/github") {
-      return Response.redirect("https://github.com/krisshen2021/openchinacode", 302)
-    }
-
-    if (url.pathname === "/releases") {
-      return Response.redirect("https://github.com/krisshen2021/openchinacode/releases/latest", 302)
-    }
-
-    if (url.pathname === "/" || url.pathname === "/index.html") {
-      return new Response(home, {
+</html>`, {
         headers: {
           "content-type": "text/html; charset=utf-8",
           "cache-control": "public, max-age=300",
