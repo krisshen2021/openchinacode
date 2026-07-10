@@ -609,6 +609,16 @@ h3 {
 
 .bento .span-2 { grid-column: span 2; }
 
+/* ── Hero grid ─────────────────────────────────────────────── */
+.hero-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 48px;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+}
+
 /* ── Terminal ──────────────────────────────────────────────── */
 .terminal {
   border-radius: var(--radius);
@@ -1082,6 +1092,11 @@ li + li {
 
   .bento .span-2 {
     grid-column: span 1;
+  }
+
+  .hero-grid {
+    grid-template-columns: 1fr;
+    gap: 32px;
   }
 
   .stats {
