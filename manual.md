@@ -29,7 +29,7 @@ curl -fsSL https://openchinacode.muffin-labs.com/install | bash
 安装指定版本：
 
 ```bash
-curl -fsSL https://openchinacode.muffin-labs.com/install | bash -s -- --version 0.1.2
+curl -fsSL https://openchinacode.muffin-labs.com/install | bash -s -- --version 0.1.3
 ```
 
 安装脚本会从 `krisshen2021/openchinacode` 的 GitHub Releases 下载匹配当前系统的二进制，默认安装到：
@@ -42,7 +42,7 @@ curl -fsSL https://openchinacode.muffin-labs.com/install | bash -s -- --version 
 
 ```bash
 openchinacode upgrade
-openchinacode upgrade 0.1.2
+openchinacode upgrade 0.1.3
 ```
 
 `openchinacode upgrade` 默认读取 GitHub latest release，并复用同一套安装脚本 / release 资产。备用 raw 安装入口：

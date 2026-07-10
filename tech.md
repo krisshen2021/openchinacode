@@ -889,7 +889,7 @@ curl -fsSL https://raw.githubusercontent.com/krisshen2021/openchinacode/main/ins
 openchinacode upgrade
 
 # 升级到指定版本
-openchinacode upgrade 0.1.2
+openchinacode upgrade 0.1.3
 
 # 本地验证 installer，不依赖 GitHub Release
 ./install --binary packages/opencode/dist/openchinacode-linux-x64/bin/openchinacode --install-dir /tmp/occ-bin --no-modify-path
@@ -903,7 +903,7 @@ OPENCODE_VERSION=0.1.0 OPENCODE_CHANNEL=latest bun run build --archive
 
 # 触发 GitHub release workflow
 cd ~/Projects/OpenChinaCode
-script/release 0.1.2
+script/release 0.1.3
 ```
 
 GitHub Release 资产命名必须和 `install` 中的 target 映射保持一致，例如 `openchinacode-linux-x64.tar.gz`、`openchinacode-darwin-arm64.zip`、`openchinacode-windows-x64.zip`。`openchinacode upgrade` 通过 `packages/opencode/src/installation/index.ts` 读取 `krisshen2021/openchinacode/releases/latest`，curl 安装方式会调用 `https://openchinacode.muffin-labs.com/install`。
