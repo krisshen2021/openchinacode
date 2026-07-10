@@ -15,6 +15,8 @@ import { mkdir, readFile, writeFile } from "node:fs/promises"
 import { existsSync } from "node:fs"
 import path from "path"
 import { fileURLToPath } from "url"
+import { createHash } from "node:crypto"
+import { tmpdir } from "node:os"
 import { useLocal } from "../../context/local"
 import { Flag } from "@opencode-ai/core/flag/flag"
 import { Global } from "@opencode-ai/core/global"
@@ -42,7 +44,7 @@ import { usePromptStash } from "../../prompt/stash"
 import { DialogStash } from "../dialog-stash"
 import { type AutocompleteRef, Autocomplete } from "./autocomplete"
 import { useRenderer, useTerminalDimensions, type JSX } from "@opentui/solid"
-import type { AssistantMessage, FilePart, UserMessage } from "@opencode-ai/sdk/v2"
+import type { AssistantMessage, FilePart, SubtaskPart, UserMessage } from "@opencode-ai/sdk/v2"
 import { Locale } from "../../util/locale"
 import { errorMessage } from "../../util/error"
 import { formatDuration } from "../../util/format"
@@ -129,6 +131,9 @@ const BUILTIN_PROMPT_COMMANDS = new Set(["task-policy", "task-classify"])
 const TEST_MCP_NAME = "playwright"
 const TEST_MCP_TIMEOUT_MS = 30_000
 const ARK_AUTH_PROVIDER_ID = "volcengine-ark"
+const VISUAL_PREPROCESS_PROVIDER_ID = "zhipuai-pay2go"
+const VISUAL_PREPROCESS_MODEL_ID = "glm-5v-turbo"
+const VISUAL_PREPROCESS_ROOT = path.join(tmpdir(), "openchinacode", "attachments")
 
 function randomIndex(count: number) {
   if (count <= 0) return 0
@@ -151,6 +156,88 @@ function isNotFoundError(error: unknown) {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
+}
+
+function imageExt(mime: string) {
+  if (mime === "image/jpeg") return "jpg"
+  if (mime === "image/png") return "png"
+  if (mime === "image/webp") return "webp"
+  if (mime === "image/gif") return "gif"
+  if (mime === "image/avif") return "avif"
+  return "img"
+}
+
+function isImageFilePart(part: PromptInfo["parts"][number]): part is Omit<FilePart, "id" | "messageID" | "sessionID"> {
+  return part.type === "file" && part.mime.startsWith("image/")
+}
+
+function filePartPath(part: Omit<FilePart, "id" | "messageID" | "sessionID">) {
+  if (part.source?.type === "file" && part.source.path) return part.source.path
+  try {
+    const url = new URL(part.url)
+    if (url.protocol === "file:") return fileURLToPath(url)
+  } catch {}
+}
+
+function promptPath(value: string) {
+  return value.replace(/\\/g, "/")
+}
+
+function visualPreprocessPrompt(inputText: string, imagePaths: string[]) {
+  const original = inputText.trim() || "(The user pasted image(s) without additional text.)"
+  const images = imagePaths.map((item, index) => `${index + 1}. @${promptPath(item)}`).join("\n")
+  return [
+    "OpenChinaCode visual preprocessing task.",
+    "",
+    "The user pasted image(s) into the prompt. Inspect the image(s) directly with vision capability before the primary coding model continues.",
+    "",
+    "Original user prompt:",
+    original,
+    "",
+    "Image files:",
+    images,
+    "",
+    "Return a concise, concrete visual analysis for the primary coding agent.",
+    "Include:",
+    "- What is visibly present in each image.",
+    "- Any visible UI/layout/color/state issue relevant to the user's prompt.",
+    "- OCR or visible text when relevant.",
+    "- Precise uncertainty when the image is ambiguous.",
+    "- The local image path(s) you inspected.",
+    "",
+    "Match the user's language. If the user wrote Chinese, respond in Chinese.",
+  ].join("\n")
+}
+
+function visualPreprocessUserText(inputText: string, imagePaths: string[]) {
+  const original = inputText.trim() || "请先识别我粘贴的图片，然后基于图片内容继续处理。"
+  const images = imagePaths.map((item, index) => `${index + 1}. ${item}`).join("\n")
+  return [
+    original,
+    "",
+    "<openchinacode-visual-preprocess>",
+    `The user pasted ${imagePaths.length} image(s). OpenChinaCode will run a GLM-5V visual preprocessing subtask first.`,
+    "After that subtask finishes, use its visual observations as the authoritative description of the pasted image(s).",
+    "Do not re-open Playwright or re-capture the browser unless the user explicitly asks for the current live browser/page state.",
+    "",
+    "Local pasted image path(s):",
+    images,
+    "</openchinacode-visual-preprocess>",
+  ].join("\n")
+}
+
+function visualPreprocessSubtask(inputText: string, imagePaths: string[]): Omit<SubtaskPart, "id" | "messageID" | "sessionID"> {
+  return {
+    type: "subtask",
+    agent: "general",
+    description: "Pasted image visual preprocessing",
+    command: "openchinacode.visual_preprocess",
+    model: {
+      providerID: VISUAL_PREPROCESS_PROVIDER_ID,
+      modelID: VISUAL_PREPROCESS_MODEL_ID,
+    },
+    prompt: visualPreprocessPrompt(inputText, imagePaths),
+  }
 }
 
 function chromeAbsoluteCandidates() {
@@ -1971,6 +2058,13 @@ export function Prompt(props: PromptProps) {
 
     // Filter out text parts (pasted content) since they're now expanded inline
     const nonTextParts = store.prompt.parts.filter((part) => part.type !== "text")
+    const imageParts = nonTextParts.filter(isImageFilePart)
+    const imagePaths = imageParts.flatMap((part) => {
+      const value = filePartPath(part)
+      return value ? [value] : []
+    })
+    const shouldVisualPreprocess = imagePaths.length > 0 && !isPromptCommand(inputText)
+    const nonImageParts = shouldVisualPreprocess ? nonTextParts.filter((part) => !isImageFilePart(part)) : nonTextParts
 
     // Capture mode before it gets reset
     const currentMode = store.mode
@@ -2024,6 +2118,7 @@ export function Prompt(props: PromptProps) {
       })
     } else {
       move.startSubmit()
+      const promptText = shouldVisualPreprocess ? visualPreprocessUserText(inputText, imagePaths) : inputText
       sdk.client.session
         .prompt(
           {
@@ -2036,9 +2131,10 @@ export function Prompt(props: PromptProps) {
               ...editorParts,
               {
                 type: "text",
-                text: inputText,
+                text: promptText,
               },
-              ...nonTextParts,
+              ...(shouldVisualPreprocess ? [visualPreprocessSubtask(inputText, imagePaths)] : []),
+              ...nonImageParts,
             ],
           },
           { throwOnError: true },
@@ -2162,6 +2258,17 @@ export function Prompt(props: PromptProps) {
   }
 
   async function pasteAttachment(file: { filename?: string; filepath?: string; content: string; mime: string }) {
+    let filepath = file.filepath
+    let filename = file.filename
+    if (file.mime.startsWith("image/") && !filepath) {
+      const bytes = Buffer.from(file.content, "base64")
+      const hash = createHash("sha256").update(bytes).digest("hex").slice(0, 16)
+      const dir = path.join(VISUAL_PREPROCESS_ROOT, props.sessionID ?? "draft")
+      await mkdir(dir, { recursive: true })
+      filepath = path.join(dir, `clipboard-${hash}.${imageExt(file.mime)}`)
+      await writeFile(filepath, bytes)
+      filename = path.basename(filepath)
+    }
     const currentOffset = input.cursorOffset
     const extmarkStart = currentOffset
     const pdf = file.mime === "application/pdf"
@@ -2187,11 +2294,11 @@ export function Prompt(props: PromptProps) {
     const part: Omit<FilePart, "id" | "messageID" | "sessionID"> = {
       type: "file" as const,
       mime: file.mime,
-      filename: file.filename,
+      filename,
       url: `data:${file.mime};base64,${file.content}`,
       source: {
         type: "file",
-        path: file.filepath ?? file.filename ?? "",
+        path: filepath ?? filename ?? "",
         text: {
           start: extmarkStart,
           end: extmarkEnd,

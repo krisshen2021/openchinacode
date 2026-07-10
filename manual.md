@@ -186,7 +186,37 @@ deepseek/deepseek-v4-flash
 
 可用于查看或切换 LSP。LSP 打开后，模型在改代码时可以看到语言服务器诊断，帮助它修复类型错误、语法错误、引用错误等。
 
-### 9. 原生生图 / 生视频
+### 9. 粘贴图片视觉预处理
+
+在 TUI 输入框里 Ctrl+V 粘贴图片后，OpenChinaCode 会先把图片保存到本地临时目录，并自动调用 GLM-5V 做视觉识别。识别结果会作为上下文喂给当前主模型。
+
+这意味着你可以直接：
+
+```text
+[Ctrl+V 粘贴网页截图]
+看看这张截图，按钮状态哪里不对
+```
+
+运行时会先出现一个视觉预处理 subtask：
+
+```text
+General Task - Pasted image visual preprocessing
+↳ zhipuai-pay2go/glm-5v-turbo
+```
+
+然后主模型会基于 GLM-5V 的观察继续分析、改代码或给方案。这样即使当前主模型是 DeepSeek / GLM-5.2 / 其它非视觉模型，也能稳定理解截图内容。
+
+粘贴图片保存位置：
+
+```text
+/tmp/openchinacode/attachments
+```
+
+默认不会因为粘贴图片再去 Playwright 重新截当前页面；只有当你明确要求检查 live browser / 当前浏览器状态时，才应该走 Playwright MCP。
+
+Slash command 暂不走这个自动预处理，避免影响 `/image-generate`、`/video-generate` 使用粘贴图片作为参考素材。
+
+### 10. 原生生图 / 生视频
 
 OpenChinaCode 新增了原生媒体生成工具：
 
@@ -387,6 +417,26 @@ Playwright MCP 产物默认写入系统临时目录，避免截图、snapshot、
 ```
 
 如果模型给 screenshot / snapshot / PDF 等工具传了 `filename`，OpenChinaCode 会把相对文件名安全改写到这个目录下；需要自定义时可在 MCP 命令里显式传 `--output-dir`。
+
+### 粘贴图片视觉预处理
+
+普通自然语言输入只要包含 Ctrl+V 粘贴的图片，OpenChinaCode 会自动先用 GLM-5V 做一次视觉预处理，再把识别结果交给当前主模型。
+
+使用方式：
+
+```text
+[Ctrl+V 粘贴图片]
+看看这张截图哪里有问题
+```
+
+内部行为：
+
+- 剪贴板图片会保存到 `/tmp/openchinacode/attachments`
+- 先运行 `zhipuai-pay2go/glm-5v-turbo`
+- GLM-5V 会输出图片内容、相关 UI/布局/颜色/状态判断、OCR 和不确定点
+- 当前主模型随后基于“原始 prompt + GLM-5V 视觉结论 + 图片路径”继续处理
+
+这条链路不依赖关键词触发；只要普通 prompt 里有粘贴图片就会先视觉预处理。Slash command 暂不启用该自动预处理，避免影响媒体生成命令把图片作为参考素材。
 
 ### `/media-auth`
 

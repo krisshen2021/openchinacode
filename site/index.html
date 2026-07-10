@@ -135,7 +135,7 @@
       </div>
 
       <!-- Capability strip (below media, full width) -->
-      <div class="bento" style="margin-top: 36px;">
+      <div class="bento" style="margin-top: 36px; grid-template-columns: repeat(4, 1fr);">
         <div class="card" style="--accent: var(--cinnabar); padding: 18px;">
           <div class="card-icon"><i data-lucide="route"></i></div>
           <h3 style="font-size: 15px;" data-i18n="cap.routing.title">Task routing</h3>
@@ -150,6 +150,11 @@
           <div class="card-icon"><i data-lucide="gauge"></i></div>
           <h3 style="font-size: 15px;" data-i18n="cap.budgets.title">Output budgets</h3>
           <p style="font-size: 13px;" data-i18n="cap.budgets.desc">Model-aware max tokens with overflow-safe triggers.</p>
+        </div>
+        <div class="card" style="--accent: var(--azure); padding: 18px;">
+          <div class="card-icon"><i data-lucide="eye"></i></div>
+          <h3 style="font-size: 15px;" data-i18n="cap.vision.title">Enhance Vision</h3>
+          <p style="font-size: 13px;" data-i18n="cap.vision.desc">Paste any image and any model can see it — vision for all.</p>
         </div>
       </div>
     </div>

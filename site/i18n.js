@@ -41,6 +41,8 @@ const I18N = {
     "cap.compaction.desc": "Profile judge + active-task extraction + raw recent tail.",
     "cap.budgets.title": "Output budgets",
     "cap.budgets.desc": "Model-aware max tokens with overflow-safe triggers.",
+    "cap.vision.title": "Enhance Vision",
+    "cap.vision.desc": "Paste any image and any model can see it — vision for all.",
 
     /* ── Terminal labels ── */
     "term.provider": "provider",
@@ -276,6 +278,8 @@ const I18N = {
     "cap.compaction.desc": "档案评判 + 活跃任务提取 + 原始近期尾部。",
     "cap.budgets.title": "输出预算",
     "cap.budgets.desc": "模型感知的最大 token 预算，带溢出安全触发器。",
+    "cap.vision.title": "增强视觉",
+    "cap.vision.desc": "补全自然识图能力，复制粘贴图片让任意模型识图。",
 
     /* ── Terminal labels ── */
     "term.provider": "提供商",

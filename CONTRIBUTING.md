@@ -108,7 +108,7 @@ Task-routing work should be observable:
 
 Documentation updates should cover both:
 
-- User-facing behavior in `README.md` or `readme.md`.
+- User-facing behavior in `README.md` or `manual.md`.
 - Maintainer details in `tech.md` when internals change.
 
 ## Pull Request Expectations

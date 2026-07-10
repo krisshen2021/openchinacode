@@ -39,7 +39,7 @@ OpenChinaCode is not a theme-only fork. The current fork includes:
 - Visual-check routing to GLM-5V for screenshot/layout inspection.
 - Native Seedream 5 Pro image generation and Seedance 2.0 Mini video generation through Volcengine Ark.
 
-For the full feature manual, see [readme.md](./readme.md).
+For the full feature manual, see [manual.md](./manual.md).
 
 For architecture notes, maintenance entry points, config fields, and test commands, see [tech.md](./tech.md).
 
@@ -131,7 +131,7 @@ OpenChinaCode custom commands are grouped under `OpenChinaCode` in the TUI comma
 | `/browser-check`    | Ask the agent to run browser-level checks                                  |
 | `/integration-test` | Ask the agent to create/run an integration test plan                       |
 
-See [readme.md](./readme.md) for command usage.
+See [manual.md](./manual.md) for command usage.
 
 ## Native Media Generation
 

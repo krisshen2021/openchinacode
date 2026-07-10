@@ -1232,7 +1232,7 @@ li + li {
 @media (max-width: 960px) {
   .bento,
   .bento-2 {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr) !important;
   }
 
   .bento .span-2 {
@@ -1322,6 +1322,10 @@ li + li {
 
   .media-cards {
     grid-template-columns: 1fr;
+  }
+
+  .bento {
+    grid-template-columns: 1fr !important;
   }
 
   .terminal-body {
