@@ -687,9 +687,14 @@ h3 {
 /* Terminal command line with inline copy icon */
 .terminal-cmd-line {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   margin-bottom: 4px;
+}
+
+.terminal-cmd-line .prompt {
+  flex-shrink: 0;
+  line-height: 1.8;
 }
 
 .terminal-cmd-line .cmd-text {
