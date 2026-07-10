@@ -9,7 +9,7 @@
     "dev": "bun run --cwd packages/opencode --conditions=browser src/index.ts",
     "lint": "oxlint",
     "typecheck": "bun turbo typecheck",
-    "site:deploy": "wrangler pages deploy site --project-name openchinacode --branch main",
+    "site:deploy": "cd site && wrangler pages deploy . --project-name openchinacode --branch main",
     "upgrade-opentui": "bun run script/upgrade-opentui.ts",
     "postinstall": "bun run --cwd packages/core fix-node-pty",
     "prepare": "husky",
