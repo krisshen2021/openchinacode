@@ -8,8 +8,13 @@ Create a Cloudflare Pages project from the GitHub repository.
 
 - Framework preset: `None`
 - Root directory: `site`
-- Build command: leave empty
+- Build command: leave empty, or use `:` if the UI requires a command
 - Build output directory: `.`
+- Deploy command: leave empty
+
+Do not use `npx wrangler deploy` in a Pages Git build. That command deploys a
+Worker, not a Pages project. The Pages build system deploys the output directory
+itself after the build command finishes.
 
 Then attach the custom domain:
 
