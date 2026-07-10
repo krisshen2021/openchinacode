@@ -1,5 +1,8 @@
 # OpenChinaCode Cloudflare Worker
 
+Prefer the Cloudflare Pages version in `site/` for the public homepage.
+This Worker file is kept as a fallback single-file deployment.
+
 This Worker serves the public OpenChinaCode homepage and keeps the one-line installer at:
 
 ```bash
