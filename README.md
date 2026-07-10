@@ -42,9 +42,31 @@ For the full feature manual, see [readme.md](./readme.md).
 
 For architecture notes, maintenance entry points, config fields, and test commands, see [tech.md](./tech.md).
 
-## Install From This Source Tree
+## Install
 
-This repository is currently source-first. Build the standalone binary from the repo root:
+Install the latest GitHub release:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/krisshen2021/openchinacode/main/install | bash
+```
+
+Install a specific version:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/krisshen2021/openchinacode/main/install | bash -s -- --version 0.1.0
+```
+
+The installer downloads the matching binary from GitHub Releases and installs `openchinacode` into `~/.local/bin` by default. Use `--install-dir <dir>` for a different location, or `--no-modify-path` if you do not want the script to update shell config files.
+
+The GitHub raw URL is the MVP install endpoint. A future website can expose the same script as:
+
+```bash
+curl -fsSL https://openchinacode.example/install | bash
+```
+
+## Build From Source
+
+Build the standalone binary from the repo root:
 
 ```bash
 bun install

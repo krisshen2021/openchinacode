@@ -756,6 +756,29 @@ install -m 0755 dist/openchinacode-linux-x64/bin/openchinacode ~/.local/bin/open
 openchinacode --version
 ```
 
+一键安装 / release 链路：
+
+```bash
+# 用户安装入口
+curl -fsSL https://raw.githubusercontent.com/krisshen2021/openchinacode/main/install | bash
+
+# 本地验证 installer，不依赖 GitHub Release
+./install --binary packages/opencode/dist/openchinacode-linux-x64/bin/openchinacode --install-dir /tmp/occ-bin --no-modify-path
+
+# 本地打包当前平台 release 资产
+cd ~/Projects/OpenChinaCode/packages/opencode
+bun run build --single --archive
+
+# 本地验证全平台 release 资产打包，不上传
+OPENCODE_VERSION=0.1.0 OPENCODE_CHANNEL=latest bun run build --archive
+
+# 触发 GitHub release workflow
+cd ~/Projects/OpenChinaCode
+script/release 0.1.0
+```
+
+GitHub Release 资产命名必须和 `install` 中的 target 映射保持一致，例如 `openchinacode-linux-x64.tar.gz`、`openchinacode-darwin-arm64.zip`、`openchinacode-windows-x64.zip`。
+
 ## 后续维护原则
 
 - 优先保持三家 provider 的主力模型高质量，而不是扩大 provider 数量。
