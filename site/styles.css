@@ -989,45 +989,6 @@ tr:hover td {
   to { --gradient-angle: 360deg; }
 }
 
-/* ── Hero video background ────────────────────────────────── */
-.hero-section {
-  position: relative;
-}
-
-.hero-video {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  opacity: 0.35;
-  z-index: 0;
-  pointer-events: none;
-}
-
-.hero-video-overlay {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    to bottom,
-    rgba(8, 8, 12, 0.65) 0%,
-    rgba(8, 8, 12, 0.8) 50%,
-    rgba(8, 8, 12, 0.9) 100%
-  );
-  z-index: 0;
-  pointer-events: none;
-}
-
-.hero-section > .container,
-.hero-section > .watermark {
-  position: relative;
-  z-index: 1;
-}
-
-.hero-section > .watermark {
-  z-index: 0;
-}
-
 /* ── Media highlight (NEW) ────────────────────────────────── */
 .badge-new {
   display: inline-flex;
@@ -1069,6 +1030,35 @@ tr:hover td {
   --gradient-angle: 0deg;
   animation: angle-rotate 8s linear infinite;
   pointer-events: none;
+}
+
+.media-highlight-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.35;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.media-highlight-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(8, 8, 12, 0.55) 0%,
+    rgba(8, 8, 12, 0.75) 50%,
+    rgba(8, 8, 12, 0.85) 100%
+  );
+  z-index: 0;
+  pointer-events: none;
+}
+
+.media-highlight-content {
+  position: relative;
+  z-index: 1;
 }
 
 .media-highlight-head {

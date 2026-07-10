@@ -36,11 +36,7 @@
   </nav>
 
   <!-- ═══ Hero ═══ -->
-  <section class="section hero-section" style="padding-top: clamp(48px, 8vw, 80px);">
-    <video class="hero-video" autoplay muted loop playsinline>
-      <source src="/hero-bg.mp4" type="video/mp4">
-    </video>
-    <div class="hero-video-overlay"></div>
+  <section class="section" style="padding-top: clamp(48px, 8vw, 80px);">
     <span class="watermark" style="font-size: 32rem; top: -4rem; right: -6rem;">代码</span>
     <div class="container">
       <div class="hero-grid">
@@ -93,6 +89,11 @@
 
       <!-- ═══ Media highlight (NEW) ═══ -->
       <div class="media-highlight reveal" style="margin-top: 36px;">
+        <video class="media-highlight-video" autoplay muted loop playsinline>
+          <source src="/hero-bg.mp4" type="video/mp4">
+        </video>
+        <div class="media-highlight-overlay"></div>
+        <div class="media-highlight-content">
         <div class="media-highlight-head">
           <span class="badge-new">NEW</span>
           <div class="eyebrow" style="margin-bottom: 0;"><i data-lucide="sparkles"></i><span data-i18n="media.eyebrow">NATIVE MEDIA GENERATION</span></div>
@@ -130,6 +131,7 @@
             <span data-i18n-html="media.nl.desc">Just describe what you want, or run <code>/image-generate</code> and <code>/video-generate</code> with an optional prompt. Missing details trigger follow-up questions, not guesses.</span>
           </div>
         </div>
+        </div><!-- /media-highlight-content -->
       </div>
 
       <!-- Capability strip (below media, full width) -->
