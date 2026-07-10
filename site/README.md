@@ -10,11 +10,17 @@ Create a Cloudflare Pages project from the GitHub repository.
 - Root directory: `site`
 - Build command: leave empty, or use `:` if the UI requires a command
 - Build output directory: `.`
-- Deploy command: leave empty
+- Deploy command: `npx wrangler pages deploy . --project-name openchinacode --branch main`
 
-Do not use `npx wrangler deploy` in a Pages Git build. That command deploys a
-Worker, not a Pages project. The Pages build system deploys the output directory
-itself after the build command finishes.
+If the Cloudflare UI does not honor `Root directory: site`, use this deploy
+command from the repository root instead:
+
+```bash
+npx wrangler pages deploy site --project-name openchinacode --branch main
+```
+
+Do not use `npx wrangler deploy` in a Pages project. That command deploys a
+Worker, not Pages. The correct command is `wrangler pages deploy`.
 
 Then attach the custom domain:
 
