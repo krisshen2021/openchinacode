@@ -3,6 +3,7 @@
 import { $ } from "bun"
 import fs from "fs"
 import path from "path"
+import { createRequire } from "module"
 import { fileURLToPath } from "url"
 
 const __filename = fileURLToPath(import.meta.url)
@@ -23,9 +24,46 @@ const skipInstall = process.argv.includes("--skip-install")
 const sourcemapsFlag = process.argv.includes("--sourcemaps")
 const archiveFlag = process.argv.includes("--archive")
 const solidPlugin = createSolidTransformPlugin()
+const require = createRequire(import.meta.url)
 const localParserWorker = path.resolve(dir, "node_modules/@opentui/core/parser.worker.js")
 const rootParserWorker = path.resolve(dir, "../../node_modules/@opentui/core/parser.worker.js")
 const parserWorker = fs.realpathSync(fs.existsSync(localParserWorker) ? localParserWorker : rootParserWorker)
+
+function replaceOnce(input: string, search: string, replacement: string, label: string) {
+  if (input.includes(replacement)) return input
+  if (!input.includes(search)) {
+    throw new Error(`Unable to patch Playwright core bundle: missing ${label}`)
+  }
+  return input.replace(search, replacement)
+}
+
+async function patchPlaywrightCoreBundleForBunCompile() {
+  const mcpEntry = require.resolve("@playwright/mcp")
+  const mcpRequire = createRequire(mcpEntry)
+  const coreBundle = mcpRequire.resolve("playwright-core/lib/coreBundle")
+  const packageRoot = path.resolve(path.dirname(coreBundle), "..")
+  const packageJson = JSON.stringify(JSON.parse(await Bun.file(path.join(packageRoot, "package.json")).text()))
+  const browsersJson = JSON.stringify(JSON.parse(await Bun.file(path.join(packageRoot, "browsers.json")).text()))
+  let source = await Bun.file(coreBundle).text()
+
+  // Playwright's bundled CJS still contains dynamic requires for package-local
+  // JSON files. Bun compile bakes the build-machine absolute path for those
+  // requires, so release binaries fail once installed elsewhere. Inline the two
+  // startup-time JSON payloads before bundling the standalone executable.
+  source = replaceOnce(
+    source,
+    'packageJSON = require(import_path7.default.join(packageRoot, "package.json"));',
+    `packageJSON = ${packageJson};`,
+    "package.json require",
+  )
+  source = replaceOnce(
+    source,
+    'registry = new Registry(require(import_path18.default.join(packageRoot, "browsers.json")));',
+    `registry = new Registry(${browsersJson});`,
+    "browsers.json require",
+  )
+  await Bun.write(coreBundle, source)
+}
 
 const allTargets: {
   os: string
@@ -118,6 +156,7 @@ if (!skipInstall) {
   await $`bun install --os="*" --cpu="*" @parcel/watcher@${pkg.dependencies["@parcel/watcher"]}`
   await $`bun install --os="*" --cpu="*" @ff-labs/fff-bun@${pkg.dependencies["@ff-labs/fff-bun"]}`
 }
+await patchPlaywrightCoreBundleForBunCompile()
 for (const item of targets) {
   const name = [
     pkg.name,
