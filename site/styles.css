@@ -1058,7 +1058,7 @@ tr:hover td {
 
 .manual-cards {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: 1fr;
   gap: 16px;
   margin-bottom: 20px;
 }
@@ -1115,10 +1115,6 @@ li + li {
     border-left: none;
     border-bottom-color: var(--cinnabar);
     border-radius: 100px;
-  }
-
-  .manual-cards {
-    grid-template-columns: 1fr;
   }
 
   .footer-inner {
