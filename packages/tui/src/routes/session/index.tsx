@@ -558,6 +558,7 @@ export function Session() {
         "Usage: /compact [auto|smart|keep N|keep auto] - smart compaction with optional raw recent-turn retention",
       value: "session.compact",
       category: "OpenChinaCode",
+      hidden: true,
       slash: {
         name: "compact",
         aliases: ["summarize"],

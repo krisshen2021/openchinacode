@@ -876,6 +876,18 @@ export function Prompt(props: PromptProps) {
         },
       },
       {
+        title: "Smart compaction",
+        desc: "Usage: /compact [auto|smart|keep N|keep auto] - smart compaction with optional raw recent-turn retention",
+        name: "openchinacode.compact",
+        category: "OpenChinaCode",
+        slashName: "compact",
+        slashAliases: ["summarize"],
+        run: () => {
+          handleCompactSlash("")
+          dialog.clear()
+        },
+      },
+      {
         title: "LSP status",
         desc: "Usage: /lsp [status|on|off] - show or change language server support",
         name: "lsp.status",
@@ -1079,6 +1091,7 @@ export function Prompt(props: PromptProps) {
       "prompt.stash.pop",
       "prompt.stash.list",
       "prompt.skills",
+      "openchinacode.compact",
       "lsp.status",
       "auto-maxtokens.status",
       "openchinacode.test_mcp",
