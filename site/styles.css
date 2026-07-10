@@ -151,26 +151,67 @@ svg {
   100% { transform: translate(-3%, 2%) scale(1.05); }
 }
 
-/* Lattice pattern overlay — Chinese 回纹 inspired */
-.bg-lattice {
+/* Aurora orbs — atmospheric color blobs */
+.bg-aurora {
   position: fixed;
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  opacity: 0.03;
-  background-image:
-    linear-gradient(var(--moonlight) 1px, transparent 1px),
-    linear-gradient(90deg, var(--moonlight) 1px, transparent 1px),
-    linear-gradient(var(--moonlight) 1px, transparent 1px),
-    linear-gradient(90deg, var(--moonlight) 1px, transparent 1px);
-  background-size: 80px 80px, 80px 80px, 16px 16px, 16px 16px;
-  background-position: 0 0;
-  animation: lattice-drift 60s linear infinite;
+  overflow: hidden;
 }
 
-@keyframes lattice-drift {
-  0% { background-position: 0 0, 0 0, 0 0, 0 0; }
-  100% { background-position: 80px 80px, 80px 80px, 16px 16px, 16px 16px; }
+.bg-aurora span {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(100px);
+}
+
+.bg-aurora span:nth-child(1) {
+  width: 50vw;
+  height: 50vw;
+  top: -15%;
+  left: -10%;
+  background: var(--cinnabar);
+  opacity: 0.10;
+  animation: aurora-1 22s ease-in-out infinite alternate;
+}
+
+.bg-aurora span:nth-child(2) {
+  width: 45vw;
+  height: 45vw;
+  top: 10%;
+  right: -12%;
+  background: var(--jade);
+  opacity: 0.08;
+  animation: aurora-2 28s ease-in-out infinite alternate;
+}
+
+.bg-aurora span:nth-child(3) {
+  width: 55vw;
+  height: 55vw;
+  bottom: -20%;
+  left: 25%;
+  background: var(--azure);
+  opacity: 0.06;
+  animation: aurora-3 35s ease-in-out infinite alternate;
+}
+
+@keyframes aurora-1 {
+  0%   { transform: translate(0, 0) scale(1); }
+  50%  { transform: translate(8%, 6%) scale(1.12); }
+  100% { transform: translate(-6%, 10%) scale(0.92); }
+}
+
+@keyframes aurora-2 {
+  0%   { transform: translate(0, 0) scale(1.05); }
+  50%  { transform: translate(-10%, 4%) scale(0.9); }
+  100% { transform: translate(6%, -8%) scale(1.15); }
+}
+
+@keyframes aurora-3 {
+  0%   { transform: translate(0, 0) scale(0.95); }
+  50%  { transform: translate(5%, -6%) scale(1.1); }
+  100% { transform: translate(-8%, 4%) scale(1); }
 }
 
 /* ── Chinese character watermark ───────────────────────────── */
@@ -452,6 +493,17 @@ h3 {
   animation: hue-rotate 8s linear infinite;
 }
 
+/* ── Title two-tone: silver + cinnabar ─────────────────────── */
+.title-silver {
+  color: var(--moonlight);
+  text-shadow: 0 0 50px rgba(248, 249, 250, 0.10);
+}
+
+.title-cinnabar {
+  color: var(--cinnabar);
+  text-shadow: 0 0 50px rgba(230, 57, 70, 0.35);
+}
+
 @keyframes hue-rotate {
   0% { --hue-shift: 0deg; background-position: 0% 50%; }
   50% { background-position: 100% 50%; }
@@ -613,6 +665,47 @@ h3 {
 .terminal-body .text-gold { color: var(--gold); }
 .terminal-body .text-azure { color: var(--azure); }
 .terminal-body .text-mist { color: var(--mist); }
+
+/* Terminal command line with inline copy icon */
+.terminal-cmd-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.terminal-cmd-line .cmd-text {
+  flex: 1;
+  min-width: 0;
+  color: var(--moonlight);
+  overflow-wrap: anywhere;
+}
+
+/* Inline copy icon — replaces separate copy button */
+.copy-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  color: var(--mist-dim);
+  transition: color 200ms var(--ease), background 200ms var(--ease);
+  flex-shrink: 0;
+}
+
+.copy-icon:hover {
+  color: var(--jade-glow);
+  background: var(--jade-soft);
+}
+
+.copy-icon.copied {
+  color: var(--jade-glow);
+}
+
+.copy-icon svg {
+  width: 16px;
+  height: 16px;
+}
 
 /* Terminal typing animation */
 .typing {
@@ -871,6 +964,7 @@ tr:hover td {
   opacity: 0.06;
   --gradient-angle: 0deg;
   animation: angle-rotate 8s linear infinite;
+  pointer-events: none;
 }
 
 @keyframes angle-rotate {
@@ -1055,16 +1149,6 @@ li + li {
   .terminal-body {
     padding: 16px;
     font-size: 12px;
-  }
-
-  .copy-row {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .btn-copy {
-    width: 100%;
-    justify-content: center;
   }
 }
 

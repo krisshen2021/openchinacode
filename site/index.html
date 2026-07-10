@@ -13,7 +13,7 @@
 </head>
 <body>
   <div class="bg-mesh"></div>
-  <div class="bg-lattice"></div>
+  <div class="bg-aurora"><span></span><span></span><span></span></div>
 
   <!-- ═══ Navigation ═══ -->
   <nav class="nav">
@@ -42,7 +42,9 @@
             GLM · KIMI · DEEPSEEK CODING AGENT
           </div>
           <h1>
-            <span class="gradient-text">OPEN CHINA CODE</span>
+            <span class="title-silver">OPEN</span>
+            <span class="title-cinnabar">CHINA</span>
+            <span class="title-silver">CODE</span>
           </h1>
           <p class="lead" style="margin-top: 24px;">
             A lean terminal coding agent forked from opencode and rebuilt around China-focused model routing,
@@ -85,17 +87,16 @@
             <span class="terminal-label">v0.1.0</span>
           </div>
           <div class="terminal-body">
-            <span class="line"><span class="prompt">$</span> <span class="typing">curl -fsSL https://openchinacode.muffin-labs.com/install | bash</span></span>
+            <div class="terminal-cmd-line">
+              <span class="prompt">$</span>
+              <span class="cmd-text">curl -fsSL https://openchinacode.muffin-labs.com/install | bash</span>
+              <button class="copy-icon" type="button" id="copy-install" title="Copy command">
+                <i data-lucide="copy"></i>
+              </button>
+            </div>
             <span class="line"><span class="text-cinnabar">provider</span> <span class="text-mist">GLM-5.2 / Kimi K2.7 / DeepSeek V4</span></span>
             <span class="line"><span class="text-jade">route</span> <span class="text-mist">task.kind + complexity + variant</span></span>
             <span class="line"><span class="text-gold">compact</span> <span class="text-mist">summary + active-task + raw tail</span></span>
-            <div class="copy-row">
-              <code id="install-command">curl -fsSL https://openchinacode.muffin-labs.com/install | bash</code>
-              <button class="btn-copy" type="button" id="copy-install">
-                <i data-lucide="copy"></i>
-                <span>Copy</span>
-              </button>
-            </div>
           </div>
         </div>
       </div>
@@ -236,19 +237,15 @@
   <script>
     lucide.createIcons();
 
-    document.getElementById("copy-install").addEventListener("click", async () => {
+    const copyBtn = document.getElementById("copy-install");
+    copyBtn.addEventListener("click", async () => {
       await navigator.clipboard.writeText("curl -fsSL https://openchinacode.muffin-labs.com/install | bash");
-      const btn = document.getElementById("copy-install");
-      const span = btn.querySelector("span");
-      const icon = btn.querySelector("i, svg");
-      span.textContent = "Copied";
-      btn.querySelector("svg").outerHTML = '<i data-lucide="check" style="width:16px;height:16px;"></i>';
+      copyBtn.classList.add("copied");
+      copyBtn.innerHTML = '<i data-lucide="check"></i>';
       lucide.createIcons();
       setTimeout(() => {
-        span.textContent = "Copy";
-        document.querySelector("#copy-install [data-lucide]")?.replaceWith(
-          Object.assign(document.createElement("i"), { dataset: { lucide: "copy" } })
-        );
+        copyBtn.classList.remove("copied");
+        copyBtn.innerHTML = '<i data-lucide="copy"></i>';
         lucide.createIcons();
       }, 1400);
     });
