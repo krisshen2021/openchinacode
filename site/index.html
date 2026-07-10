@@ -36,7 +36,11 @@
   </nav>
 
   <!-- ═══ Hero ═══ -->
-  <section class="section" style="padding-top: clamp(48px, 8vw, 80px);">
+  <section class="section hero-section" style="padding-top: clamp(48px, 8vw, 80px);">
+    <video class="hero-video" autoplay muted loop playsinline>
+      <source src="/hero-bg.mp4" type="video/mp4">
+    </video>
+    <div class="hero-video-overlay"></div>
     <span class="watermark" style="font-size: 32rem; top: -4rem; right: -6rem;">代码</span>
     <div class="container">
       <div class="hero-grid">
@@ -57,9 +61,8 @@
             smart compaction, sliding output budgets, RMB cost tracking, LSP diagnostics, and Playwright browser testing.
           </p>
           <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px;">
-            <a class="btn btn-primary" href="#install"><i data-lucide="download"></i><span data-i18n="hero.install">Install now</span></a>
+            <button class="btn btn-primary" type="button" id="install-btn"><i data-lucide="download"></i><span data-i18n="hero.install">Install now</span></button>
             <a class="btn btn-gold" href="/manual/"><i data-lucide="book-open"></i><span data-i18n="hero.readManual">Read manual</span></a>
-            <a class="btn" href="/releases"><i data-lucide="tag"></i><span data-i18n="hero.release">Latest release</span></a>
           </div>
         </div>
 
@@ -88,7 +91,48 @@
         </div>
       </div>
 
-      <!-- Capability strip (below terminal, full width) -->
+      <!-- ═══ Media highlight (NEW) ═══ -->
+      <div class="media-highlight reveal" style="margin-top: 36px;">
+        <div class="media-highlight-head">
+          <span class="badge-new">NEW</span>
+          <div class="eyebrow" style="margin-bottom: 0;"><i data-lucide="sparkles"></i><span data-i18n="media.eyebrow">NATIVE MEDIA GENERATION</span></div>
+        </div>
+        <h2 style="font-family: var(--font-display); font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1.2; margin-top: 16px;" data-i18n-html="media.title">Generate images and videos<br>without leaving the terminal.</h2>
+        <p class="lead" data-i18n="media.desc" style="margin-top: 12px; max-width: 640px;">
+          Ask in natural language or use slash commands. OpenChinaCode routes image and video generation through Volcengine Ark with automatic download to local files.
+        </p>
+
+        <div class="media-cards">
+          <div class="card" style="--accent: var(--cinnabar);">
+            <div class="card-head-row">
+              <span class="tag tag-cinnabar" data-i18n="media.image.tag">IMAGE</span>
+              <i data-lucide="image" class="media-card-icon"></i>
+            </div>
+            <h3 data-i18n="media.image.title">ByteDance Seedream 5.0 Pro</h3>
+            <p data-i18n="media.image.desc">Up to 2K resolution, multiple aspect ratios, reference-image support, and PNG/JPEG output.</p>
+            <div class="code-block" data-i18n="media.image.cmd">/image-generate a cyberpunk cat mascot</div>
+          </div>
+          <div class="card" style="--accent: var(--jade);">
+            <div class="card-head-row">
+              <span class="tag tag-jade" data-i18n="media.video.tag">VIDEO</span>
+              <i data-lucide="film" class="media-card-icon"></i>
+            </div>
+            <h3 data-i18n="media.video.title">ByteDance Seedance 2.0 Mini</h3>
+            <p data-i18n="media.video.desc">4 to 15 second clips, 720p, first/last frame control, reference images, and generated audio.</p>
+            <div class="code-block" data-i18n="media.video.cmd">/video-generate a 5s product promo clip</div>
+          </div>
+        </div>
+
+        <div class="media-nl-row">
+          <i data-lucide="message-square"></i>
+          <div>
+            <strong data-i18n="media.nl.title">Natural language or slash command</strong>
+            <span data-i18n-html="media.nl.desc">Just describe what you want, or run <code>/image-generate</code> and <code>/video-generate</code> with an optional prompt. Missing details trigger follow-up questions, not guesses.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Capability strip (below media, full width) -->
       <div class="bento" style="margin-top: 36px;">
         <div class="card" style="--accent: var(--cinnabar); padding: 18px;">
           <div class="card-icon"><i data-lucide="route"></i></div>
@@ -211,47 +255,6 @@
         </div>
       </div>
 
-      <!-- ═══ Media highlight (NEW) ═══ -->
-      <div class="media-highlight reveal" style="margin-top: 40px;">
-        <div class="media-highlight-head">
-          <span class="badge-new">NEW</span>
-          <div class="eyebrow" style="margin-bottom: 0;"><i data-lucide="sparkles"></i><span data-i18n="media.eyebrow">NATIVE MEDIA GENERATION</span></div>
-        </div>
-        <h2 style="font-family: var(--font-display); font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1.2; margin-top: 16px;" data-i18n-html="media.title">Generate images and videos<br>without leaving the terminal.</h2>
-        <p class="lead" data-i18n="media.desc" style="margin-top: 12px; max-width: 640px;">
-          Ask in natural language or use slash commands. OpenChinaCode routes image and video generation through Volcengine Ark with automatic download to local files.
-        </p>
-
-        <div class="media-cards">
-          <div class="card" style="--accent: var(--cinnabar);">
-            <div class="card-head-row">
-              <span class="tag tag-cinnabar" data-i18n="media.image.tag">IMAGE</span>
-              <i data-lucide="image" class="media-card-icon"></i>
-            </div>
-            <h3 data-i18n="media.image.title">ByteDance Seedream 5.0 Pro</h3>
-            <p data-i18n="media.image.desc">Up to 2K resolution, multiple aspect ratios, reference-image support, and PNG/JPEG output.</p>
-            <div class="code-block" data-i18n="media.image.cmd">/image-generate a cyberpunk cat mascot</div>
-          </div>
-          <div class="card" style="--accent: var(--jade);">
-            <div class="card-head-row">
-              <span class="tag tag-jade" data-i18n="media.video.tag">VIDEO</span>
-              <i data-lucide="film" class="media-card-icon"></i>
-            </div>
-            <h3 data-i18n="media.video.title">ByteDance Seedance 2.0 Mini</h3>
-            <p data-i18n="media.video.desc">4 to 15 second clips, 720p, first/last frame control, reference images, and generated audio.</p>
-            <div class="code-block" data-i18n="media.video.cmd">/video-generate a 5s product promo clip</div>
-          </div>
-        </div>
-
-        <div class="media-nl-row">
-          <i data-lucide="message-square"></i>
-          <div>
-            <strong data-i18n="media.nl.title">Natural language or slash command</strong>
-            <span data-i18n-html="media.nl.desc">Just describe what you want, or run <code>/image-generate</code> and <code>/video-generate</code> with an optional prompt. Missing details trigger follow-up questions, not guesses.</span>
-          </div>
-        </div>
-      </div>
-
       <!-- CTA -->
       <div class="cta-banner reveal" style="margin-top: 40px;">
         <div>
@@ -275,7 +278,7 @@
         <a href="/manual/"><i data-lucide="book-open"></i><span data-i18n="footer.manual">Manual</span></a>
         <a href="/github"><svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56 0-.27-.01-1-.02-1.96-3.2.7-3.88-1.54-3.88-1.54-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11.1 11.1 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14 0 1.55-.01 2.8-.01 3.18 0 .31.21.68.8.56A11.51 11.51 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z"/></svg>GitHub</a>
         <a href="/install"><i data-lucide="terminal"></i><span data-i18n="footer.install">Install</span></a>
-        <a href="/releases"><i data-lucide="tag"></i><span data-i18n="footer.releases">Releases</span></a>
+        <a href="https://github.com/krisshen2021/openchinacode/releases"><i data-lucide="tag"></i><span data-i18n="footer.releases">Releases</span></a>
       </div>
     </div>
   </footer>
@@ -294,6 +297,19 @@
       setTimeout(() => {
         copyBtn.classList.remove("copied");
         copyBtn.innerHTML = '<i data-lucide="copy"></i>';
+        lucide.createIcons();
+      }, 1400);
+    });
+
+    const installBtn = document.getElementById("install-btn");
+    installBtn.addEventListener("click", async () => {
+      await navigator.clipboard.writeText("curl -fsSL https://openchinacode.muffin-labs.com/install | bash");
+      installBtn.classList.add("copied");
+      installBtn.innerHTML = '<i data-lucide="check"></i><span>' + (getLang() === "zh" ? "\u5df2\u590d\u5236\uff01" : "Copied!") + '</span>';
+      lucide.createIcons();
+      setTimeout(() => {
+        installBtn.classList.remove("copied");
+        installBtn.innerHTML = '<i data-lucide="download"></i><span data-i18n="hero.install">' + (getLang() === "zh" ? "\u7acb\u5373\u5b89\u88c5" : "Install now") + '</span>';
         lucide.createIcons();
       }, 1400);
     });
