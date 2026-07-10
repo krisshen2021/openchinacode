@@ -1,0 +1,750 @@
+const INSTALL_URL = "https://raw.githubusercontent.com/krisshen2021/openchinacode/main/install"
+const GITHUB_URL = "https://github.com/krisshen2021/openchinacode"
+const RELEASE_URL = "https://github.com/krisshen2021/openchinacode/releases/latest"
+const INSTALL_COMMAND = "curl -fsSL https://openchinacode.muffin-labs.com/install | bash"
+
+const home = String.raw`<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OpenChinaCode</title>
+  <meta name="description" content="A China-model focused terminal coding agent for GLM, Kimi, and DeepSeek.">
+  <meta property="og:title" content="OpenChinaCode">
+  <meta property="og:description" content="A fast, model-routed coding agent for GLM, Kimi, and DeepSeek.">
+  <meta property="og:type" content="website">
+  <meta name="theme-color" content="#050507">
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #050507;
+      --panel: #101015;
+      --panel-2: #15151c;
+      --line: #2a2a35;
+      --text: #f6f4ff;
+      --muted: #b7b3c9;
+      --cyan: #43f4ff;
+      --pink: #ff4fd8;
+      --gold: #ffd166;
+      --green: #51ff9f;
+      --red: #ff5d73;
+      --shadow: rgba(255, 79, 216, 0.38);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100svh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+      overflow-x: hidden;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    button {
+      font: inherit;
+    }
+
+    .scene {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -2;
+      background: #050507;
+    }
+
+    .noise {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+      opacity: 0.18;
+      background-image:
+        repeating-linear-gradient(0deg, rgba(255,255,255,0.03) 0 1px, transparent 1px 4px);
+      mix-blend-mode: screen;
+    }
+
+    .page {
+      min-height: 100svh;
+    }
+
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 64px;
+      padding: 16px clamp(18px, 4vw, 56px);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      background: rgba(5, 5, 7, 0.78);
+      backdrop-filter: blur(18px);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 800;
+      font-size: 15px;
+    }
+
+    .mark {
+      display: grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      border: 1px solid rgba(67, 244, 255, 0.72);
+      border-radius: 8px;
+      color: var(--cyan);
+      box-shadow: 0 0 22px rgba(67, 244, 255, 0.25), inset 0 0 16px rgba(255, 79, 216, 0.18);
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .nav-link {
+      color: var(--muted);
+      font-size: 14px;
+      padding: 9px 10px;
+    }
+
+    .nav-link:hover {
+      color: var(--cyan);
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 42px;
+      padding: 0 16px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.05);
+      color: var(--text);
+      cursor: pointer;
+      transition: transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+    }
+
+    .button:hover {
+      transform: translateY(-1px);
+      border-color: rgba(67, 244, 255, 0.7);
+      box-shadow: 0 0 24px rgba(67, 244, 255, 0.16);
+    }
+
+    .button.primary {
+      border-color: rgba(255, 79, 216, 0.75);
+      background: #ff4fd8;
+      color: #050507;
+      font-weight: 800;
+      box-shadow: 0 0 28px var(--shadow);
+    }
+
+    main {
+      overflow: hidden;
+    }
+
+    .hero {
+      min-height: calc(100svh - 190px);
+      display: grid;
+      align-items: center;
+      padding: 64px clamp(20px, 5vw, 72px) 38px;
+    }
+
+    .hero-inner {
+      width: min(1180px, 100%);
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: minmax(0, 1.06fr) minmax(330px, 0.72fr);
+      gap: 48px;
+      align-items: center;
+    }
+
+    .hero-inner > * {
+      min-width: 0;
+    }
+
+    .eyebrow {
+      color: var(--green);
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 72px;
+      line-height: 0.96;
+      letter-spacing: 0;
+      text-transform: uppercase;
+      text-shadow: 0 4px 0 #1d1d24, 0 0 28px rgba(67,244,255,0.28);
+    }
+
+    h1 .word {
+      color: inherit;
+    }
+
+    h1 .china {
+      color: var(--pink);
+      text-shadow: 0 4px 0 #321226, 0 0 34px rgba(255,79,216,0.58);
+    }
+
+    .lead {
+      max-width: 720px;
+      margin: 24px 0 0;
+      color: var(--muted);
+      font-size: 20px;
+      line-height: 1.6;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 34px;
+    }
+
+    .terminal {
+      min-width: 0;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(10, 10, 14, 0.84);
+      box-shadow: 0 0 44px rgba(255,79,216,0.16), 0 16px 42px rgba(0,0,0,0.45);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .terminal-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 44px;
+      padding: 0 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.04);
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .dots {
+      display: flex;
+      gap: 7px;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--red);
+    }
+
+    .dot:nth-child(2) {
+      background: var(--gold);
+    }
+
+    .dot:nth-child(3) {
+      background: var(--green);
+    }
+
+    .terminal-body {
+      padding: 22px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      font-size: 14px;
+      line-height: 1.8;
+      overflow-x: hidden;
+    }
+
+    .terminal-body div {
+      overflow-wrap: anywhere;
+    }
+
+    .prompt {
+      color: var(--green);
+    }
+
+    .cmd {
+      color: var(--text);
+      word-break: break-word;
+    }
+
+    .cyan {
+      color: var(--cyan);
+    }
+
+    .pink {
+      color: var(--pink);
+    }
+
+    .gold {
+      color: var(--gold);
+    }
+
+    .copy-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-top: 18px;
+    }
+
+    .copy-row code {
+      flex: 1;
+      min-width: 0;
+      padding: 12px 13px;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      color: var(--cyan);
+      background: rgba(255,255,255,0.045);
+      overflow-wrap: anywhere;
+    }
+
+    .copy {
+      min-width: 74px;
+      color: var(--bg);
+      background: var(--cyan);
+      border-color: var(--cyan);
+      font-weight: 800;
+    }
+
+    .band {
+      padding: 42px clamp(20px, 5vw, 72px) 74px;
+      background: rgba(5,5,7,0.76);
+      border-top: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .section-inner {
+      width: min(1180px, 100%);
+      margin: 0 auto;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 42px;
+    }
+
+    .stat {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.045);
+      padding: 18px;
+    }
+
+    .stat strong {
+      display: block;
+      color: var(--text);
+      font-size: 24px;
+      margin-bottom: 6px;
+    }
+
+    .stat span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    h2 {
+      margin: 0 0 16px;
+      font-size: 34px;
+      line-height: 1.15;
+      letter-spacing: 0;
+    }
+
+    .section-copy {
+      max-width: 780px;
+      color: var(--muted);
+      font-size: 17px;
+      line-height: 1.65;
+      margin: 0 0 30px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.05);
+      padding: 20px;
+      min-height: 182px;
+    }
+
+    .card .tag {
+      display: inline-flex;
+      margin-bottom: 18px;
+      color: var(--bg);
+      background: var(--gold);
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .card:nth-child(2) .tag {
+      background: var(--pink);
+    }
+
+    .card:nth-child(3) .tag {
+      background: var(--cyan);
+    }
+
+    .card h3 {
+      margin: 0 0 10px;
+      font-size: 19px;
+    }
+
+    .card p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.58;
+      font-size: 15px;
+    }
+
+    .footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 28px clamp(20px, 5vw, 72px);
+      border-top: 1px solid rgba(255,255,255,0.08);
+      color: var(--muted);
+      background: #050507;
+      font-size: 14px;
+    }
+
+    .footer a {
+      color: var(--cyan);
+    }
+
+    @media (max-width: 900px) {
+      .nav-actions .nav-link {
+        display: none;
+      }
+
+      .hero {
+        min-height: auto;
+        padding-top: 46px;
+      }
+
+      .hero-inner {
+        grid-template-columns: 1fr;
+      }
+
+      h1 {
+        font-size: 52px;
+      }
+
+      .lead {
+        font-size: 18px;
+      }
+
+      .stats,
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .footer {
+        flex-direction: column;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .nav {
+        padding-inline: 16px;
+      }
+
+      .nav-actions {
+        display: none;
+      }
+
+      h1 {
+        font-size: 46px;
+      }
+
+      h1 .word {
+        display: block;
+      }
+
+      .lead {
+        max-width: 100%;
+        font-size: 16px;
+        line-height: 1.58;
+        overflow-wrap: break-word;
+      }
+
+      .terminal-body {
+        padding: 18px;
+        font-size: 13px;
+      }
+
+      .copy-row code {
+        font-size: 13px;
+      }
+
+      .hero-actions,
+      .copy-row {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .button,
+      .copy {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <canvas class="scene" aria-hidden="true"></canvas>
+  <div class="noise" aria-hidden="true"></div>
+  <div class="page">
+    <nav class="nav">
+      <a class="brand" href="/">
+        <span class="mark">OC</span>
+        <span>OpenChinaCode</span>
+      </a>
+      <div class="nav-actions">
+        <a class="nav-link" href="#models">Models</a>
+        <a class="nav-link" href="#workflow">Workflow</a>
+        <a class="button" href="/github">GitHub</a>
+      </div>
+    </nav>
+
+    <main>
+      <section class="hero">
+        <div class="hero-inner">
+          <div>
+            <div class="eyebrow">GLM / KIMI / DEEPSEEK coding agent</div>
+            <h1><span class="word">OPEN</span><span class="word china">CHINA</span><span class="word">CODE</span></h1>
+            <p class="lead">
+              A lean terminal coding agent forked from opencode and rebuilt around China-focused model routing,
+              smart compaction, sliding output budgets, RMB cost tracking, LSP diagnostics, and Playwright browser testing.
+            </p>
+            <div class="hero-actions">
+              <a class="button primary" href="#install">Install now</a>
+              <a class="button" href="/releases">Latest release</a>
+            </div>
+          </div>
+
+          <div class="terminal" id="install">
+            <div class="terminal-head">
+              <div class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+              <span>v0.1.0</span>
+            </div>
+            <div class="terminal-body">
+              <div><span class="prompt">$</span> <span class="cmd">curl -fsSL https://openchinacode.muffin-labs.com/install | bash</span></div>
+              <div><span class="cyan">provider</span> GLM-5.2 / Kimi K2.7 / DeepSeek V4</div>
+              <div><span class="pink">route</span> task.kind + complexity + variant</div>
+              <div><span class="gold">compact</span> summary + active-task extraction + raw tail</div>
+              <div class="copy-row">
+                <code id="install-command">curl -fsSL https://openchinacode.muffin-labs.com/install | bash</code>
+                <button class="button copy" type="button" id="copy-install">Copy</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="band" id="models">
+        <div class="section-inner">
+          <div class="stats">
+            <div class="stat"><strong>3</strong><span>official provider families</span></div>
+            <div class="stat"><strong>RMB</strong><span>cost display and pricing table</span></div>
+            <div class="stat"><strong>Smart</strong><span>context compaction pipeline</span></div>
+            <div class="stat"><strong>TUI</strong><span>opencode-style terminal workflow</span></div>
+          </div>
+
+          <h2>Built for China-model coding work.</h2>
+          <p class="section-copy">
+            OpenChinaCode keeps the terminal-first opencode workflow, then narrows the default model surface to GLM,
+            Kimi, and DeepSeek with model-aware request transforms and task routing.
+          </p>
+
+          <div class="grid" id="workflow">
+            <article class="card">
+              <span class="tag">PLAN</span>
+              <h3>GLM-led complex reasoning</h3>
+              <p>Architecture, complex planning, heavy refactors, and compaction routes favor GLM-5.2 variants.</p>
+            </article>
+            <article class="card">
+              <span class="tag">BUILD</span>
+              <h3>Kimi for fast implementation</h3>
+              <p>Implementation, review, and common coding subagents use fast Kimi K2.7 routes when the task fits.</p>
+            </article>
+            <article class="card">
+              <span class="tag">DEBUG</span>
+              <h3>DeepSeek for sharp loops</h3>
+              <p>Debug and quick exploration routes are tuned for DeepSeek speed, with sliding max-token behavior.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span>OpenChinaCode is an independent fork built with respect for the opencode project.</span>
+      <span><a href="/github">GitHub</a> · <a href="/install">Install script</a> · <a href="/releases">Releases</a></span>
+    </footer>
+  </div>
+
+  <script>
+    const canvas = document.querySelector(".scene");
+    const ctx = canvas.getContext("2d");
+    let width = 0;
+    let height = 0;
+    let dpr = 1;
+    const lanes = [];
+    const colors = ["#43f4ff", "#ff4fd8", "#ffd166", "#51ff9f"];
+
+    function resize() {
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      width = window.innerWidth;
+      height = window.innerHeight;
+      canvas.width = Math.floor(width * dpr);
+      canvas.height = Math.floor(height * dpr);
+      canvas.style.width = width + "px";
+      canvas.style.height = height + "px";
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      lanes.length = 0;
+      const count = Math.max(28, Math.floor(width / 32));
+      for (let i = 0; i < count; i++) {
+        lanes.push({
+          x: Math.random() * width,
+          y: Math.random() * height,
+          speed: 0.18 + Math.random() * 0.72,
+          len: 22 + Math.random() * 90,
+          color: colors[i % colors.length],
+          drift: Math.random() * 1.4 - 0.7
+        });
+      }
+    }
+
+    function drawGrid(t) {
+      const horizon = height * 0.64;
+      ctx.save();
+      ctx.globalAlpha = 0.42;
+      ctx.strokeStyle = "#43f4ff";
+      ctx.lineWidth = 1;
+      for (let i = 0; i < 18; i++) {
+        const y = horizon + Math.pow(i / 17, 2.1) * height * 0.34;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+      }
+      for (let i = -12; i <= 12; i++) {
+        const x = width / 2 + i * 84 + Math.sin(t / 1500) * 10;
+        ctx.beginPath();
+        ctx.moveTo(width / 2, horizon);
+        ctx.lineTo(x, height);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function frame(t) {
+      ctx.clearRect(0, 0, width, height);
+      ctx.fillStyle = "#050507";
+      ctx.fillRect(0, 0, width, height);
+
+      drawGrid(t);
+
+      for (const lane of lanes) {
+        lane.y += lane.speed;
+        lane.x += lane.drift * 0.18;
+        if (lane.y - lane.len > height) {
+          lane.y = -lane.len;
+          lane.x = Math.random() * width;
+        }
+        ctx.globalAlpha = 0.58;
+        ctx.strokeStyle = lane.color;
+        ctx.shadowColor = lane.color;
+        ctx.shadowBlur = 16;
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.moveTo(lane.x, lane.y);
+        ctx.lineTo(lane.x + lane.drift * 10, lane.y - lane.len);
+        ctx.stroke();
+      }
+
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1;
+      requestAnimationFrame(frame);
+    }
+
+    resize();
+    requestAnimationFrame(frame);
+    window.addEventListener("resize", resize);
+
+    document.getElementById("copy-install").addEventListener("click", async () => {
+      await navigator.clipboard.writeText("curl -fsSL https://openchinacode.muffin-labs.com/install | bash");
+      const button = document.getElementById("copy-install");
+      button.textContent = "Copied";
+      setTimeout(() => button.textContent = "Copy", 1400);
+    });
+  </script>
+</body>
+</html>`
+
+export default {
+  async fetch(request) {
+    const url = new URL(request.url)
+
+    if (url.pathname === "/install" || url.pathname === "/install.sh") {
+      const response = await fetch(INSTALL_URL, {
+        headers: {
+          "user-agent": "OpenChinaCode website installer",
+        },
+      })
+      return new Response(response.body, {
+        status: response.status,
+        headers: {
+          "content-type": "text/plain; charset=utf-8",
+          "cache-control": "public, max-age=300",
+          "x-content-type-options": "nosniff",
+        },
+      })
+    }
+
+    if (url.pathname === "/github") {
+      return Response.redirect(GITHUB_URL, 302)
+    }
+
+    if (url.pathname === "/releases") {
+      return Response.redirect(RELEASE_URL, 302)
+    }
+
+    if (url.pathname === "/" || url.pathname === "/index.html") {
+      return new Response(home.replaceAll("__INSTALL_COMMAND__", INSTALL_COMMAND), {
+        headers: {
+          "content-type": "text/html; charset=utf-8",
+          "cache-control": "public, max-age=300",
+          "x-content-type-options": "nosniff",
+          "referrer-policy": "strict-origin-when-cross-origin",
+        },
+      })
+    }
+
+    return Response.redirect("/", 302)
+  },
+}

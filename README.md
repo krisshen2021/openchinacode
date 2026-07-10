@@ -47,21 +47,21 @@ For architecture notes, maintenance entry points, config fields, and test comman
 Install the latest GitHub release:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/krisshen2021/openchinacode/main/install | bash
+curl -fsSL https://openchinacode.muffin-labs.com/install | bash
 ```
 
 Install a specific version:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/krisshen2021/openchinacode/main/install | bash -s -- --version 0.1.0
+curl -fsSL https://openchinacode.muffin-labs.com/install | bash -s -- --version 0.1.0
 ```
 
 The installer downloads the matching binary from GitHub Releases and installs `openchinacode` into `~/.local/bin` by default. Use `--install-dir <dir>` for a different location, or `--no-modify-path` if you do not want the script to update shell config files.
 
-The GitHub raw URL is the MVP install endpoint. A future website can expose the same script as:
+The GitHub raw URL remains available as a fallback:
 
 ```bash
-curl -fsSL https://openchinacode.example/install | bash
+curl -fsSL https://raw.githubusercontent.com/krisshen2021/openchinacode/main/install | bash
 ```
 
 ## Build From Source
