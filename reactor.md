@@ -35,7 +35,7 @@ The first milestone is an MVP CLI named `openchinacode` that can run prompts, li
 - [x] Migrate independent OpenChinaCode auth for `zhipuai-pay2go` and `moonshotai-cn`.
 - [x] Set default model to `zhipuai-pay2go/glm-5.2`.
 - [x] Verify real GLM 5.2 end-to-end call.
-- [x] Research official GLM/KIMI/DEEPSEEK model parameter docs and record implementation policy in `research/official-model-parameters.md`.
+- [x] Research official GLM/KIMI/DEEPSEEK model parameter docs and fold implementation policy into the provider strategy and TECH notes.
 - [x] Set official max-output policies for GLM/KIMI/DEEPSEEK and rebuild the installed `openchinacode` binary.
 - [x] Pin official GLM/KIMI/DEEPSEEK CNY pricing for session cost display and rebuild the installed `openchinacode` binary.
 - [x] Reduce runtime provider list to the three configured providers: `zhipuai-pay2go`, `moonshotai-cn`, and `deepseek`.
@@ -205,11 +205,7 @@ deepseek-v3.2
 
 The upstream `ProviderTransform` is compatibility-oriented. OpenChinaCode needs a dedicated strategy layer for Chinese models.
 
-The official source-of-truth research for this section is:
-
-```text
-research/official-model-parameters.md
-```
+The former standalone research note has been folded into the provider strategy implementation and `tech.md`.
 
 Proposed module:
 
@@ -272,13 +268,7 @@ packages/opencode
 
 This package already owns the mature CLI commands and should be the MVP base.
 
-The separate package below is not the MVP base:
-
-```text
-packages/cli
-```
-
-It is a different experimental CLI package and currently exposes `lildax`.
+The former experimental `lildax` CLI workspace has been removed from the OpenChinaCode MVP tree.
 
 ## Implementation Phases
 

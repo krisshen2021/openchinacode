@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto"
 import { describe, expect } from "bun:test"
 import { Flag } from "@opencode-ai/core/flag/flag"
 import { ConfigProvider, Effect, Layer, Option } from "effect"
@@ -17,7 +16,7 @@ import { RuntimeFlags } from "../../src/effect/runtime-flags"
 import { ServerAuth } from "../../src/server/auth"
 import { authorizationRouterMiddleware } from "../../src/server/routes/instance/httpapi/middleware/authorization"
 import { HttpApiApp } from "../../src/server/routes/instance/httpapi/server"
-import { serveEmbeddedUIEffect, serveUIEffect } from "../../src/server/shared/ui"
+import { serveUIEffect } from "../../src/server/shared/ui"
 import { testEffect } from "../lib/effect"
 
 const testStateLayer = Layer.effectDiscard(
@@ -95,11 +94,10 @@ function uiApp(input?: {
   const handler = HttpRouter.toWebHandler(
     HttpRouter.use((router) =>
       Effect.gen(function* () {
-        const fs = yield* FSUtil.Service
         const client = yield* HttpClient.HttpClient
         const flags = yield* RuntimeFlags.Service
         yield* router.add("*", "/*", (request) =>
-          serveUIEffect(request, { fs, client, disableEmbeddedWebUi: flags.disableEmbeddedWebUi }),
+          serveUIEffect(request, { client, disableEmbeddedWebUi: flags.disableEmbeddedWebUi }),
         )
       }),
     ).pipe(
@@ -132,14 +130,13 @@ function routeOrderingApp() {
   const handler = HttpRouter.toWebHandler(
     HttpRouter.use((router) =>
       Effect.gen(function* () {
-        const fs = yield* FSUtil.Service
         const client = yield* HttpClient.HttpClient
         const flags = yield* RuntimeFlags.Service
         yield* router.add("GET", "/session/:sessionID", () =>
           Effect.succeed(HttpServerResponse.jsonUnsafe({ error: "Not Found" }, { status: 404 })),
         )
         yield* router.add("*", "/*", (request) =>
-          serveUIEffect(request, { fs, client, disableEmbeddedWebUi: flags.disableEmbeddedWebUi }),
+          serveUIEffect(request, { client, disableEmbeddedWebUi: flags.disableEmbeddedWebUi }),
         )
       }),
     ).pipe(
@@ -210,11 +207,9 @@ describe("HttpApi UI fallback", () => {
       let proxiedUrl: string | undefined
 
       const response = yield* Effect.gen(function* () {
-        const fs = yield* FSUtil.Service
         const client = yield* HttpClient.HttpClient
         const flags = yield* RuntimeFlags.Service
         return yield* serveUIEffect(HttpServerRequest.fromWeb(new Request("http://localhost/assets/app.js")), {
-          fs,
           client,
           disableEmbeddedWebUi: flags.disableEmbeddedWebUi,
         })
@@ -260,11 +255,9 @@ describe("HttpApi UI fallback", () => {
   it.live("strips upstream transfer-encoding header from proxied assets", () =>
     Effect.gen(function* () {
       const response = yield* Effect.gen(function* () {
-        const fs = yield* FSUtil.Service
         const client = yield* HttpClient.HttpClient
         const flags = yield* RuntimeFlags.Service
         return yield* serveUIEffect(HttpServerRequest.fromWeb(new Request("http://localhost/")), {
-          fs,
           client,
           disableEmbeddedWebUi: flags.disableEmbeddedWebUi,
         })
@@ -296,62 +289,6 @@ describe("HttpApi UI fallback", () => {
       expect(response.status).toBe(200)
       expect(response.headers.get("transfer-encoding")).toBeNull()
       expect(yield* responseText(response)).toBe("<html>opencode</html>")
-    }),
-  )
-
-  it.live("serves embedded UI assets when Bun can read them but access reports missing", () =>
-    Effect.gen(function* () {
-      let readPath: string | undefined
-
-      const fs = yield* FSUtil.Service
-      const response = yield* serveEmbeddedUIEffect(
-        "/assets/app.js",
-        {
-          ...fs,
-          existsSafe: () => Effect.die("embedded UI should not rely on filesystem access checks"),
-          readFile: (path) => {
-            readPath = path
-            return path === "/$bunfs/root/assets/app.js"
-              ? Effect.succeed(new TextEncoder().encode("console.log('embedded')"))
-              : Effect.die(`unexpected embedded UI path: ${path}`)
-          },
-        },
-        { "assets/app.js": "/$bunfs/root/assets/app.js" },
-      ).pipe(Effect.map(HttpServerResponse.toWeb))
-
-      expect(response.status).toBe(200)
-      expect(readPath).toBe("/$bunfs/root/assets/app.js")
-      expect(response.headers.get("content-type")).toContain("text/javascript")
-      expect(yield* responseText(response)).toBe("console.log('embedded')")
-    }),
-  )
-
-  it.live("allows embedded UI terminal wasm and theme preload CSP", () =>
-    Effect.gen(function* () {
-      const script = 'document.documentElement.dataset.theme = "dark"'
-
-      const fs = yield* FSUtil.Service
-      const response = yield* serveEmbeddedUIEffect(
-        "/",
-        {
-          ...fs,
-          readFile: (path) => {
-            return path === "/$bunfs/root/index.html"
-              ? Effect.succeed(
-                  new TextEncoder().encode(
-                    `<html><head><script id="oc-theme-preload-script">${script}</script></head></html>`,
-                  ),
-                )
-              : Effect.die(`unexpected embedded UI path: ${path}`)
-          },
-        },
-        { "index.html": "/$bunfs/root/index.html" },
-      ).pipe(Effect.map(HttpServerResponse.toWeb))
-
-      const csp = response.headers.get("content-security-policy") ?? ""
-      expect(csp).toContain("script-src 'self' 'wasm-unsafe-eval'")
-      expect(csp).toContain(`'sha256-${createHash("sha256").update(script).digest("base64")}'`)
-      expect(csp).toContain("connect-src * data:")
     }),
   )
 

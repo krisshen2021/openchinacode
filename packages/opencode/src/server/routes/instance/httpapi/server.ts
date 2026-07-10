@@ -193,11 +193,10 @@ const docRoute = HttpRouter.use((router) => router.add("GET", "/doc", () => Effe
 
 const uiRoute = HttpRouter.use((router) =>
   Effect.gen(function* () {
-    const fs = yield* FSUtil.Service
     const client = yield* HttpClient.HttpClient
     const flags = yield* RuntimeFlags.Service
     yield* router.add("*", "/*", (request) =>
-      serveUIEffect(request, { fs, client, disableEmbeddedWebUi: flags.disableEmbeddedWebUi }),
+      serveUIEffect(request, { client, disableEmbeddedWebUi: flags.disableEmbeddedWebUi }),
     )
   }),
 ).pipe(Layer.provide(authOnlyRouterLayer))

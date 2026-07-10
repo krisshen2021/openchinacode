@@ -5,7 +5,8 @@ server moved to the Effect HttpApi backend.
 
 ## Current State
 
-- The server still lives in `packages/opencode`.
+- Core server contracts and helpers now live in `packages/server`.
+- The OpenChinaCode CLI/TUI host still lives in `packages/opencode`.
 - The runtime and app layer are centralized in `src/effect/app-runtime.ts` and
   `src/effect/run-service.ts`.
 - The route tree lives under `src/server/routes/instance/httpapi` and is hosted
@@ -21,8 +22,8 @@ Target package layout:
 - `packages/core` - shared domain services and schemas
 - `packages/server` - HTTP contracts, handlers, OpenAPI generation, and an
   embeddable server API
-- `packages/cli` - TUI and CLI entrypoints
-- `packages/sdk` - generated from the server OpenAPI spec
+- `packages/opencode` - TUI and CLI entrypoints
+- `packages/sdk/js` - generated from the server OpenAPI spec
 - `packages/plugin` - plugin authoring surface
 
 ## Extraction Rule
