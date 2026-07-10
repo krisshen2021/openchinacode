@@ -82,6 +82,21 @@ const I18N = {
     "features.costs.title": "Visible costs & diagnostics",
     "features.costs.desc": "The TUI shows RMB cost, model-aware context usage, route details, LSP diagnostics, and compaction debug stages so behavior is inspectable.",
 
+    /* ── Media highlight ── */
+    "media.eyebrow": "NATIVE MEDIA GENERATION",
+    "media.title": "Generate images and videos<br>without leaving the terminal.",
+    "media.desc": "Ask in natural language or use slash commands. OpenChinaCode routes image and video generation through Volcengine Ark with automatic download to local files.",
+    "media.image.tag": "IMAGE",
+    "media.image.title": "ByteDance Seedream 5.0 Pro",
+    "media.image.desc": "Up to 2K resolution, multiple aspect ratios, reference-image support, and PNG/JPEG output.",
+    "media.image.cmd": "/image-generate a cyberpunk cat mascot",
+    "media.video.tag": "VIDEO",
+    "media.video.title": "ByteDance Seedance 2.0 Mini",
+    "media.video.desc": "4 to 15 second clips, 720p, first/last frame control, reference images, and generated audio.",
+    "media.video.cmd": "/video-generate a 5s product promo clip",
+    "media.nl.title": "Natural language or slash command",
+    "media.nl.desc": "Just describe what you want, or run <code>/image-generate</code> and <code>/video-generate</code> with an optional prompt. Missing details trigger follow-up questions, not guesses.",
+
     /* ── CTA ── */
     "cta.title": "Need the exact commands and config files?",
     "cta.desc": "The manual documents slash commands, provider auth, task policy overrides, smart compaction, LSP, Playwright MCP, and debugging logs.",
@@ -157,6 +172,9 @@ const I18N = {
     "commands.testmcp.effect": "Writes Playwright MCP config and hot-connects or disconnects it from inside the TUI.",
     "commands.browsercheck.effect": "Prompts the agent to run browser-level checks, preferably through Playwright MCP.",
     "commands.integrationtest.effect": "Prompts the agent to use the OpenChinaCode integration-test workflow: run, inspect report, define bug, fix, rerun.",
+    "commands.mediaauth.effect": "Saves the Volcengine Ark API key for native image and video generation.",
+    "commands.imagegen.effect": "Opens the ByteDance Seedream 5.0 Pro image generation wizard with optional inline prompt.",
+    "commands.videogen.effect": "Opens the ByteDance Seedance 2.0 Mini video generation wizard with optional inline prompt.",
 
     /* ── Task Routing ── */
     "routing.title": "Task Routing Policy",
@@ -202,6 +220,25 @@ const I18N = {
     "debugging.compact.title": "Compaction profile logs",
     "debugging.test.tag": "Test",
     "debugging.test.title": "Integration report",
+
+    /* ── Media Generation ── */
+    "toc.media": "Media Generation",
+    "media.manual.title": "Native Media Generation",
+    "media.manual.desc": "OpenChinaCode can generate images and videos through Volcengine Ark, powered by ByteDance Seedream 5.0 Pro and Seedance 2.0 Mini.",
+    "media.auth.tag": "Auth",
+    "media.auth.title": "Volcengine Ark credentials",
+    "media.auth.desc": "Run <code>/media-auth</code> in the TUI, or set the <code>ARK_API_KEY</code> environment variable. The key is stored in <code>~/.local/share/openchinacode/auth.json</code> under provider <code>volcengine-ark</code>.",
+    "media.image.tag": "Image",
+    "media.image.manual.title": "ByteDance Seedream 5.0 Pro",
+    "media.image.manual.desc": "Up to 2K resolution, 1:1 to 21:9 aspect ratios, up to 10 reference images (local paths, URLs, or data URIs), PNG or JPEG output.",
+    "media.image.cmd": "/image-generate\n/image-generate a cyberpunk cat mascot, neon pink, clean vector style",
+    "media.video.tag": "Video",
+    "media.video.manual.title": "ByteDance Seedance 2.0 Mini",
+    "media.video.manual.desc": "4–15 second clips, 480p or 720p, adaptive to 21:9 ratios, up to 9 reference images, 3 reference video URLs, strict first/last frame control, and generated audio.",
+    "media.video.cmd": "/video-generate\n/video-generate a 5s product promo, slow dolly-in, tech but not flashy",
+    "media.nl.tag": "Trigger",
+    "media.nl.title": "Natural language or slash command",
+    "media.nl.manual.desc": "Describe what you want in plain language, or run <code>/image-generate</code> / <code>/video-generate</code> with an optional prompt. When key parameters are missing, the agent asks follow-up questions instead of guessing. Generated files are downloaded immediately to <code>/tmp/openchinacode/media/images</code> and <code>/tmp/openchinacode/media/videos</code> with matching metadata JSON.",
   },
 
   zh: {
@@ -279,6 +316,21 @@ const I18N = {
     "features.costs.title": "可见成本与诊断",
     "features.costs.desc": "TUI 显示人民币成本、模型感知的上下文使用量、路由详情、LSP 诊断和压缩调试阶段，使行为可检查。",
 
+    /* ── Media highlight ── */
+    "media.eyebrow": "原生媒体生成",
+    "media.title": "在终端中生成图片和视频，<br>无需切换工具。",
+    "media.desc": "用自然语言描述或使用斜杠命令。OpenChinaCode 通过火山方舟路由图片和视频生成，自动下载到本地文件。",
+    "media.image.tag": "生图",
+    "media.image.title": "字节跳动 Seedream 5.0 Pro",
+    "media.image.desc": "最高 2K 分辨率，多种宽高比，参考图支持，PNG/JPEG 输出。",
+    "media.image.cmd": "/image-generate 一只赛博朋克猫 mascot",
+    "media.video.tag": "生视频",
+    "media.video.title": "字节跳动 Seedance 2.0 Mini",
+    "media.video.desc": "4 至 15 秒短片，720p，首尾帧控制，参考图，生成音频。",
+    "media.video.cmd": "/video-generate 一个 5 秒产品宣传短片",
+    "media.nl.title": "自然语言或斜杠命令",
+    "media.nl.desc": "直接描述需求，或运行 <code>/image-generate</code> 和 <code>/video-generate</code> 并附加可选提示词。缺少关键参数时会追问，而非随意猜测。",
+
     /* ── CTA ── */
     "cta.title": "需要确切的命令和配置文件？",
     "cta.desc": "手册记录了斜杠命令、提供商认证、任务策略覆盖、智能压缩、LSP、Playwright MCP 和调试日志。",
@@ -354,6 +406,9 @@ const I18N = {
     "commands.testmcp.effect": "写入 Playwright MCP 配置，并在 TUI 内热连接或断开。",
     "commands.browsercheck.effect": "提示智能体运行浏览器级别检查，优先通过 Playwright MCP。",
     "commands.integrationtest.effect": "提示智能体使用 OpenChinaCode 集成测试工作流：运行、检查报告、定义缺陷、修复、重跑。",
+    "commands.mediaauth.effect": "保存火山方舟 API key，供原生图片和视频生成使用。",
+    "commands.imagegen.effect": "打开字节跳动 Seedream 5.0 Pro 生图向导，支持内联提示词。",
+    "commands.videogen.effect": "打开字节跳动 Seedance 2.0 Mini 生视频向导，支持内联提示词。",
 
     /* ── Task Routing ── */
     "routing.title": "任务路由策略",
@@ -399,6 +454,25 @@ const I18N = {
     "debugging.compact.title": "压缩档案日志",
     "debugging.test.tag": "测试",
     "debugging.test.title": "集成测试报告",
+
+    /* ── Media Generation ── */
+    "toc.media": "媒体生成",
+    "media.manual.title": "原生媒体生成",
+    "media.manual.desc": "OpenChinaCode 可通过火山方舟生成图片和视频，由字节跳动 Seedream 5.0 Pro 和 Seedance 2.0 Mini 驱动。",
+    "media.auth.tag": "认证",
+    "media.auth.title": "火山方舟凭证",
+    "media.auth.desc": "在 TUI 中运行 <code>/media-auth</code>，或设置 <code>ARK_API_KEY</code> 环境变量。密钥存储在 <code>~/.local/share/openchinacode/auth.json</code> 中，提供商为 <code>volcengine-ark</code>。",
+    "media.image.tag": "生图",
+    "media.image.manual.title": "字节跳动 Seedream 5.0 Pro",
+    "media.image.manual.desc": "最高 2K 分辨率，1:1 至 21:9 宽高比，最多 10 张参考图（本地路径、URL 或 data URI），PNG 或 JPEG 输出。",
+    "media.image.cmd": "/image-generate\n/image-generate 一只赛博朋克猫 mascot，粉色霓虹，干净矢量风",
+    "media.video.tag": "生视频",
+    "media.video.manual.title": "字节跳动 Seedance 2.0 Mini",
+    "media.video.manual.desc": "4–15 秒短片，480p 或 720p，自适应至 21:9 比例，最多 9 张参考图，3 个参考视频 URL，严格首尾帧控制，生成音频。",
+    "media.video.cmd": "/video-generate\n/video-generate 一个 5 秒项目宣传短片，镜头缓慢推进，科技感但不浮夸",
+    "media.nl.tag": "触发",
+    "media.nl.title": "自然语言或斜杠命令",
+    "media.nl.manual.desc": "用自然语言描述需求，或运行 <code>/image-generate</code> / <code>/video-generate</code> 并附加可选提示词。缺少关键参数时，智能体会追问而非猜测。生成文件会立即下载到 <code>/tmp/openchinacode/media/images</code> 和 <code>/tmp/openchinacode/media/videos</code>，并写入同名 metadata JSON。",
   },
 };
 

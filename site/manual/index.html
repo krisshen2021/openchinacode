@@ -63,6 +63,7 @@
               <li><a href="#routing" data-section="routing"><i data-lucide="route"></i><span data-i18n="toc.routing">Task Routing</span></a></li>
               <li><a href="#compaction" data-section="compaction"><i data-lucide="layers"></i><span data-i18n="toc.compaction">Compaction</span></a></li>
               <li><a href="#testing" data-section="testing"><i data-lucide="app-window"></i><span data-i18n="toc.testing">LSP &amp; Testing</span></a></li>
+              <li><a href="#media" data-section="media"><i data-lucide="image"></i><span data-i18n="toc.media">Media Generation</span></a></li>
               <li><a href="#debugging" data-section="debugging"><i data-lucide="bug"></i><span data-i18n="toc.debugging">Debugging</span></a></li>
             </ul>
           </nav>
@@ -228,6 +229,21 @@ openchinacode</div>
                     <td><code>/integration-test check login flow</code></td>
                     <td data-i18n="commands.integrationtest.effect">Prompts the agent to use the OpenChinaCode integration-test workflow: run, inspect report, define bug, fix, rerun.</td>
                   </tr>
+                  <tr>
+                    <td><code>/media-auth</code></td>
+                    <td><code>/media-auth</code><br><code>/media-auth &lt;ARK_API_KEY&gt;</code></td>
+                    <td data-i18n="commands.mediaauth.effect">Saves the Volcengine Ark API key for native image and video generation.</td>
+                  </tr>
+                  <tr>
+                    <td><code>/image-generate</code></td>
+                    <td><code>/image-generate</code><br><code>/image-generate a cyberpunk cat mascot</code></td>
+                    <td data-i18n="commands.imagegen.effect">Opens the ByteDance Seedream 5.0 Pro image generation wizard with optional inline prompt.</td>
+                  </tr>
+                  <tr>
+                    <td><code>/video-generate</code></td>
+                    <td><code>/video-generate</code><br><code>/video-generate a 5s product promo</code></td>
+                    <td data-i18n="commands.videogen.effect">Opens the ByteDance Seedance 2.0 Mini video generation wizard with optional inline prompt.</td>
+                  </tr>
                 </tbody>
               </table>
             </div>
@@ -341,6 +357,43 @@ openchinacode</div>
                 <span class="tag tag-gold" data-i18n="testing.vision.tag">Vision</span>
                 <h3 data-i18n="testing.vision.title">Screenshot interpretation</h3>
                 <p data-i18n-html="testing.vision.desc">Visual checks route to <code>zhipuai-pay2go/glm-5v-turbo</code>. Animation checks should prefer DOM/CSS telemetry and pixel diffs.</p>
+              </div>
+            </div>
+          </section>
+
+          <!-- Media Generation -->
+          <section class="manual-section reveal" id="media">
+            <div class="manual-section-header">
+              <i data-lucide="image"></i>
+              <h2 data-i18n="media.manual.title">Native Media Generation</h2>
+            </div>
+            <p data-i18n="media.manual.desc">OpenChinaCode can generate images and videos through Volcengine Ark, powered by ByteDance Seedream 5.0 Pro and Seedance 2.0 Mini.</p>
+            <div class="manual-cards">
+              <div class="card" style="--accent: var(--cinnabar);">
+                <span class="tag tag-cinnabar" data-i18n="media.auth.tag">Auth</span>
+                <h3 data-i18n="media.auth.title">Volcengine Ark credentials</h3>
+                <p data-i18n-html="media.auth.desc">Run <code>/media-auth</code> in the TUI, or set the <code>ARK_API_KEY</code> environment variable. The key is stored in <code>~/.local/share/openchinacode/auth.json</code> under provider <code>volcengine-ark</code>.</p>
+              </div>
+              <div class="card" style="--accent: var(--jade);">
+                <span class="tag tag-jade" data-i18n="media.image.tag">Image</span>
+                <h3 data-i18n="media.image.manual.title">ByteDance Seedream 5.0 Pro</h3>
+                <p data-i18n="media.image.manual.desc">Up to 2K resolution, 1:1 to 21:9 aspect ratios, up to 10 reference images (local paths, URLs, or data URIs), PNG or JPEG output.</p>
+                <div class="code-block" data-i18n="media.image.cmd">/image-generate
+/image-generate a cyberpunk cat mascot, neon pink, clean vector style</div>
+              </div>
+              <div class="card" style="--accent: var(--azure);">
+                <span class="tag tag-azure" data-i18n="media.video.tag">Video</span>
+                <h3 data-i18n="media.video.manual.title">ByteDance Seedance 2.0 Mini</h3>
+                <p data-i18n="media.video.manual.desc">4–15 second clips, 480p or 720p, adaptive to 21:9 ratios, up to 9 reference images, 3 reference video URLs, strict first/last frame control, and generated audio.</p>
+                <div class="code-block" data-i18n="media.video.cmd">/video-generate
+/video-generate a 5s product promo, slow dolly-in, tech but not flashy</div>
+              </div>
+            </div>
+            <div class="manual-cards" style="margin-top: 14px;">
+              <div class="card" style="--accent: var(--gold);">
+                <span class="tag tag-gold" data-i18n="media.nl.tag">Trigger</span>
+                <h3 data-i18n="media.nl.title">Natural language or slash command</h3>
+                <p data-i18n-html="media.nl.manual.desc">Describe what you want in plain language, or run <code>/image-generate</code> / <code>/video-generate</code> with an optional prompt. When key parameters are missing, the agent asks follow-up questions instead of guessing. Generated files are downloaded immediately to <code>/tmp/openchinacode/media/images</code> and <code>/tmp/openchinacode/media/videos</code> with matching metadata JSON.</p>
               </div>
             </div>
           </section>

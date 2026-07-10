@@ -211,6 +211,47 @@
         </div>
       </div>
 
+      <!-- ═══ Media highlight (NEW) ═══ -->
+      <div class="media-highlight reveal" style="margin-top: 40px;">
+        <div class="media-highlight-head">
+          <span class="badge-new">NEW</span>
+          <div class="eyebrow" style="margin-bottom: 0;"><i data-lucide="sparkles"></i><span data-i18n="media.eyebrow">NATIVE MEDIA GENERATION</span></div>
+        </div>
+        <h2 style="font-family: var(--font-display); font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1.2; margin-top: 16px;" data-i18n-html="media.title">Generate images and videos<br>without leaving the terminal.</h2>
+        <p class="lead" data-i18n="media.desc" style="margin-top: 12px; max-width: 640px;">
+          Ask in natural language or use slash commands. OpenChinaCode routes image and video generation through Volcengine Ark with automatic download to local files.
+        </p>
+
+        <div class="media-cards">
+          <div class="card" style="--accent: var(--cinnabar);">
+            <div class="card-head-row">
+              <span class="tag tag-cinnabar" data-i18n="media.image.tag">IMAGE</span>
+              <i data-lucide="image" class="media-card-icon"></i>
+            </div>
+            <h3 data-i18n="media.image.title">ByteDance Seedream 5.0 Pro</h3>
+            <p data-i18n="media.image.desc">Up to 2K resolution, multiple aspect ratios, reference-image support, and PNG/JPEG output.</p>
+            <div class="code-block" data-i18n="media.image.cmd">/image-generate a cyberpunk cat mascot</div>
+          </div>
+          <div class="card" style="--accent: var(--jade);">
+            <div class="card-head-row">
+              <span class="tag tag-jade" data-i18n="media.video.tag">VIDEO</span>
+              <i data-lucide="film" class="media-card-icon"></i>
+            </div>
+            <h3 data-i18n="media.video.title">ByteDance Seedance 2.0 Mini</h3>
+            <p data-i18n="media.video.desc">4 to 15 second clips, 720p, first/last frame control, reference images, and generated audio.</p>
+            <div class="code-block" data-i18n="media.video.cmd">/video-generate a 5s product promo clip</div>
+          </div>
+        </div>
+
+        <div class="media-nl-row">
+          <i data-lucide="message-square"></i>
+          <div>
+            <strong data-i18n="media.nl.title">Natural language or slash command</strong>
+            <span data-i18n-html="media.nl.desc">Just describe what you want, or run <code>/image-generate</code> and <code>/video-generate</code> with an optional prompt. Missing details trigger follow-up questions, not guesses.</span>
+          </div>
+        </div>
+      </div>
+
       <!-- CTA -->
       <div class="cta-banner reveal" style="margin-top: 40px;">
         <div>

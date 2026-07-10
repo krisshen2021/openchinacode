@@ -989,6 +989,108 @@ tr:hover td {
   to { --gradient-angle: 360deg; }
 }
 
+/* ── Media highlight (NEW) ────────────────────────────────── */
+.badge-new {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 100px;
+  background: var(--jade-soft);
+  color: var(--jade-glow);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  border: 1px solid color-mix(in srgb, var(--jade) 40%, transparent);
+  animation: badge-pulse 2.5s ease-in-out infinite;
+}
+
+@keyframes badge-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(6, 214, 160, 0); }
+  50% { box-shadow: 0 0 12px 2px rgba(6, 214, 160, 0.25); }
+}
+
+.media-highlight {
+  position: relative;
+  padding: 36px;
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(135deg, var(--jade-soft), var(--azure-soft)),
+    var(--surface);
+  border: 1px solid var(--border-bright);
+  overflow: hidden;
+}
+
+.media-highlight::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, var(--jade), transparent 50%, var(--azure));
+  opacity: 0.05;
+  --gradient-angle: 0deg;
+  animation: angle-rotate 8s linear infinite;
+  pointer-events: none;
+}
+
+.media-highlight-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.card-head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.media-card-icon {
+  width: 20px;
+  height: 20px;
+  color: var(--mist);
+  opacity: 0.6;
+}
+
+.media-cards {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.media-nl-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 20px;
+  padding: 16px 20px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+}
+
+.media-nl-row > svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  color: var(--jade);
+  margin-top: 2px;
+}
+
+.media-nl-row strong {
+  display: block;
+  font-size: 14px;
+  margin-bottom: 4px;
+  color: var(--moonlight);
+}
+
+.media-nl-row span {
+  font-size: 13px;
+  color: var(--mist);
+  line-height: 1.5;
+}
+
 /* ── Manual layout ─────────────────────────────────────────── */
 .manual-layout {
   display: grid;
@@ -1165,6 +1267,14 @@ li + li {
     flex-direction: column;
     align-items: stretch;
     text-align: center;
+  }
+
+  .media-highlight {
+    padding: 24px;
+  }
+
+  .media-cards {
+    grid-template-columns: 1fr;
   }
 
   .terminal-body {
