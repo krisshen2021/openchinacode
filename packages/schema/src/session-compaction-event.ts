@@ -22,6 +22,7 @@ export const Progress = Event.define({
       "judge_started",
       "judge_result",
       "profile_ready",
+      "selection",
       "summary_started",
       "summary_finished",
       "summary_failed",

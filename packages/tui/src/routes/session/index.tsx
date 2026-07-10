@@ -1384,6 +1384,10 @@ function formatCompactionDebugLine(item: CompactionProgressItem) {
     return `profile: ${item.profile.source} - ${profiles || "none"} - risk ${item.profile.risk} - preserve ${item.profile.mustPreserve.length}`
   }
 
+  if (item.stage === "selection") {
+    return `selection: ${item.message}`
+  }
+
   if ((item.stage === "summary_started" || item.stage === "summary_finished") && model) {
     return `summary: ${model} - ${item.message}`
   }

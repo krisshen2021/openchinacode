@@ -27,7 +27,8 @@ const CHANNEL = await (async () => {
   if (env.OPENCODE_CHANNEL) return env.OPENCODE_CHANNEL
   if (env.OPENCODE_BUMP) return "latest"
   if (env.OPENCODE_VERSION && !env.OPENCODE_VERSION.startsWith("0.0.0-")) return "latest"
-  return await $`git branch --show-current`.text().then((x) => x.trim())
+  const branch = await $`git branch --show-current`.text().then((x) => x.trim())
+  return !branch || branch === "main" || branch === "master" ? "openchinacode" : branch
 })()
 const IS_PREVIEW = CHANNEL !== "latest"
 
@@ -47,7 +48,7 @@ const VERSION = await (async () => {
   return `${major}.${minor}.${patch + 1}`
 })()
 
-const bot = ["actions-user", "opencode", "opencode-agent[bot]"]
+const bot: string[] = []
 const teamPath = path.resolve(import.meta.dir, "../../../.github/TEAM_MEMBERS")
 const team = [
   ...(await Bun.file(teamPath)

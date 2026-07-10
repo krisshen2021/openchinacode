@@ -63,6 +63,22 @@ describe("CompactionProfile", () => {
     expect(decision.must_preserve.join("\n")).toContain("error strings")
   })
 
+  test("profiles recent conversation tail instead of old oversized history", () => {
+    const old = user(`OLD_ARCH_MARKER architecture plan ${"old context ".repeat(20_000)}`)
+    const recent = user("RECENT_DEBUG_MARKER npm run build failed with TypeError in frontend/src/App.tsx")
+
+    const decision = CompactionProfile.infer({
+      messages: [old, recent],
+    })
+    const judgePrompt = CompactionProfile.judgeMessages({ messages: [old, recent] })
+    const judgePayload = JSON.parse(judgePrompt[1]!.content)
+
+    expect(decision.profiles.map((item) => item.type)).toContain("debug_trace")
+    expect(decision.must_preserve.join("\n")).toContain("error strings")
+    expect(judgePayload.recent_conversation_excerpt).toContain("RECENT_DEBUG_MARKER")
+    expect(judgePayload.recent_conversation_excerpt).not.toContain("OLD_ARCH_MARKER")
+  })
+
   test("builds deterministic sectioned prompt from profile JSON", () => {
     const decision = CompactionProfile.normalize({
       profiles: [

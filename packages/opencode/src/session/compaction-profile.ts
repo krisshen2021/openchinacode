@@ -127,9 +127,9 @@ function riskOf(profiles: Profile[]): ProfileRisk {
 }
 
 function appendText(value: unknown, output: string[], depth = 0) {
-  if (output.join("").length >= TEXT_SCAN_LIMIT || depth > 5) return
+  if (depth > 5) return
   if (typeof value === "string") {
-    output.push(value)
+    output.push(tail(value, TEXT_SCAN_LIMIT))
     return
   }
   if (Array.isArray(value)) {
@@ -144,11 +144,19 @@ function appendText(value: unknown, output: string[], depth = 0) {
 }
 
 function messageText(messages: readonly SessionV1.WithParts[]) {
-  const output: string[] = []
-  for (const message of messages) {
-    appendText(message.parts, output)
+  const chunks: string[] = []
+  let total = 0
+  for (let i = messages.length - 1; i >= 0 && total < TEXT_SCAN_LIMIT; i--) {
+    const output: string[] = []
+    appendText(messages[i]!.parts, output)
+    const text = output.join("\n").trim()
+    if (!text) continue
+    const remaining = TEXT_SCAN_LIMIT - total
+    const next = text.length > remaining ? text.slice(-remaining) : text
+    chunks.unshift(next)
+    total += next.length
   }
-  return output.join("\n").slice(0, TEXT_SCAN_LIMIT)
+  return chunks.join("\n").slice(-TEXT_SCAN_LIMIT)
 }
 
 function hit(text: string, regex: RegExp) {

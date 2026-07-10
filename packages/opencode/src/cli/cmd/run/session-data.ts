@@ -208,6 +208,10 @@ function formatCompactionProgress(progress: CompactionProgressProperties): strin
     return `Compaction profile: ${progress.profile.source}; ${profiles}; risk ${progress.profile.risk}; preserve ${progress.profile.mustPreserve.length}`
   }
 
+  if (progress.stage === "selection") {
+    return `Compaction selection: ${progress.message}`
+  }
+
   if (progress.stage === "route" && model) {
     return `Compaction route: ${model} · ${progress.message}`
   }

@@ -626,6 +626,17 @@ const layer = Layer.effect(
         cfg,
         model,
       })
+      const retainedMessages = Math.max(0, visibleHistory.length - selected.head.length)
+      yield* publishProgress({
+        sessionID: input.sessionID,
+        stage: "selection",
+        message: [
+          `summary head ${selected.head.length}/${visibleHistory.length} messages`,
+          `retained tail ${retainedMessages} messages`,
+          selected.tail_start_id ? `tail starts at ${selected.tail_start_id}` : "tail not retained",
+          previousSummary ? "previous summary yes" : "previous summary no",
+        ].join(" - "),
+      })
       // Allow plugins to inject context or replace compaction prompt.
       const compacting = yield* plugin.trigger(
         "experimental.session.compacting",
