@@ -1,0 +1,441 @@
+/* ═══════════════════════════════════════════════════════════
+   OpenChinaCode — Bilingual i18n (EN / ZH)
+   data-i18n       → textContent
+   data-i18n-html  → innerHTML
+   data-i18n-title → title attribute
+   data-i18n-meta  → content attribute (meta tags)
+   ═══════════════════════════════════════════════════════════ */
+
+const I18N = {
+  en: {
+    /* ── Meta ── */
+    "meta.home.desc": "A China-model focused terminal coding agent for GLM, Kimi, and DeepSeek.",
+    "meta.home.ogDesc": "A fast, model-routed coding agent for GLM, Kimi, and DeepSeek.",
+    "meta.manual.title": "OpenChinaCode Manual",
+    "meta.manual.desc": "OpenChinaCode usage and configuration manual for GLM, Kimi, DeepSeek, task routing, compaction, LSP, and Playwright MCP.",
+    "meta.manual.ogDesc": "Usage and configuration guide for the China-model focused coding agent.",
+
+    /* ── Lang toggle ── */
+    "lang.toggle": "中文",
+    "lang.toggleTitle": "Switch language",
+
+    /* ── Nav ── */
+    "nav.providers": "Providers",
+    "nav.features": "Features",
+    "nav.manual": "Manual",
+    "nav.quickStart": "Quick Start",
+
+    /* ── Hero ── */
+    "hero.eyebrow": "GLM · KIMI · DEEPSEEK CODING AGENT",
+    "hero.lead": "A lean terminal coding agent forked from opencode and rebuilt around China-focused model routing, smart compaction, sliding output budgets, RMB cost tracking, LSP diagnostics, and Playwright browser testing.",
+    "hero.install": "Install now",
+    "hero.readManual": "Read manual",
+    "hero.release": "Latest release",
+    "hero.copy": "Copy command",
+
+    /* ── Capability strip ── */
+    "cap.routing.title": "Task routing",
+    "cap.routing.desc": "Subagents pick GLM, Kimi, DeepSeek, or GLM-5V by job type.",
+    "cap.compaction.title": "Smart compaction",
+    "cap.compaction.desc": "Profile judge + active-task extraction + raw recent tail.",
+    "cap.budgets.title": "Output budgets",
+    "cap.budgets.desc": "Model-aware max tokens with overflow-safe triggers.",
+
+    /* ── Terminal labels ── */
+    "term.provider": "provider",
+    "term.route": "route",
+    "term.compact": "compact",
+
+    /* ── Stats ── */
+    "stats.providers": "Provider families",
+    "stats.routes": "Task route types",
+    "stats.layers": "Compaction layers",
+    "stats.rmb": "RMB cost tracking",
+
+    /* ── Providers section ── */
+    "providers.eyebrow": "MODEL ROUTING",
+    "providers.title": "Built for China-model coding work,<br>not just connected to China models.",
+    "providers.lead": "OpenChinaCode keeps the terminal-first opencode workflow, then narrows the default model surface to GLM, Kimi, and DeepSeek with model-aware request transforms, task routing, compaction, testing, and RMB cost display.",
+    "providers.glm.tag": "PLAN",
+    "providers.glm.title": "GLM-led reasoning",
+    "providers.glm.desc": "Architecture, complex planning, heavy refactors, and compaction routes favor GLM-5.2 variants for deep reasoning.",
+    "providers.kimi.tag": "BUILD",
+    "providers.kimi.title": "Kimi for speed",
+    "providers.kimi.desc": "Implementation, review, and common coding subagents use fast Kimi K2.7 routes when the task fits.",
+    "providers.deepseek.tag": "DEBUG",
+    "providers.deepseek.title": "DeepSeek for loops",
+    "providers.deepseek.desc": "Debug and quick exploration routes are tuned for DeepSeek speed, with sliding max-token behavior.",
+
+    /* ── Features section ── */
+    "features.eyebrow": "CAPABILITIES",
+    "features.title": "Everything you need,<br>nothing you don't.",
+    "features.routing.title": "Intelligent subagent routing",
+    "features.routing.desc": "Plan, architecture, refactor, review, implement, explore, debug, test_fix, summarize, compaction, and visual_check each have quick/medium/complex routes.",
+    "features.compaction.title": "Smart compaction pipeline",
+    "features.compaction.desc": "Manual or automatic compaction keeps a general summary, extracts the active task at higher granularity, and can retain raw recent turns with <code>/compact keep N</code>.",
+    "features.budgets.title": "Model-aware token budgets",
+    "features.budgets.desc": "<code>/auto-maxtokens</code> uses official model windows, task signals, and overflow checks so complex coding turns can request large outputs without needless compression.",
+    "features.tuning.title": "China-provider tuning",
+    "features.tuning.desc": "GLM, Kimi, and DeepSeek use direct official OpenAI-compatible APIs with provider-specific max-token, reasoning, sampling, and tool-call behavior.",
+    "features.browser.title": "Browser testing workflow",
+    "features.browser.desc": "<code>/test-mcp</code>, <code>/browser-check</code>, and <code>/integration-test</code> wire Playwright MCP and test reports into the agent workflow.",
+    "features.costs.title": "Visible costs & diagnostics",
+    "features.costs.desc": "The TUI shows RMB cost, model-aware context usage, route details, LSP diagnostics, and compaction debug stages so behavior is inspectable.",
+
+    /* ── CTA ── */
+    "cta.title": "Need the exact commands and config files?",
+    "cta.desc": "The manual documents slash commands, provider auth, task policy overrides, smart compaction, LSP, Playwright MCP, and debugging logs.",
+    "cta.button": "Open the manual",
+
+    /* ── Footer ── */
+    "footer.text": "OpenChinaCode is an independent fork built with respect for the opencode project.",
+    "footer.manual": "Manual",
+    "footer.home": "Home",
+    "footer.install": "Install",
+    "footer.releases": "Releases",
+
+    /* ── Manual hero ── */
+    "manual.eyebrow": "USAGE & CONFIGURATION GUIDE",
+    "manual.lead": "This page covers the OpenChinaCode-specific workflow: GLM/Kimi/DeepSeek provider setup, custom slash commands, task policy routing, smart compaction, LSP diagnostics, and Playwright testing.",
+    "manual.titleSuffix": "Manual",
+
+    /* ── TOC ── */
+    "toc.quickstart": "Quick Start",
+    "toc.config": "Configuration",
+    "toc.commands": "Slash Commands",
+    "toc.routing": "Task Routing",
+    "toc.compaction": "Compaction",
+    "toc.testing": "LSP & Testing",
+    "toc.debugging": "Debugging",
+
+    /* ── Quick Start ── */
+    "qs.title": "Quick Start",
+    "qs.desc": "OpenChinaCode installs as a separate command, so it can coexist with upstream opencode.",
+    "qs.install.tag": "Install",
+    "qs.install.title": "Install the binary",
+    "qs.auth.tag": "Auth",
+    "qs.auth.title": "Add provider credentials",
+    "qs.run.tag": "Run",
+    "qs.run.title": "Start in a project",
+
+    /* ── Configuration ── */
+    "config.title": "Configuration Files",
+    "config.desc": "OpenChinaCode uses independent config and data paths. Do not put API keys in the repository.",
+    "config.global.tag": "Global",
+    "config.global.title": "User config",
+    "config.global.desc": "Use this for personal defaults: model, task policy overrides, LSP, compaction, and MCP.",
+    "config.auth.tag": "Auth",
+    "config.auth.title": "Local credentials",
+    "config.auth.desc": "Written by <code>openchinacode providers login</code>. File mode is restricted when written by the CLI.",
+    "config.project.tag": "Project",
+    "config.project.title": "Project overrides",
+    "config.project.desc": "Use this when one codebase needs a different task policy or testing setup.",
+    "config.authShape": "Auth file shape",
+    "config.providerIds": "Main provider IDs",
+    "config.table.provider": "Provider",
+    "config.table.purpose": "Purpose",
+    "config.table.protocol": "Protocol",
+    "config.table.notes": "Notes",
+    "config.glm.purpose": "GLM / BigModel pay-as-you-go",
+    "config.glm.notes": "Base URL is fixed to <code>https://open.bigmodel.cn/api/paas/v4</code>.",
+    "config.kimi.purpose": "Kimi / Moonshot China",
+    "config.kimi.notes": "Used for fast implementation, review, summarize, and quick routes.",
+    "config.deepseek.purpose": "DeepSeek official API",
+    "config.deepseek.notes": "Used for debug/test-fix loops and low-cost judge paths.",
+
+    /* ── Slash Commands ── */
+    "commands.title": "Custom Slash Commands",
+    "commands.desc": "OpenChinaCode-specific commands are grouped under <code>OpenChinaCode</code> in the TUI command palette.",
+    "commands.table.command": "Command",
+    "commands.table.usage": "Usage",
+    "commands.table.effect": "Effect",
+    "commands.maxtokens.effect": "Controls sliding output-token budgeting. Heuristic is the recommended daily mode; LLM mode uses a low-cost judge for ambiguous turns.",
+    "commands.compact.effect": "Runs smart compaction. <code>keep N</code> also preserves the latest N raw user turns and follow-up assistant/tool messages.",
+    "commands.lsp.effect": "Enables language-server diagnostics so the model can see and fix type, syntax, and reference errors.",
+    "commands.taskpolicy.effect": "Opens the local TUI task-route table. It does not call the current model and does not inject the table into the conversation.",
+    "commands.taskclassify.effect": "Asks the current model to explain task kind, complexity, route, and classification signals.",
+    "commands.testmcp.effect": "Writes Playwright MCP config and hot-connects or disconnects it from inside the TUI.",
+    "commands.browsercheck.effect": "Prompts the agent to run browser-level checks, preferably through Playwright MCP.",
+    "commands.integrationtest.effect": "Prompts the agent to use the OpenChinaCode integration-test workflow: run, inspect report, define bug, fix, rerun.",
+
+    /* ── Task Routing ── */
+    "routing.title": "Task Routing Policy",
+    "routing.desc": "Subagents are routed by task kind and complexity. General tasks inherit the parent model; specialized tasks use opinionated GLM/Kimi/DeepSeek defaults.",
+    "routing.table.kind": "Task kind",
+    "routing.table.quick": "Quick",
+    "routing.table.medium": "Medium",
+    "routing.table.complex": "Complex",
+    "routing.override": "Override example",
+    "routing.overrideDesc": "Put this in <code>~/.config/openchinacode/openchinacode.jsonc</code> or in a project-level OpenChinaCode config.",
+
+    /* ── Compaction ── */
+    "compaction.title": "Smart Compaction",
+    "compaction.desc": "OpenChinaCode compaction is routed through task policy and defaults to <code>zhipuai-pay2go/glm-5.2#high</code>. It uses three layers: general summary, active-task extraction, and minimal raw recent tail.",
+    "compaction.strategy.tag": "Strategy",
+    "compaction.strategy.title": "Profile-aware summary",
+    "compaction.strategy.desc": "A judge model first emits a stable JSON profile, then OpenChinaCode builds a fixed Markdown compaction prompt from that profile.",
+    "compaction.recent.tag": "Recent",
+    "compaction.recent.title": "Active task extraction",
+    "compaction.recent.desc": "The recent active task is extracted at higher granularity than the general summary, so long debugging or refactor context survives.",
+    "compaction.manual.tag": "Manual",
+    "compaction.manual.title": "Raw tail retention",
+    "compaction.manual.desc": "<code>/compact keep N</code> asks OpenChinaCode to keep the latest N raw user turns and their following assistant/tool messages.",
+
+    /* ── LSP & Testing ── */
+    "testing.title": "LSP and Browser Testing",
+    "testing.lsp.tag": "LSP",
+    "testing.lsp.title": "Diagnostics in coding turns",
+    "testing.lsp.desc": "Use <code>/lsp on</code>. When enabled, language-server diagnostics can be fed into the model during code edits.",
+    "testing.mcp.tag": "MCP",
+    "testing.mcp.title": "Playwright from the TUI",
+    "testing.mcp.desc": "Use <code>/test-mcp on</code>. This writes Playwright MCP config and hot-connects it without leaving OpenChinaCode.",
+    "testing.vision.tag": "Vision",
+    "testing.vision.title": "Screenshot interpretation",
+    "testing.vision.desc": "Visual checks route to <code>zhipuai-pay2go/glm-5v-turbo</code>. Animation checks should prefer DOM/CSS telemetry and pixel diffs.",
+
+    /* ── Debugging ── */
+    "debugging.title": "Debugging and Observability",
+    "debugging.desc": "Subagent rows in the TUI show the selected provider, model, variant, task classification, and route source.",
+    "debugging.route.tag": "Route",
+    "debugging.route.title": "Subagent route logs",
+    "debugging.compact.tag": "Compact",
+    "debugging.compact.title": "Compaction profile logs",
+    "debugging.test.tag": "Test",
+    "debugging.test.title": "Integration report",
+  },
+
+  zh: {
+    /* ── Meta ── */
+    "meta.home.desc": "面向 GLM、Kimi 和 DeepSeek 的中国模型终端编程智能体。",
+    "meta.home.ogDesc": "面向 GLM、Kimi 和 DeepSeek 的快速模型路由编程智能体。",
+    "meta.manual.title": "OpenChinaCode 手册",
+    "meta.manual.desc": "OpenChinaCode 使用与配置手册，涵盖 GLM、Kimi、DeepSeek、任务路由、压缩、LSP 和 Playwright MCP。",
+    "meta.manual.ogDesc": "面向中国模型的编程智能体使用与配置指南。",
+
+    /* ── Lang toggle ── */
+    "lang.toggle": "EN",
+    "lang.toggleTitle": "切换语言",
+
+    /* ── Nav ── */
+    "nav.providers": "模型",
+    "nav.features": "功能",
+    "nav.manual": "手册",
+    "nav.quickStart": "快速开始",
+
+    /* ── Hero ── */
+    "hero.eyebrow": "GLM · KIMI · DEEPSEEK 编程智能体",
+    "hero.lead": "精简的终端编程智能体，基于 opencode 分支构建，围绕中国模型路由、智能压缩、滑动输出预算、人民币成本追踪、LSP 诊断和 Playwright 浏览器测试重新打造。",
+    "hero.install": "立即安装",
+    "hero.readManual": "阅读手册",
+    "hero.release": "最新版本",
+    "hero.copy": "复制命令",
+
+    /* ── Capability strip ── */
+    "cap.routing.title": "任务路由",
+    "cap.routing.desc": "子智能体按任务类型选择 GLM、Kimi、DeepSeek 或 GLM-5V。",
+    "cap.compaction.title": "智能压缩",
+    "cap.compaction.desc": "档案评判 + 活跃任务提取 + 原始近期尾部。",
+    "cap.budgets.title": "输出预算",
+    "cap.budgets.desc": "模型感知的最大 token 预算，带溢出安全触发器。",
+
+    /* ── Terminal labels ── */
+    "term.provider": "提供商",
+    "term.route": "路由",
+    "term.compact": "压缩",
+
+    /* ── Stats ── */
+    "stats.providers": "提供商系列",
+    "stats.routes": "任务路由类型",
+    "stats.layers": "压缩层级",
+    "stats.rmb": "人民币成本追踪",
+
+    /* ── Providers section ── */
+    "providers.eyebrow": "模型路由",
+    "providers.title": "为中国模型编程而生，<br>而非仅仅接入中国模型。",
+    "providers.lead": "OpenChinaCode 保留了 opencode 终端优先的工作流，然后将默认模型范围收窄至 GLM、Kimi 和 DeepSeek，配合模型感知的请求转换、任务路由、压缩、测试和人民币成本显示。",
+    "providers.glm.tag": "规划",
+    "providers.glm.title": "GLM 主导推理",
+    "providers.glm.desc": "架构、复杂规划、大型重构和压缩路由倾向于使用 GLM-5.2 变体进行深度推理。",
+    "providers.kimi.tag": "构建",
+    "providers.kimi.title": "Kimi 追求速度",
+    "providers.kimi.desc": "实现、审查和常规编程子智能体在任务匹配时使用快速的 Kimi K2.7 路由。",
+    "providers.deepseek.tag": "调试",
+    "providers.deepseek.title": "DeepSeek 用于循环",
+    "providers.deepseek.desc": "调试和快速探索路由针对 DeepSeek 速度进行调优，具有滑动最大 token 行为。",
+
+    /* ── Features section ── */
+    "features.eyebrow": "功能特性",
+    "features.title": "所需即所有，<br>冗余皆去除。",
+    "features.routing.title": "智能子智能体路由",
+    "features.routing.desc": "规划、架构、重构、审查、实现、探索、调试、测试修复、摘要、压缩和视觉检查各有快速/中等/复杂路由。",
+    "features.compaction.title": "智能压缩管线",
+    "features.compaction.desc": "手动或自动压缩保留通用摘要，以更高粒度提取活跃任务，并可通过 <code>/compact keep N</code> 保留原始近期轮次。",
+    "features.budgets.title": "模型感知 Token 预算",
+    "features.budgets.desc": "<code>/auto-maxtokens</code> 使用官方模型窗口、任务信号和溢出检查，使复杂编程轮次可以请求大输出而无需不必要的压缩。",
+    "features.tuning.title": "中国提供商调优",
+    "features.tuning.desc": "GLM、Kimi 和 DeepSeek 使用直连官方 OpenAI 兼容 API，具有提供商特定的最大 token、推理、采样和工具调用行为。",
+    "features.browser.title": "浏览器测试工作流",
+    "features.browser.desc": "<code>/test-mcp</code>、<code>/browser-check</code> 和 <code>/integration-test</code> 将 Playwright MCP 和测试报告接入智能体工作流。",
+    "features.costs.title": "可见成本与诊断",
+    "features.costs.desc": "TUI 显示人民币成本、模型感知的上下文使用量、路由详情、LSP 诊断和压缩调试阶段，使行为可检查。",
+
+    /* ── CTA ── */
+    "cta.title": "需要确切的命令和配置文件？",
+    "cta.desc": "手册记录了斜杠命令、提供商认证、任务策略覆盖、智能压缩、LSP、Playwright MCP 和调试日志。",
+    "cta.button": "打开手册",
+
+    /* ── Footer ── */
+    "footer.text": "OpenChinaCode 是基于 opencode 项目的独立分支，出于对原项目的敬意而构建。",
+    "footer.manual": "手册",
+    "footer.home": "首页",
+    "footer.install": "安装",
+    "footer.releases": "版本",
+
+    /* ── Manual hero ── */
+    "manual.eyebrow": "使用与配置指南",
+    "manual.lead": "本页涵盖 OpenChinaCode 专属工作流：GLM/Kimi/DeepSeek 提供商配置、自定义斜杠命令、任务策略路由、智能压缩、LSP 诊断和 Playwright 测试。",
+    "manual.titleSuffix": "手册",
+
+    /* ── TOC ── */
+    "toc.quickstart": "快速开始",
+    "toc.config": "配置",
+    "toc.commands": "斜杠命令",
+    "toc.routing": "任务路由",
+    "toc.compaction": "压缩",
+    "toc.testing": "LSP 与测试",
+    "toc.debugging": "调试",
+
+    /* ── Quick Start ── */
+    "qs.title": "快速开始",
+    "qs.desc": "OpenChinaCode 作为独立命令安装，可与上游 opencode 共存。",
+    "qs.install.tag": "安装",
+    "qs.install.title": "安装二进制文件",
+    "qs.auth.tag": "认证",
+    "qs.auth.title": "添加提供商凭证",
+    "qs.run.tag": "运行",
+    "qs.run.title": "在项目中启动",
+
+    /* ── Configuration ── */
+    "config.title": "配置文件",
+    "config.desc": "OpenChinaCode 使用独立的配置和数据路径。请勿将 API 密钥放入代码仓库。",
+    "config.global.tag": "全局",
+    "config.global.title": "用户配置",
+    "config.global.desc": "用于个人默认设置：模型、任务策略覆盖、LSP、压缩和 MCP。",
+    "config.auth.tag": "认证",
+    "config.auth.title": "本地凭证",
+    "config.auth.desc": "由 <code>openchinacode providers login</code> 写入。CLI 写入时文件权限受限。",
+    "config.project.tag": "项目",
+    "config.project.title": "项目覆盖",
+    "config.project.desc": "当某个代码库需要不同的任务策略或测试设置时使用。",
+    "config.authShape": "认证文件结构",
+    "config.providerIds": "主要提供商 ID",
+    "config.table.provider": "提供商",
+    "config.table.purpose": "用途",
+    "config.table.protocol": "协议",
+    "config.table.notes": "备注",
+    "config.glm.purpose": "GLM / BigModel 按量付费",
+    "config.glm.notes": "基础 URL 固定为 <code>https://open.bigmodel.cn/api/paas/v4</code>。",
+    "config.kimi.purpose": "Kimi / Moonshot 中国",
+    "config.kimi.notes": "用于快速实现、审查、摘要和快速路由。",
+    "config.deepseek.purpose": "DeepSeek 官方 API",
+    "config.deepseek.notes": "用于调试/测试修复循环和低成本评判路径。",
+
+    /* ── Slash Commands ── */
+    "commands.title": "自定义斜杠命令",
+    "commands.desc": "OpenChinaCode 专属命令在 TUI 命令面板中归入 <code>OpenChinaCode</code> 分组。",
+    "commands.table.command": "命令",
+    "commands.table.usage": "用法",
+    "commands.table.effect": "效果",
+    "commands.maxtokens.effect": "控制滑动输出 token 预算。启发式是推荐的日常模式；LLM 模式使用低成本评判处理模糊轮次。",
+    "commands.compact.effect": "运行智能压缩。<code>keep N</code> 还保留最近 N 个原始用户轮次及后续助手/工具消息。",
+    "commands.lsp.effect": "启用语言服务器诊断，使模型可以看到并修复类型、语法和引用错误。",
+    "commands.taskpolicy.effect": "打开本地 TUI 任务路由表。不会调用当前模型，也不会将表注入对话。",
+    "commands.taskclassify.effect": "请求当前模型解释任务类型、复杂度、路由和分类信号。",
+    "commands.testmcp.effect": "写入 Playwright MCP 配置，并在 TUI 内热连接或断开。",
+    "commands.browsercheck.effect": "提示智能体运行浏览器级别检查，优先通过 Playwright MCP。",
+    "commands.integrationtest.effect": "提示智能体使用 OpenChinaCode 集成测试工作流：运行、检查报告、定义缺陷、修复、重跑。",
+
+    /* ── Task Routing ── */
+    "routing.title": "任务路由策略",
+    "routing.desc": "子智能体按任务类型和复杂度路由。通用任务继承父模型；专业任务使用预设的 GLM/Kimi/DeepSeek 默认配置。",
+    "routing.table.kind": "任务类型",
+    "routing.table.quick": "快速",
+    "routing.table.medium": "中等",
+    "routing.table.complex": "复杂",
+    "routing.override": "覆盖示例",
+    "routing.overrideDesc": "将其放入 <code>~/.config/openchinacode/openchinacode.jsonc</code> 或项目级 OpenChinaCode 配置中。",
+
+    /* ── Compaction ── */
+    "compaction.title": "智能压缩",
+    "compaction.desc": "OpenChinaCode 压缩通过任务策略路由，默认使用 <code>zhipuai-pay2go/glm-5.2#high</code>。它使用三层：通用摘要、活跃任务提取和最小原始近期尾部。",
+    "compaction.strategy.tag": "策略",
+    "compaction.strategy.title": "档案感知摘要",
+    "compaction.strategy.desc": "评判模型首先输出稳定的 JSON 档案，然后 OpenChinaCode 根据该档案构建固定的 Markdown 压缩提示词。",
+    "compaction.recent.tag": "近期",
+    "compaction.recent.title": "活跃任务提取",
+    "compaction.recent.desc": "近期活跃任务以比通用摘要更高的粒度提取，使长调试或重构上下文得以保留。",
+    "compaction.manual.tag": "手动",
+    "compaction.manual.title": "原始尾部保留",
+    "compaction.manual.desc": "<code>/compact keep N</code> 要求 OpenChinaCode 保留最近 N 个原始用户轮次及其后续助手/工具消息。",
+
+    /* ── LSP & Testing ── */
+    "testing.title": "LSP 与浏览器测试",
+    "testing.lsp.tag": "LSP",
+    "testing.lsp.title": "编程轮次中的诊断",
+    "testing.lsp.desc": "使用 <code>/lsp on</code>。启用后，语言服务器诊断可在代码编辑时输入给模型。",
+    "testing.mcp.tag": "MCP",
+    "testing.mcp.title": "从 TUI 启动 Playwright",
+    "testing.mcp.desc": "使用 <code>/test-mcp on</code>。写入 Playwright MCP 配置并热连接，无需离开 OpenChinaCode。",
+    "testing.vision.tag": "视觉",
+    "testing.vision.title": "截图解读",
+    "testing.vision.desc": "视觉检查路由到 <code>zhipuai-pay2go/glm-5v-turbo</code>。动画检查应优先使用 DOM/CSS 遥测和像素差异。",
+
+    /* ── Debugging ── */
+    "debugging.title": "调试与可观测性",
+    "debugging.desc": "TUI 中的子智能体行显示所选提供商、模型、变体、任务分类和路由来源。",
+    "debugging.route.tag": "路由",
+    "debugging.route.title": "子智能体路由日志",
+    "debugging.compact.tag": "压缩",
+    "debugging.compact.title": "压缩档案日志",
+    "debugging.test.tag": "测试",
+    "debugging.test.title": "集成测试报告",
+  },
+};
+
+function getLang() {
+  const stored = localStorage.getItem("occ-lang");
+  if (stored === "en" || stored === "zh") return stored;
+  return navigator.language?.startsWith("zh") ? "zh" : "en";
+}
+
+function applyLang(lang) {
+  localStorage.setItem("occ-lang", lang);
+  document.documentElement.lang = lang === "zh" ? "zh-CN" : "en";
+  const dict = I18N[lang];
+
+  document.querySelectorAll("[data-i18n]").forEach((el) => {
+    const key = el.getAttribute("data-i18n");
+    if (dict[key] !== undefined) el.textContent = dict[key];
+  });
+
+  document.querySelectorAll("[data-i18n-html]").forEach((el) => {
+    const key = el.getAttribute("data-i18n-html");
+    if (dict[key] !== undefined) el.innerHTML = dict[key];
+  });
+
+  document.querySelectorAll("[data-i18n-title]").forEach((el) => {
+    const key = el.getAttribute("data-i18n-title");
+    if (dict[key] !== undefined) el.title = dict[key];
+  });
+
+  document.querySelectorAll("[data-i18n-meta]").forEach((el) => {
+    const key = el.getAttribute("data-i18n-meta");
+    if (dict[key] !== undefined) el.setAttribute("content", dict[key]);
+  });
+}
+
+function toggleLang() {
+  applyLang(getLang() === "en" ? "zh" : "en");
+}
+
+applyLang(getLang());

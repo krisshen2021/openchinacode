@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>OpenChinaCode Manual</title>
-  <meta name="description" content="OpenChinaCode usage and configuration manual for GLM, Kimi, DeepSeek, task routing, compaction, LSP, and Playwright MCP.">
+  <meta name="description" content="OpenChinaCode usage and configuration manual for GLM, Kimi, DeepSeek, task routing, compaction, LSP, and Playwright MCP." data-i18n-meta="meta.manual.desc">
   <meta property="og:title" content="OpenChinaCode Manual">
-  <meta property="og:description" content="Usage and configuration guide for the China-model focused coding agent.">
+  <meta property="og:description" content="Usage and configuration guide for the China-model focused coding agent." data-i18n-meta="meta.manual.ogDesc">
   <meta property="og:type" content="article">
   <meta name="theme-color" content="#08080C">
   <link rel="stylesheet" href="/styles.css">
@@ -22,9 +22,13 @@
       <span>OpenChinaCode</span>
     </a>
     <div class="nav-links">
-      <a class="nav-link" href="/#providers"><i data-lucide="brain"></i><span>Providers</span></a>
-      <a class="nav-link" href="/#features"><i data-lucide="layers"></i><span>Features</span></a>
-      <a class="nav-link" href="#quickstart"><i data-lucide="terminal"></i><span>Quick Start</span></a>
+      <a class="nav-link" href="/#providers"><i data-lucide="brain"></i><span data-i18n="nav.providers">Providers</span></a>
+      <a class="nav-link" href="/#features"><i data-lucide="layers"></i><span data-i18n="nav.features">Features</span></a>
+      <a class="nav-link" href="#quickstart"><i data-lucide="terminal"></i><span data-i18n="nav.quickStart">Quick Start</span></a>
+      <button class="lang-toggle" type="button" onclick="toggleLang()" data-i18n-title="lang.toggleTitle">
+        <i data-lucide="globe"></i>
+        <span data-i18n="lang.toggle">中文</span>
+      </button>
       <a class="btn btn-primary" href="/github"><svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56 0-.27-.01-1-.02-1.96-3.2.7-3.88-1.54-3.88-1.54-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11.1 11.1 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14 0 1.55-.01 2.8-.01 3.18 0 .31.21.68.8.56A11.51 11.51 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z"/></svg><span>GitHub</span></a>
     </div>
   </nav>
@@ -33,9 +37,9 @@
   <section class="section" style="padding-bottom: 0;">
     <span class="watermark" style="font-size: 28rem; top: -6rem; right: -4rem;">手册</span>
     <div class="container" style="position: relative; z-index: 1;">
-      <div class="eyebrow"><i data-lucide="book-open"></i>USAGE &amp; CONFIGURATION GUIDE</div>
-      <h1><span class="title-silver">Open</span><span class="title-cinnabar">China</span><span class="title-silver">Code Manual</span></h1>
-      <p class="lead" style="margin-top: 20px;">
+      <div class="eyebrow"><i data-lucide="book-open"></i><span data-i18n="manual.eyebrow">USAGE &amp; CONFIGURATION GUIDE</span></div>
+      <h1><span class="title-silver">Open</span><span class="title-cinnabar">China</span><span class="title-silver">Code</span> <span class="title-silver" data-i18n="manual.titleSuffix">Manual</span></h1>
+      <p class="lead" data-i18n="manual.lead" style="margin-top: 20px;">
         This page covers the OpenChinaCode-specific workflow: GLM/Kimi/DeepSeek provider setup,
         custom slash commands, task policy routing, smart compaction, LSP diagnostics, and Playwright testing.
       </p>
@@ -51,13 +55,13 @@
         <aside class="manual-sidebar">
           <nav>
             <ul class="manual-toc">
-              <li><a href="#quickstart" data-section="quickstart"><i data-lucide="package"></i>Quick Start</a></li>
-              <li><a href="#config" data-section="config"><i data-lucide="settings"></i>Configuration</a></li>
-              <li><a href="#commands" data-section="commands"><i data-lucide="terminal"></i>Slash Commands</a></li>
-              <li><a href="#routing" data-section="routing"><i data-lucide="route"></i>Task Routing</a></li>
-              <li><a href="#compaction" data-section="compaction"><i data-lucide="layers"></i>Compaction</a></li>
-              <li><a href="#testing" data-section="testing"><i data-lucide="app-window"></i>LSP &amp; Testing</a></li>
-              <li><a href="#debugging" data-section="debugging"><i data-lucide="bug"></i>Debugging</a></li>
+              <li><a href="#quickstart" data-section="quickstart"><i data-lucide="package"></i><span data-i18n="toc.quickstart">Quick Start</span></a></li>
+              <li><a href="#config" data-section="config"><i data-lucide="settings"></i><span data-i18n="toc.config">Configuration</span></a></li>
+              <li><a href="#commands" data-section="commands"><i data-lucide="terminal"></i><span data-i18n="toc.commands">Slash Commands</span></a></li>
+              <li><a href="#routing" data-section="routing"><i data-lucide="route"></i><span data-i18n="toc.routing">Task Routing</span></a></li>
+              <li><a href="#compaction" data-section="compaction"><i data-lucide="layers"></i><span data-i18n="toc.compaction">Compaction</span></a></li>
+              <li><a href="#testing" data-section="testing"><i data-lucide="app-window"></i><span data-i18n="toc.testing">LSP &amp; Testing</span></a></li>
+              <li><a href="#debugging" data-section="debugging"><i data-lucide="bug"></i><span data-i18n="toc.debugging">Debugging</span></a></li>
             </ul>
           </nav>
         </aside>
@@ -69,25 +73,25 @@
           <section class="manual-section reveal" id="quickstart">
             <div class="manual-section-header">
               <i data-lucide="package"></i>
-              <h2>Quick Start</h2>
+              <h2 data-i18n="qs.title">Quick Start</h2>
             </div>
-            <p>OpenChinaCode installs as a separate command, so it can coexist with upstream <code>opencode</code>.</p>
+            <p data-i18n="qs.desc">OpenChinaCode installs as a separate command, so it can coexist with upstream <code>opencode</code>.</p>
             <div class="manual-cards">
               <div class="card" style="--accent: var(--cinnabar);">
-                <span class="tag tag-cinnabar">Install</span>
-                <h3>Install the binary</h3>
+                <span class="tag tag-cinnabar" data-i18n="qs.install.tag">Install</span>
+                <h3 data-i18n="qs.install.title">Install the binary</h3>
                 <div class="code-block">curl -fsSL https://openchinacode.muffin-labs.com/install | bash</div>
               </div>
               <div class="card" style="--accent: var(--jade);">
-                <span class="tag tag-jade">Auth</span>
-                <h3>Add provider credentials</h3>
+                <span class="tag tag-jade" data-i18n="qs.auth.tag">Auth</span>
+                <h3 data-i18n="qs.auth.title">Add provider credentials</h3>
                 <div class="code-block">openchinacode providers login --provider zhipuai-pay2go
 openchinacode providers login --provider moonshotai-cn
 openchinacode providers login --provider deepseek</div>
               </div>
               <div class="card" style="--accent: var(--gold);">
-                <span class="tag tag-gold">Run</span>
-                <h3>Start in a project</h3>
+                <span class="tag tag-gold" data-i18n="qs.run.tag">Run</span>
+                <h3 data-i18n="qs.run.title">Start in a project</h3>
                 <div class="code-block">cd /path/to/project
 openchinacode</div>
               </div>
@@ -98,67 +102,67 @@ openchinacode</div>
           <section class="manual-section reveal" id="config">
             <div class="manual-section-header">
               <i data-lucide="settings"></i>
-              <h2>Configuration Files</h2>
+              <h2 data-i18n="config.title">Configuration Files</h2>
             </div>
-            <p>OpenChinaCode uses independent config and data paths. Do not put API keys in the repository.</p>
+            <p data-i18n="config.desc">OpenChinaCode uses independent config and data paths. Do not put API keys in the repository.</p>
             <div class="manual-cards">
               <div class="card" style="--accent: var(--cinnabar);">
-                <span class="tag tag-cinnabar">Global</span>
-                <h3>User config</h3>
+                <span class="tag tag-cinnabar" data-i18n="config.global.tag">Global</span>
+                <h3 data-i18n="config.global.title">User config</h3>
                 <div class="code-block">~/.config/openchinacode/openchinacode.jsonc</div>
-                <p>Use this for personal defaults: model, task policy overrides, LSP, compaction, and MCP.</p>
+                <p data-i18n="config.global.desc">Use this for personal defaults: model, task policy overrides, LSP, compaction, and MCP.</p>
               </div>
               <div class="card" style="--accent: var(--jade);">
-                <span class="tag tag-jade">Auth</span>
-                <h3>Local credentials</h3>
+                <span class="tag tag-jade" data-i18n="config.auth.tag">Auth</span>
+                <h3 data-i18n="config.auth.title">Local credentials</h3>
                 <div class="code-block">~/.local/share/openchinacode/auth.json</div>
-                <p>Written by <code>openchinacode providers login</code>. File mode is restricted when written by the CLI.</p>
+                <p data-i18n-html="config.auth.desc">Written by <code>openchinacode providers login</code>. File mode is restricted when written by the CLI.</p>
               </div>
               <div class="card" style="--accent: var(--gold);">
-                <span class="tag tag-gold">Project</span>
-                <h3>Project overrides</h3>
+                <span class="tag tag-gold" data-i18n="config.project.tag">Project</span>
+                <h3 data-i18n="config.project.title">Project overrides</h3>
                 <div class="code-block">./openchinacode.jsonc
 ./.openchinacode/openchinacode.jsonc</div>
-                <p>Use this when one codebase needs a different task policy or testing setup.</p>
+                <p data-i18n="config.project.desc">Use this when one codebase needs a different task policy or testing setup.</p>
               </div>
             </div>
 
-            <h3 style="margin-top: 32px; margin-bottom: 12px;">Auth file shape</h3>
+            <h3 style="margin-top: 32px; margin-bottom: 12px;" data-i18n="config.authShape">Auth file shape</h3>
             <div class="code-block">{
   "zhipuai-pay2go": { "type": "api", "key": "YOUR_GLM_API_KEY" },
   "moonshotai-cn": { "type": "api", "key": "YOUR_KIMI_API_KEY" },
   "deepseek": { "type": "api", "key": "YOUR_DEEPSEEK_API_KEY" }
 }</div>
 
-            <h3 style="margin-top: 32px; margin-bottom: 12px;">Main provider IDs</h3>
+            <h3 style="margin-top: 32px; margin-bottom: 12px;" data-i18n="config.providerIds">Main provider IDs</h3>
             <div class="table-wrap">
               <table>
                 <thead>
                   <tr>
-                    <th>Provider</th>
-                    <th>Purpose</th>
-                    <th>Protocol</th>
-                    <th>Notes</th>
+                    <th data-i18n="config.table.provider">Provider</th>
+                    <th data-i18n="config.table.purpose">Purpose</th>
+                    <th data-i18n="config.table.protocol">Protocol</th>
+                    <th data-i18n="config.table.notes">Notes</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr>
                     <td><code>zhipuai-pay2go</code></td>
-                    <td>GLM / BigModel pay-as-you-go</td>
+                    <td data-i18n="config.glm.purpose">GLM / BigModel pay-as-you-go</td>
                     <td>OpenAI compatible</td>
-                    <td>Base URL is fixed to <code>https://open.bigmodel.cn/api/paas/v4</code>.</td>
+                    <td data-i18n-html="config.glm.notes">Base URL is fixed to <code>https://open.bigmodel.cn/api/paas/v4</code>.</td>
                   </tr>
                   <tr>
                     <td><code>moonshotai-cn</code></td>
-                    <td>Kimi / Moonshot China</td>
+                    <td data-i18n="config.kimi.purpose">Kimi / Moonshot China</td>
                     <td>OpenAI compatible</td>
-                    <td>Used for fast implementation, review, summarize, and quick routes.</td>
+                    <td data-i18n="config.kimi.notes">Used for fast implementation, review, summarize, and quick routes.</td>
                   </tr>
                   <tr>
                     <td><code>deepseek</code></td>
-                    <td>DeepSeek official API</td>
+                    <td data-i18n="config.deepseek.purpose">DeepSeek official API</td>
                     <td>OpenAI compatible</td>
-                    <td>Used for debug/test-fix loops and low-cost judge paths.</td>
+                    <td data-i18n="config.deepseek.notes">Used for debug/test-fix loops and low-cost judge paths.</td>
                   </tr>
                 </tbody>
               </table>
@@ -169,58 +173,58 @@ openchinacode</div>
           <section class="manual-section reveal" id="commands">
             <div class="manual-section-header">
               <i data-lucide="terminal"></i>
-              <h2>Custom Slash Commands</h2>
+              <h2 data-i18n="commands.title">Custom Slash Commands</h2>
             </div>
-            <p>OpenChinaCode-specific commands are grouped under <code>OpenChinaCode</code> in the TUI command palette.</p>
+            <p data-i18n-html="commands.desc">OpenChinaCode-specific commands are grouped under <code>OpenChinaCode</code> in the TUI command palette.</p>
             <div class="table-wrap">
               <table>
                 <thead>
                   <tr>
-                    <th>Command</th>
-                    <th>Usage</th>
-                    <th>Effect</th>
+                    <th data-i18n="commands.table.command">Command</th>
+                    <th data-i18n="commands.table.usage">Usage</th>
+                    <th data-i18n="commands.table.effect">Effect</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr>
                     <td><code>/auto-maxtokens</code></td>
                     <td><code>/auto-maxtokens heuristic</code><br><code>/auto-maxtokens llm deepseek/deepseek-v4-flash</code></td>
-                    <td>Controls sliding output-token budgeting. Heuristic is the recommended daily mode; LLM mode uses a low-cost judge for ambiguous turns.</td>
+                    <td data-i18n="commands.maxtokens.effect">Controls sliding output-token budgeting. Heuristic is the recommended daily mode; LLM mode uses a low-cost judge for ambiguous turns.</td>
                   </tr>
                   <tr>
                     <td><code>/compact</code></td>
                     <td><code>/compact</code><br><code>/compact keep 3</code><br><code>/compact keep auto</code></td>
-                    <td>Runs smart compaction. <code>keep N</code> also preserves the latest N raw user turns and follow-up assistant/tool messages.</td>
+                    <td data-i18n-html="commands.compact.effect">Runs smart compaction. <code>keep N</code> also preserves the latest N raw user turns and follow-up assistant/tool messages.</td>
                   </tr>
                   <tr>
                     <td><code>/lsp</code></td>
                     <td><code>/lsp status</code><br><code>/lsp on</code><br><code>/lsp off</code></td>
-                    <td>Enables language-server diagnostics so the model can see and fix type, syntax, and reference errors.</td>
+                    <td data-i18n="commands.lsp.effect">Enables language-server diagnostics so the model can see and fix type, syntax, and reference errors.</td>
                   </tr>
                   <tr>
                     <td><code>/task-policy</code></td>
                     <td><code>/task-policy</code><br><code>/task-policy compaction</code></td>
-                    <td>Opens the local TUI task-route table. It does not call the current model and does not inject the table into the conversation.</td>
+                    <td data-i18n="commands.taskpolicy.effect">Opens the local TUI task-route table. It does not call the current model and does not inject the table into the conversation.</td>
                   </tr>
                   <tr>
                     <td><code>/task-classify</code></td>
                     <td><code>/task-classify do a full code review</code></td>
-                    <td>Asks the current model to explain task kind, complexity, route, and classification signals.</td>
+                    <td data-i18n="commands.taskclassify.effect">Asks the current model to explain task kind, complexity, route, and classification signals.</td>
                   </tr>
                   <tr>
                     <td><code>/test-mcp</code></td>
                     <td><code>/test-mcp on</code><br><code>/test-mcp headed</code><br><code>/test-mcp off</code></td>
-                    <td>Writes Playwright MCP config and hot-connects or disconnects it from inside the TUI.</td>
+                    <td data-i18n="commands.testmcp.effect">Writes Playwright MCP config and hot-connects or disconnects it from inside the TUI.</td>
                   </tr>
                   <tr>
                     <td><code>/browser-check</code></td>
                     <td><code>/browser-check http://127.0.0.1:5173</code></td>
-                    <td>Prompts the agent to run browser-level checks, preferably through Playwright MCP.</td>
+                    <td data-i18n="commands.browsercheck.effect">Prompts the agent to run browser-level checks, preferably through Playwright MCP.</td>
                   </tr>
                   <tr>
                     <td><code>/integration-test</code></td>
                     <td><code>/integration-test check login flow</code></td>
-                    <td>Prompts the agent to use the OpenChinaCode integration-test workflow: run, inspect report, define bug, fix, rerun.</td>
+                    <td data-i18n="commands.integrationtest.effect">Prompts the agent to use the OpenChinaCode integration-test workflow: run, inspect report, define bug, fix, rerun.</td>
                   </tr>
                 </tbody>
               </table>
@@ -231,17 +235,17 @@ openchinacode</div>
           <section class="manual-section reveal" id="routing">
             <div class="manual-section-header">
               <i data-lucide="route"></i>
-              <h2>Task Routing Policy</h2>
+              <h2 data-i18n="routing.title">Task Routing Policy</h2>
             </div>
-            <p>Subagents are routed by task kind and complexity. General tasks inherit the parent model; specialized tasks use opinionated GLM/Kimi/DeepSeek defaults.</p>
+            <p data-i18n="routing.desc">Subagents are routed by task kind and complexity. General tasks inherit the parent model; specialized tasks use opinionated GLM/Kimi/DeepSeek defaults.</p>
             <div class="table-wrap">
               <table>
                 <thead>
                   <tr>
-                    <th>Task kind</th>
-                    <th>Quick</th>
-                    <th>Medium</th>
-                    <th>Complex</th>
+                    <th data-i18n="routing.table.kind">Task kind</th>
+                    <th data-i18n="routing.table.quick">Quick</th>
+                    <th data-i18n="routing.table.medium">Medium</th>
+                    <th data-i18n="routing.table.complex">Complex</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -261,8 +265,8 @@ openchinacode</div>
               </table>
             </div>
 
-            <h3 style="margin-top: 32px; margin-bottom: 12px;">Override example</h3>
-            <p>Put this in <code>~/.config/openchinacode/openchinacode.jsonc</code> or in a project-level OpenChinaCode config.</p>
+            <h3 style="margin-top: 32px; margin-bottom: 12px;" data-i18n="routing.override">Override example</h3>
+            <p data-i18n-html="routing.overrideDesc">Put this in <code>~/.config/openchinacode/openchinacode.jsonc</code> or in a project-level OpenChinaCode config.</p>
             <div class="code-block">{
   "task_policy": {
     "enabled": true,
@@ -289,24 +293,24 @@ openchinacode</div>
           <section class="manual-section reveal" id="compaction">
             <div class="manual-section-header">
               <i data-lucide="layers"></i>
-              <h2>Smart Compaction</h2>
+              <h2 data-i18n="compaction.title">Smart Compaction</h2>
             </div>
-            <p>OpenChinaCode compaction is routed through task policy and defaults to <code>zhipuai-pay2go/glm-5.2#high</code>. It uses three layers: general summary, active-task extraction, and minimal raw recent tail.</p>
+            <p data-i18n-html="compaction.desc">OpenChinaCode compaction is routed through task policy and defaults to <code>zhipuai-pay2go/glm-5.2#high</code>. It uses three layers: general summary, active-task extraction, and minimal raw recent tail.</p>
             <div class="manual-cards">
               <div class="card" style="--accent: var(--cinnabar);">
-                <span class="tag tag-cinnabar">Strategy</span>
-                <h3>Profile-aware summary</h3>
-                <p>A judge model first emits a stable JSON profile, then OpenChinaCode builds a fixed Markdown compaction prompt from that profile.</p>
+                <span class="tag tag-cinnabar" data-i18n="compaction.strategy.tag">Strategy</span>
+                <h3 data-i18n="compaction.strategy.title">Profile-aware summary</h3>
+                <p data-i18n="compaction.strategy.desc">A judge model first emits a stable JSON profile, then OpenChinaCode builds a fixed Markdown compaction prompt from that profile.</p>
               </div>
               <div class="card" style="--accent: var(--jade);">
-                <span class="tag tag-jade">Recent</span>
-                <h3>Active task extraction</h3>
-                <p>The recent active task is extracted at higher granularity than the general summary, so long debugging or refactor context survives.</p>
+                <span class="tag tag-jade" data-i18n="compaction.recent.tag">Recent</span>
+                <h3 data-i18n="compaction.recent.title">Active task extraction</h3>
+                <p data-i18n="compaction.recent.desc">The recent active task is extracted at higher granularity than the general summary, so long debugging or refactor context survives.</p>
               </div>
               <div class="card" style="--accent: var(--gold);">
-                <span class="tag tag-gold">Manual</span>
-                <h3>Raw tail retention</h3>
-                <p><code>/compact keep N</code> asks OpenChinaCode to keep the latest N raw user turns and their following assistant/tool messages.</p>
+                <span class="tag tag-gold" data-i18n="compaction.manual.tag">Manual</span>
+                <h3 data-i18n="compaction.manual.title">Raw tail retention</h3>
+                <p data-i18n-html="compaction.manual.desc"><code>/compact keep N</code> asks OpenChinaCode to keep the latest N raw user turns and their following assistant/tool messages.</p>
               </div>
             </div>
             <div class="code-block">/compact
@@ -318,23 +322,23 @@ openchinacode</div>
           <section class="manual-section reveal" id="testing">
             <div class="manual-section-header">
               <i data-lucide="app-window"></i>
-              <h2>LSP and Browser Testing</h2>
+              <h2 data-i18n="testing.title">LSP and Browser Testing</h2>
             </div>
             <div class="manual-cards">
               <div class="card" style="--accent: var(--cinnabar);">
-                <span class="tag tag-cinnabar">LSP</span>
-                <h3>Diagnostics in coding turns</h3>
-                <p>Use <code>/lsp on</code>. When enabled, language-server diagnostics can be fed into the model during code edits.</p>
+                <span class="tag tag-cinnabar" data-i18n="testing.lsp.tag">LSP</span>
+                <h3 data-i18n="testing.lsp.title">Diagnostics in coding turns</h3>
+                <p data-i18n-html="testing.lsp.desc">Use <code>/lsp on</code>. When enabled, language-server diagnostics can be fed into the model during code edits.</p>
               </div>
               <div class="card" style="--accent: var(--jade);">
-                <span class="tag tag-jade">MCP</span>
-                <h3>Playwright from the TUI</h3>
-                <p>Use <code>/test-mcp on</code>. This writes Playwright MCP config and hot-connects it without leaving OpenChinaCode.</p>
+                <span class="tag tag-jade" data-i18n="testing.mcp.tag">MCP</span>
+                <h3 data-i18n="testing.mcp.title">Playwright from the TUI</h3>
+                <p data-i18n-html="testing.mcp.desc">Use <code>/test-mcp on</code>. This writes Playwright MCP config and hot-connects it without leaving OpenChinaCode.</p>
               </div>
               <div class="card" style="--accent: var(--gold);">
-                <span class="tag tag-gold">Vision</span>
-                <h3>Screenshot interpretation</h3>
-                <p>Visual checks route to <code>zhipuai-pay2go/glm-5v-turbo</code>. Animation checks should prefer DOM/CSS telemetry and pixel diffs.</p>
+                <span class="tag tag-gold" data-i18n="testing.vision.tag">Vision</span>
+                <h3 data-i18n="testing.vision.title">Screenshot interpretation</h3>
+                <p data-i18n-html="testing.vision.desc">Visual checks route to <code>zhipuai-pay2go/glm-5v-turbo</code>. Animation checks should prefer DOM/CSS telemetry and pixel diffs.</p>
               </div>
             </div>
           </section>
@@ -343,24 +347,24 @@ openchinacode</div>
           <section class="manual-section reveal" id="debugging">
             <div class="manual-section-header">
               <i data-lucide="bug"></i>
-              <h2>Debugging and Observability</h2>
+              <h2 data-i18n="debugging.title">Debugging and Observability</h2>
             </div>
-            <p>Subagent rows in the TUI show the selected provider, model, variant, task classification, and route source.</p>
+            <p data-i18n="debugging.desc">Subagent rows in the TUI show the selected provider, model, variant, task classification, and route source.</p>
             <div class="code-block">-> zhipuai-pay2go/glm-5.2#high - review.complex - openchinacode.default</div>
             <div class="manual-cards" style="margin-top: 14px;">
               <div class="card" style="--accent: var(--cinnabar);">
-                <span class="tag tag-cinnabar">Route</span>
-                <h3>Subagent route logs</h3>
+                <span class="tag tag-cinnabar" data-i18n="debugging.route.tag">Route</span>
+                <h3 data-i18n="debugging.route.title">Subagent route logs</h3>
                 <div class="code-block">tail -f ~/.local/share/openchinacode/log/openchinacode.log | grep --line-buffered "subagent route"</div>
               </div>
               <div class="card" style="--accent: var(--jade);">
-                <span class="tag tag-jade">Compact</span>
-                <h3>Compaction profile logs</h3>
+                <span class="tag tag-jade" data-i18n="debugging.compact.tag">Compact</span>
+                <h3 data-i18n="debugging.compact.title">Compaction profile logs</h3>
                 <div class="code-block">tail -f ~/.local/share/openchinacode/log/openchinacode.log | grep --line-buffered "compaction profile"</div>
               </div>
               <div class="card" style="--accent: var(--gold);">
-                <span class="tag tag-gold">Test</span>
-                <h3>Integration report</h3>
+                <span class="tag tag-gold" data-i18n="debugging.test.tag">Test</span>
+                <h3 data-i18n="debugging.test.title">Integration report</h3>
                 <div class="code-block">openchinacode test init
 openchinacode test run
 ls .openchinacode/reports/</div>
@@ -376,15 +380,16 @@ ls .openchinacode/reports/</div>
   <!-- ═══ Footer ═══ -->
   <footer class="footer">
     <div class="container footer-inner">
-      <span class="footer-text">OpenChinaCode is an independent fork built with respect for the opencode project.</span>
+      <span class="footer-text" data-i18n="footer.text">OpenChinaCode is an independent fork built with respect for the opencode project.</span>
       <div class="footer-links">
-        <a href="/"><i data-lucide="home"></i>Home</a>
+        <a href="/"><i data-lucide="home"></i><span data-i18n="footer.home">Home</span></a>
         <a href="/github"><svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56 0-.27-.01-1-.02-1.96-3.2.7-3.88-1.54-3.88-1.54-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11.1 11.1 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14 0 1.55-.01 2.8-.01 3.18 0 .31.21.68.8.56A11.51 11.51 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z"/></svg>GitHub</a>
-        <a href="/install"><i data-lucide="terminal"></i>Install</a>
+        <a href="/install"><i data-lucide="terminal"></i><span data-i18n="footer.install">Install</span></a>
       </div>
     </div>
   </footer>
 
+  <script src="/i18n.js"></script>
   <script src="https://unpkg.com/lucide@1.24.0"></script>
   <script>
     lucide.createIcons();

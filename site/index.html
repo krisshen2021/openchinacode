@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>OpenChinaCode</title>
-  <meta name="description" content="A China-model focused terminal coding agent for GLM, Kimi, and DeepSeek.">
+  <meta name="description" content="A China-model focused terminal coding agent for GLM, Kimi, and DeepSeek." data-i18n-meta="meta.home.desc">
   <meta property="og:title" content="OpenChinaCode">
-  <meta property="og:description" content="A fast, model-routed coding agent for GLM, Kimi, and DeepSeek.">
+  <meta property="og:description" content="A fast, model-routed coding agent for GLM, Kimi, and DeepSeek." data-i18n-meta="meta.home.ogDesc">
   <meta property="og:type" content="website">
   <meta name="theme-color" content="#08080C">
   <link rel="stylesheet" href="/styles.css">
@@ -22,9 +22,13 @@
       <span>OpenChinaCode</span>
     </a>
     <div class="nav-links">
-      <a class="nav-link" href="#providers"><i data-lucide="brain"></i><span>Providers</span></a>
-      <a class="nav-link" href="#features"><i data-lucide="layers"></i><span>Features</span></a>
-      <a class="nav-link" href="/manual/"><i data-lucide="book-open"></i><span>Manual</span></a>
+      <a class="nav-link" href="#providers"><i data-lucide="brain"></i><span data-i18n="nav.providers">Providers</span></a>
+      <a class="nav-link" href="#features"><i data-lucide="layers"></i><span data-i18n="nav.features">Features</span></a>
+      <a class="nav-link" href="/manual/"><i data-lucide="book-open"></i><span data-i18n="nav.manual">Manual</span></a>
+      <button class="lang-toggle" type="button" onclick="toggleLang()" data-i18n-title="lang.toggleTitle">
+        <i data-lucide="globe"></i>
+        <span data-i18n="lang.toggle">中文</span>
+      </button>
       <a class="btn btn-primary" href="/github"><svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56 0-.27-.01-1-.02-1.96-3.2.7-3.88-1.54-3.88-1.54-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11.1 11.1 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14 0 1.55-.01 2.8-.01 3.18 0 .31.21.68.8.56A11.51 11.51 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z"/></svg><span>GitHub</span></a>
     </div>
   </nav>
@@ -39,21 +43,21 @@
         <div>
           <div class="eyebrow">
             <i data-lucide="sparkles"></i>
-            GLM · KIMI · DEEPSEEK CODING AGENT
+            <span data-i18n="hero.eyebrow">GLM · KIMI · DEEPSEEK CODING AGENT</span>
           </div>
           <h1>
             <span class="title-silver">OPEN</span>
             <span class="title-cinnabar">CHINA</span>
             <span class="title-silver">CODE</span>
           </h1>
-          <p class="lead" style="margin-top: 24px;">
+          <p class="lead" data-i18n="hero.lead" style="margin-top: 24px;">
             A lean terminal coding agent forked from opencode and rebuilt around China-focused model routing,
             smart compaction, sliding output budgets, RMB cost tracking, LSP diagnostics, and Playwright browser testing.
           </p>
           <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px;">
-            <a class="btn btn-primary" href="#install"><i data-lucide="download"></i>Install now</a>
-            <a class="btn btn-gold" href="/manual/"><i data-lucide="book-open"></i>Read manual</a>
-            <a class="btn" href="/releases"><i data-lucide="tag"></i>Latest release</a>
+            <a class="btn btn-primary" href="#install"><i data-lucide="download"></i><span data-i18n="hero.install">Install now</span></a>
+            <a class="btn btn-gold" href="/manual/"><i data-lucide="book-open"></i><span data-i18n="hero.readManual">Read manual</span></a>
+            <a class="btn" href="/releases"><i data-lucide="tag"></i><span data-i18n="hero.release">Latest release</span></a>
           </div>
         </div>
 
@@ -71,13 +75,13 @@
             <div class="terminal-cmd-line">
               <span class="prompt">$</span>
               <span class="cmd-text">curl -fsSL https://openchinacode.muffin-labs.com/install | bash</span>
-              <button class="copy-icon" type="button" id="copy-install" title="Copy command">
+              <button class="copy-icon" type="button" id="copy-install" title="Copy command" data-i18n-title="hero.copy">
                 <i data-lucide="copy"></i>
               </button>
             </div>
-            <span class="line"><span class="text-cinnabar">provider</span> <span class="text-mist">GLM-5.2 / Kimi K2.7 / DeepSeek V4</span></span>
-            <span class="line"><span class="text-jade">route</span> <span class="text-mist">task.kind + complexity + variant</span></span>
-            <span class="line"><span class="text-gold">compact</span> <span class="text-mist">summary + active-task + raw tail</span></span>
+            <span class="line"><span class="text-cinnabar" data-i18n="term.provider">provider</span> <span class="text-mist">GLM-5.2 / Kimi K2.7 / DeepSeek V4</span></span>
+            <span class="line"><span class="text-jade" data-i18n="term.route">route</span> <span class="text-mist">task.kind + complexity + variant</span></span>
+            <span class="line"><span class="text-gold" data-i18n="term.compact">compact</span> <span class="text-mist">summary + active-task + raw tail</span></span>
           </div>
         </div>
       </div>
@@ -86,18 +90,18 @@
       <div class="bento" style="margin-top: 36px;">
         <div class="card" style="--accent: var(--cinnabar); padding: 18px;">
           <div class="card-icon"><i data-lucide="route"></i></div>
-          <h3 style="font-size: 15px;">Task routing</h3>
-          <p style="font-size: 13px;">Subagents pick GLM, Kimi, DeepSeek, or GLM-5V by job type.</p>
+          <h3 style="font-size: 15px;" data-i18n="cap.routing.title">Task routing</h3>
+          <p style="font-size: 13px;" data-i18n="cap.routing.desc">Subagents pick GLM, Kimi, DeepSeek, or GLM-5V by job type.</p>
         </div>
         <div class="card" style="--accent: var(--jade); padding: 18px;">
           <div class="card-icon"><i data-lucide="layers"></i></div>
-          <h3 style="font-size: 15px;">Smart compaction</h3>
-          <p style="font-size: 13px;">Profile judge + active-task extraction + raw recent tail.</p>
+          <h3 style="font-size: 15px;" data-i18n="cap.compaction.title">Smart compaction</h3>
+          <p style="font-size: 13px;" data-i18n="cap.compaction.desc">Profile judge + active-task extraction + raw recent tail.</p>
         </div>
         <div class="card" style="--accent: var(--gold); padding: 18px;">
           <div class="card-icon"><i data-lucide="gauge"></i></div>
-          <h3 style="font-size: 15px;">Output budgets</h3>
-          <p style="font-size: 13px;">Model-aware max tokens with overflow-safe triggers.</p>
+          <h3 style="font-size: 15px;" data-i18n="cap.budgets.title">Output budgets</h3>
+          <p style="font-size: 13px;" data-i18n="cap.budgets.desc">Model-aware max tokens with overflow-safe triggers.</p>
         </div>
       </div>
     </div>
@@ -109,19 +113,19 @@
       <div class="stats reveal">
         <div class="stat">
           <span class="stat-value">3</span>
-          <span class="stat-label">Provider families</span>
+          <span class="stat-label" data-i18n="stats.providers">Provider families</span>
         </div>
         <div class="stat">
           <span class="stat-value">11</span>
-          <span class="stat-label">Task route types</span>
+          <span class="stat-label" data-i18n="stats.routes">Task route types</span>
         </div>
         <div class="stat">
           <span class="stat-value">3L</span>
-          <span class="stat-label">Compaction layers</span>
+          <span class="stat-label" data-i18n="stats.layers">Compaction layers</span>
         </div>
         <div class="stat">
           <span class="stat-value">¥</span>
-          <span class="stat-label">RMB cost tracking</span>
+          <span class="stat-label" data-i18n="stats.rmb">RMB cost tracking</span>
         </div>
       </div>
     </div>
@@ -132,9 +136,9 @@
     <span class="watermark" style="font-size: 26rem; top: 10%; left: -4rem;">智</span>
     <div class="container" style="position: relative; z-index: 1;">
       <div class="section-header reveal">
-        <div class="eyebrow"><i data-lucide="brain"></i>MODEL ROUTING</div>
-        <h2>Built for China-model coding work,<br>not just connected to China models.</h2>
-        <p class="lead" style="margin-top: 16px;">
+        <div class="eyebrow"><i data-lucide="brain"></i><span data-i18n="providers.eyebrow">MODEL ROUTING</span></div>
+        <h2 data-i18n-html="providers.title">Built for China-model coding work,<br>not just connected to China models.</h2>
+        <p class="lead" data-i18n="providers.lead" style="margin-top: 16px;">
           OpenChinaCode keeps the terminal-first opencode workflow, then narrows the default model surface to GLM,
           Kimi, and DeepSeek with model-aware request transforms, task routing, compaction, testing, and RMB cost display.
         </p>
@@ -142,22 +146,22 @@
 
       <div class="bento reveal">
         <div class="card" style="--accent: var(--cinnabar);">
-          <span class="tag tag-cinnabar">PLAN</span>
+          <span class="tag tag-cinnabar" data-i18n="providers.glm.tag">PLAN</span>
           <div class="card-icon"><i data-lucide="brain"></i></div>
-          <h3>GLM-led reasoning</h3>
-          <p>Architecture, complex planning, heavy refactors, and compaction routes favor GLM-5.2 variants for deep reasoning.</p>
+          <h3 data-i18n="providers.glm.title">GLM-led reasoning</h3>
+          <p data-i18n="providers.glm.desc">Architecture, complex planning, heavy refactors, and compaction routes favor GLM-5.2 variants for deep reasoning.</p>
         </div>
         <div class="card" style="--accent: var(--jade);">
-          <span class="tag tag-jade">BUILD</span>
+          <span class="tag tag-jade" data-i18n="providers.kimi.tag">BUILD</span>
           <div class="card-icon"><i data-lucide="zap"></i></div>
-          <h3>Kimi for speed</h3>
-          <p>Implementation, review, and common coding subagents use fast Kimi K2.7 routes when the task fits.</p>
+          <h3 data-i18n="providers.kimi.title">Kimi for speed</h3>
+          <p data-i18n="providers.kimi.desc">Implementation, review, and common coding subagents use fast Kimi K2.7 routes when the task fits.</p>
         </div>
         <div class="card" style="--accent: var(--azure);">
-          <span class="tag tag-azure">DEBUG</span>
+          <span class="tag tag-azure" data-i18n="providers.deepseek.tag">DEBUG</span>
           <div class="card-icon"><i data-lucide="bug"></i></div>
-          <h3>DeepSeek for loops</h3>
-          <p>Debug and quick exploration routes are tuned for DeepSeek speed, with sliding max-token behavior.</p>
+          <h3 data-i18n="providers.deepseek.title">DeepSeek for loops</h3>
+          <p data-i18n="providers.deepseek.desc">Debug and quick exploration routes are tuned for DeepSeek speed, with sliding max-token behavior.</p>
         </div>
       </div>
     </div>
@@ -168,52 +172,52 @@
     <span class="watermark" style="font-size: 26rem; bottom: 5%; right: -4rem;">道</span>
     <div class="container" style="position: relative; z-index: 1;">
       <div class="section-header reveal">
-        <div class="eyebrow"><i data-lucide="layers"></i>CAPABILITIES</div>
-        <h2>Everything you need,<br>nothing you don't.</h2>
+        <div class="eyebrow"><i data-lucide="layers"></i><span data-i18n="features.eyebrow">CAPABILITIES</span></div>
+        <h2 data-i18n-html="features.title">Everything you need,<br>nothing you don't.</h2>
       </div>
 
       <div class="bento reveal">
         <div class="card" style="--accent: var(--cinnabar);">
           <div class="card-icon"><i data-lucide="route"></i></div>
-          <h3>Intelligent subagent routing</h3>
-          <p>Plan, architecture, refactor, review, implement, explore, debug, test_fix, summarize, compaction, and visual_check each have quick/medium/complex routes.</p>
+          <h3 data-i18n="features.routing.title">Intelligent subagent routing</h3>
+          <p data-i18n="features.routing.desc">Plan, architecture, refactor, review, implement, explore, debug, test_fix, summarize, compaction, and visual_check each have quick/medium/complex routes.</p>
         </div>
         <div class="card" style="--accent: var(--jade);">
           <div class="card-icon"><i data-lucide="layers"></i></div>
-          <h3>Smart compaction pipeline</h3>
-          <p>Manual or automatic compaction keeps a general summary, extracts the active task at higher granularity, and can retain raw recent turns with <code>/compact keep N</code>.</p>
+          <h3 data-i18n="features.compaction.title">Smart compaction pipeline</h3>
+          <p data-i18n-html="features.compaction.desc">Manual or automatic compaction keeps a general summary, extracts the active task at higher granularity, and can retain raw recent turns with <code>/compact keep N</code>.</p>
         </div>
         <div class="card" style="--accent: var(--gold);">
           <div class="card-icon"><i data-lucide="gauge"></i></div>
-          <h3>Model-aware token budgets</h3>
-          <p><code>/auto-maxtokens</code> uses official model windows, task signals, and overflow checks so complex coding turns can request large outputs without needless compression.</p>
+          <h3 data-i18n="features.budgets.title">Model-aware token budgets</h3>
+          <p data-i18n-html="features.budgets.desc"><code>/auto-maxtokens</code> uses official model windows, task signals, and overflow checks so complex coding turns can request large outputs without needless compression.</p>
         </div>
         <div class="card" style="--accent: var(--azure);">
           <div class="card-icon"><i data-lucide="settings"></i></div>
-          <h3>China-provider tuning</h3>
-          <p>GLM, Kimi, and DeepSeek use direct official OpenAI-compatible APIs with provider-specific max-token, reasoning, sampling, and tool-call behavior.</p>
+          <h3 data-i18n="features.tuning.title">China-provider tuning</h3>
+          <p data-i18n="features.tuning.desc">GLM, Kimi, and DeepSeek use direct official OpenAI-compatible APIs with provider-specific max-token, reasoning, sampling, and tool-call behavior.</p>
         </div>
         <div class="card" style="--accent: var(--cinnabar);">
           <div class="card-icon"><i data-lucide="app-window"></i></div>
-          <h3>Browser testing workflow</h3>
-          <p><code>/test-mcp</code>, <code>/browser-check</code>, and <code>/integration-test</code> wire Playwright MCP and test reports into the agent workflow.</p>
+          <h3 data-i18n="features.browser.title">Browser testing workflow</h3>
+          <p data-i18n-html="features.browser.desc"><code>/test-mcp</code>, <code>/browser-check</code>, and <code>/integration-test</code> wire Playwright MCP and test reports into the agent workflow.</p>
         </div>
         <div class="card" style="--accent: var(--jade);">
           <div class="card-icon"><i data-lucide="coins"></i></div>
-          <h3>Visible costs &amp; diagnostics</h3>
-          <p>The TUI shows RMB cost, model-aware context usage, route details, LSP diagnostics, and compaction debug stages so behavior is inspectable.</p>
+          <h3 data-i18n="features.costs.title">Visible costs &amp; diagnostics</h3>
+          <p data-i18n="features.costs.desc">The TUI shows RMB cost, model-aware context usage, route details, LSP diagnostics, and compaction debug stages so behavior is inspectable.</p>
         </div>
       </div>
 
       <!-- CTA -->
       <div class="cta-banner reveal" style="margin-top: 40px;">
         <div>
-          <strong style="display: block; font-family: var(--font-display); font-size: 1.25rem; margin-bottom: 6px;">Need the exact commands and config files?</strong>
-          <span style="color: var(--mist);">The manual documents slash commands, provider auth, task policy overrides, smart compaction, LSP, Playwright MCP, and debugging logs.</span>
+          <strong style="display: block; font-family: var(--font-display); font-size: 1.25rem; margin-bottom: 6px;" data-i18n="cta.title">Need the exact commands and config files?</strong>
+          <span style="color: var(--mist);" data-i18n="cta.desc">The manual documents slash commands, provider auth, task policy overrides, smart compaction, LSP, Playwright MCP, and debugging logs.</span>
         </div>
         <a class="btn btn-jade" href="/manual/">
           <i data-lucide="book-open"></i>
-          Open the manual
+          <span data-i18n="cta.button">Open the manual</span>
           <i data-lucide="arrow-right"></i>
         </a>
       </div>
@@ -223,16 +227,17 @@
   <!-- ═══ Footer ═══ -->
   <footer class="footer">
     <div class="container footer-inner">
-      <span class="footer-text">OpenChinaCode is an independent fork built with respect for the opencode project.</span>
+      <span class="footer-text" data-i18n="footer.text">OpenChinaCode is an independent fork built with respect for the opencode project.</span>
       <div class="footer-links">
-        <a href="/manual/"><i data-lucide="book-open"></i>Manual</a>
+        <a href="/manual/"><i data-lucide="book-open"></i><span data-i18n="footer.manual">Manual</span></a>
         <a href="/github"><svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56 0-.27-.01-1-.02-1.96-3.2.7-3.88-1.54-3.88-1.54-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11.1 11.1 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14 0 1.55-.01 2.8-.01 3.18 0 .31.21.68.8.56A11.51 11.51 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z"/></svg>GitHub</a>
-        <a href="/install"><i data-lucide="terminal"></i>Install</a>
-        <a href="/releases"><i data-lucide="tag"></i>Releases</a>
+        <a href="/install"><i data-lucide="terminal"></i><span data-i18n="footer.install">Install</span></a>
+        <a href="/releases"><i data-lucide="tag"></i><span data-i18n="footer.releases">Releases</span></a>
       </div>
     </div>
   </footer>
 
+  <script src="/i18n.js"></script>
   <script src="https://unpkg.com/lucide@1.24.0"></script>
   <script>
     lucide.createIcons();
