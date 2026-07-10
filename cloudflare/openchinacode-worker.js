@@ -1,8 +1,3 @@
-const INSTALL_URL = "https://raw.githubusercontent.com/krisshen2021/openchinacode/main/install"
-const GITHUB_URL = "https://github.com/krisshen2021/openchinacode"
-const RELEASE_URL = "https://github.com/krisshen2021/openchinacode/releases/latest"
-const INSTALL_COMMAND = "curl -fsSL https://openchinacode.muffin-labs.com/install | bash"
-
 const home = String.raw`<!doctype html>
 <html lang="en">
 <head>
@@ -711,7 +706,7 @@ export default {
     const url = new URL(request.url)
 
     if (url.pathname === "/install" || url.pathname === "/install.sh") {
-      const response = await fetch(INSTALL_URL, {
+      const response = await fetch("https://raw.githubusercontent.com/krisshen2021/openchinacode/main/install", {
         headers: {
           "user-agent": "OpenChinaCode website installer",
         },
@@ -727,15 +722,15 @@ export default {
     }
 
     if (url.pathname === "/github") {
-      return Response.redirect(GITHUB_URL, 302)
+      return Response.redirect("https://github.com/krisshen2021/openchinacode", 302)
     }
 
     if (url.pathname === "/releases") {
-      return Response.redirect(RELEASE_URL, 302)
+      return Response.redirect("https://github.com/krisshen2021/openchinacode/releases/latest", 302)
     }
 
     if (url.pathname === "/" || url.pathname === "/index.html") {
-      return new Response(home.replaceAll("__INSTALL_COMMAND__", INSTALL_COMMAND), {
+      return new Response(home, {
         headers: {
           "content-type": "text/html; charset=utf-8",
           "cache-control": "public, max-age=300",
