@@ -61,10 +61,10 @@ const I18N = {
     "providers.glm.desc": "Architecture, complex planning, heavy refactors, and compaction routes favor GLM-5.2 variants for deep reasoning.",
     "providers.kimi.tag": "BUILD",
     "providers.kimi.title": "Kimi for speed",
-    "providers.kimi.desc": "Implementation, review, and common coding subagents use fast Kimi K2.7 routes when the task fits.",
+    "providers.kimi.desc": "Quick review, implement, explore, and summarize subagents use fast Kimi K2.7 routes when the task fits.",
     "providers.deepseek.tag": "DEBUG",
     "providers.deepseek.title": "DeepSeek for loops",
-    "providers.deepseek.desc": "Debug and quick exploration routes are tuned for DeepSeek speed, with sliding max-token behavior.",
+    "providers.deepseek.desc": "Debug and test-fix loops are tuned for DeepSeek, with sliding max-token behavior.",
 
     /* ── Features section ── */
     "features.eyebrow": "CAPABILITIES",
@@ -489,7 +489,7 @@ const I18N = {
     "routing.extra.control.tag": "控制",
     "routing.extra.control.title": "开关与配置",
     "routing.extra.control.desc": "使用 <code>/task-policy extra-on</code> / <code>extra-off</code> / <code>extra-status</code>，或在配置中设置 <code>task_policy.extra_router.enabled</code>。",
-    "routing.extra.config": "{\n  \"task_policy\": {\n    \"extra_router\": {\n      \"enabled\": true,\n      \"confidence_threshold\": 0.7,\n      \"allow\": [\"plan\", \"refactor\", \"review\", \"debug\", \"test_fix\"],\n      \"deny\": [\"general\", \"summarize\", \"compaction\"]\n    }\n  }\n}",
+    "routing.extra.config": "{\n  \"task_policy\": {\n    \"extra_router\": {\n      \"enabled\": true,\n      \"confidence_threshold\": 0.7,\n      \"allow\": [\"plan\", \"architecture\", \"refactor\", \"review\", \"implement\", \"explore\", \"visual_check\", \"debug\", \"test_fix\"],\n      \"deny\": [\"general\", \"summarize\", \"compaction\"]\n    }\n  }\n}",
 
     /* ── Compaction ── */
     "compaction.title": "智能压缩",
