@@ -102,11 +102,12 @@ const I18N = {
     "updates.tag.musttry": "MUST TRY",
     "updates.tag.new": "NEW",
     "updates.tag.enhance": "ENHANCE",
-    "updates.1": "Extra task router — auto-dispatch subtasks via fast LLM judge",
-    "updates.2": "Session picker — arrow keys to switch current / all projects",
-    "updates.3": "Native image & video generation via Volcengine Ark",
-    "updates.4": "Paste-image visual preprocessing with GLM-5V for all models",
-    "updates.5": "Dual-layer routing — base routes plus optional extra dispatch",
+    "updates.1": "/permissions command — project permission policy panel with Trust All, Safe, Readonly, and Ask Everything",
+    "updates.2": "Extra task router — auto-dispatch subtasks via fast LLM judge",
+    "updates.3": "Session picker — arrow keys to switch current / all projects",
+    "updates.4": "Native image & video generation via Volcengine Ark",
+    "updates.5": "Paste-image visual preprocessing with GLM-5V for all models",
+    "updates.6": "Dual-layer routing — base routes plus optional extra dispatch",
 
     /* ── CTA ── */
     "cta.title": "Need the exact commands and config files?",
@@ -188,6 +189,7 @@ const I18N = {
     "commands.imagegen.effect": "Opens the ByteDance Seedream 5.0 Pro image generation wizard with optional inline prompt.",
     "commands.videogen.effect": "Opens the ByteDance Seedance 2.0 Mini video generation wizard with optional inline prompt.",
     "commands.sessions.effect": "Opens the session picker. Use arrow keys to switch between current-project and all-project sessions.",
+    "commands.permissions.effect": "Opens the project permission policy panel. Choose Trust All, Safe, Ask Everything, Readonly, or Reset. Writes to <code>./.openchinacode/openchinacode.jsonc</code> and applies a runtime override immediately.",
 
     /* ── Task Routing ── */
     "routing.title": "Task Routing Policy",
@@ -376,11 +378,12 @@ const I18N = {
     "updates.tag.musttry": "推荐尝试",
     "updates.tag.new": "新功能",
     "updates.tag.enhance": "增强",
-    "updates.1": "Extra 任务路由 — 快速 LLM 判定后自动分发子任务",
-    "updates.2": "Session 选择器 — 方向键切换当前项目 / 全部项目",
-    "updates.3": "原生图片与视频生成，接入火山方舟",
-    "updates.4": "粘贴图片视觉预处理，GLM-5V 赋能所有模型",
-    "updates.5": "双层路由 — 基础路由加可选 extra 智能分发",
+    "updates.1": "/permissions 命令 — 项目权限策略面板，支持 Trust All、Safe、Readonly、Ask Everything",
+    "updates.2": "Extra 任务路由 — 快速 LLM 判定后自动分发子任务",
+    "updates.3": "Session 选择器 — 方向键切换当前项目 / 全部项目",
+    "updates.4": "原生图片与视频生成，接入火山方舟",
+    "updates.5": "粘贴图片视觉预处理，GLM-5V 赋能所有模型",
+    "updates.6": "双层路由 — 基础路由加可选 extra 智能分发",
 
     /* ── CTA ── */
     "cta.title": "需要确切的命令和配置文件？",
@@ -462,6 +465,7 @@ const I18N = {
     "commands.imagegen.effect": "打开字节跳动 Seedream 5.0 Pro 生图向导，支持内联提示词。",
     "commands.videogen.effect": "打开字节跳动 Seedance 2.0 Mini 生视频向导，支持内联提示词。",
     "commands.sessions.effect": "打开 session 选择器。使用方向键在当前项目和全部项目 session 之间切换。",
+    "commands.permissions.effect": "打开项目权限策略面板。可选 Trust All、Safe、Ask Everything、Readonly 或 Reset。写入 <code>./.openchinacode/openchinacode.jsonc</code> 并立即下发 runtime override 生效。",
 
     /* ── Task Routing ── */
     "routing.title": "任务路由策略",
