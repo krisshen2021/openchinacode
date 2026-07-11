@@ -337,10 +337,10 @@ const I18N = {
     "providers.glm.desc": "架构、复杂规划、大型重构和压缩路由倾向于使用 GLM-5.2 变体进行深度推理。",
     "providers.kimi.tag": "构建",
     "providers.kimi.title": "Kimi 追求速度",
-    "providers.kimi.desc": "实现、审查和常规编程子智能体在任务匹配时使用快速的 Kimi K2.7 路由。",
+    "providers.kimi.desc": "快速审查、实现、探索和摘要子智能体在任务匹配时使用快速的 Kimi K2.7 路由。",
     "providers.deepseek.tag": "调试",
     "providers.deepseek.title": "DeepSeek 用于循环",
-    "providers.deepseek.desc": "调试和快速探索路由针对 DeepSeek 速度进行调优，具有滑动最大 token 行为。",
+    "providers.deepseek.desc": "调试和测试修复循环针对 DeepSeek 进行调优，具有滑动最大 token 行为。",
 
     /* ── Features section ── */
     "features.eyebrow": "功能特性",
