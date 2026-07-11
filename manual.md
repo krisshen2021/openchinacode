@@ -399,6 +399,8 @@ explicit task model
 /permissions
 ```
 
+这个面板是精简 TUI，只显示当前策略、项目目标和策略列表；完整策略说明以本节为准，避免在小终端里把窗口撑满。
+
 面板会写入当前项目：
 
 ```text
@@ -416,6 +418,12 @@ explicit task model
 | `Reset Project Permissions` | 删除项目 `permission` 配置，回到全局/默认策略                           |
 
 策略应用后会立即下发 runtime override，当前运行中的 OpenChinaCode 实例也会生效。
+
+推荐用法：
+
+- 完全信任当前项目：选择 `Project Trust All`，后续同项目内不再频繁确认工具权限。
+- 正常开发但保留关键确认：选择 `Project Safe`。
+- 审计陌生项目：选择 `Project Readonly` 或 `Project Ask Everything`。
 
 权限弹窗中也新增了：
 

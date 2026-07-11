@@ -227,6 +227,8 @@ OpenChinaCode 定制 slash command 的 TUI 入口在 `packages/tui/src/component
 /permissions
 ```
 
+TUI 设计约束：面板必须保持精简，只显示当前策略、项目目标、策略列表和一行保存提示。不要在面板里渲染多行 option details 或 rule-order 说明；完整说明放在 `manual.md` / 本节，避免小终端里把窗口撑到底部。
+
 实现入口：
 
 - `packages/tui/src/component/dialog-permissions.tsx`
@@ -260,6 +262,12 @@ agent defaults/config -> runtime project policy -> current-session Allow always
 | `Reset Project Permissions` | 删除 `permission` 字段                                                                                               |
 
 权限弹窗新增 `Project` / `Global` 按钮。它们不会应用整套策略，只把当前请求的 `permission + always patterns` 写入对应配置，并同时下发 runtime allow rules；随后发送现有 `always` reply 解除当前 pending permission。
+
+维护注意：
+
+- 新增或调整项目策略时，同步修改 `packages/tui/src/util/permission-config.ts`、`manual.md` 和本文策略表。
+- `/permissions` 是项目级策略；权限弹窗的 `Project` / `Global` 是当前请求 pattern 的持久 allow，不要混成同一个配置入口。
+- runtime override 只影响当前 instance；持久化配置负责下次启动继续生效。
 
 ### `/test-mcp`
 
