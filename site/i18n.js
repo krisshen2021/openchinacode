@@ -36,7 +36,7 @@ const I18N = {
 
     /* ── Capability strip ── */
     "cap.routing.title": "Task routing",
-    "cap.routing.desc": "Subagents pick GLM, Kimi, DeepSeek, or GLM-5V by job type.",
+    "cap.routing.desc": "Dual-layer routing: base subagent routes plus optional extra LLM dispatch.",
     "cap.compaction.title": "Smart compaction",
     "cap.compaction.desc": "Profile judge + active-task extraction + raw recent tail.",
     "cap.budgets.title": "Output budgets",
@@ -100,6 +100,17 @@ const I18N = {
     "media.nl.title": "Natural language or slash command",
     "media.nl.desc": "Just describe what you want, or run <code>/image-generate</code> and <code>/video-generate</code> with an optional prompt. Missing details trigger follow-up questions, not guesses.",
 
+    /* ── Updates strip ── */
+    "updates.label": "Recent updates",
+    "updates.tag.musttry": "MUST TRY",
+    "updates.tag.new": "NEW",
+    "updates.tag.enhance": "ENHANCE",
+    "updates.1": "Extra task router — auto-dispatch subtasks via fast LLM judge",
+    "updates.2": "Session picker — arrow keys to switch current / all projects",
+    "updates.3": "Native image & video generation via Volcengine Ark",
+    "updates.4": "Paste-image visual preprocessing with GLM-5V for all models",
+    "updates.5": "Dual-layer routing — base routes plus optional extra dispatch",
+
     /* ── CTA ── */
     "cta.title": "Need the exact commands and config files?",
     "cta.desc": "The manual documents slash commands, provider auth, task policy overrides, smart compaction, LSP, Playwright MCP, and debugging logs.",
@@ -125,6 +136,7 @@ const I18N = {
     "toc.compaction": "Compaction",
     "toc.testing": "LSP & Testing",
     "toc.debugging": "Debugging",
+    "toc.sessions": "Sessions",
 
     /* ── Quick Start ── */
     "qs.title": "Quick Start",
@@ -170,7 +182,7 @@ const I18N = {
     "commands.maxtokens.effect": "Controls sliding output-token budgeting. Heuristic is the recommended daily mode; LLM mode uses a low-cost judge for ambiguous turns.",
     "commands.compact.effect": "Runs smart compaction. <code>keep N</code> also preserves the latest N raw user turns and follow-up assistant/tool messages.",
     "commands.lsp.effect": "Enables language-server diagnostics so the model can see and fix type, syntax, and reference errors.",
-    "commands.taskpolicy.effect": "Opens the local TUI task-route table. It does not call the current model and does not inject the table into the conversation.",
+    "commands.taskpolicy.effect": "Opens the local TUI task-route table. <code>extra-on</code>/<code>extra-off</code> toggles the extra task router; <code>extra-status</code> shows current state. Does not call the model or inject the table into conversation.",
     "commands.taskclassify.effect": "Asks the current model to explain task kind, complexity, route, and classification signals.",
     "commands.testmcp.effect": "Writes Playwright MCP config and hot-connects or disconnects it from inside the TUI.",
     "commands.browsercheck.effect": "Prompts the agent to run browser-level checks, preferably through Playwright MCP.",
@@ -178,6 +190,7 @@ const I18N = {
     "commands.mediaauth.effect": "Saves the Volcengine Ark API key for native image and video generation.",
     "commands.imagegen.effect": "Opens the ByteDance Seedream 5.0 Pro image generation wizard with optional inline prompt.",
     "commands.videogen.effect": "Opens the ByteDance Seedance 2.0 Mini video generation wizard with optional inline prompt.",
+    "commands.sessions.effect": "Opens the session picker. Use arrow keys to switch between current-project and all-project sessions.",
 
     /* ── Task Routing ── */
     "routing.title": "Task Routing Policy",
@@ -188,6 +201,20 @@ const I18N = {
     "routing.table.complex": "Complex",
     "routing.override": "Override example",
     "routing.overrideDesc": "Put this in <code>~/.config/openchinacode/openchinacode.jsonc</code> or in a project-level OpenChinaCode config.",
+
+    /* ── Extra Task Router ── */
+    "routing.extra.title": "Extra Task Router",
+    "routing.extra.desc": "When enabled, ordinary prompts pass through a fast LLM judge that can automatically insert a routed subtask — no explicit <code>/task</code> call needed. Disabled by default.",
+    "routing.extra.base.tag": "Base",
+    "routing.extra.base.title": "System-level base routing",
+    "routing.extra.base.desc": "Explicit task/subagent calls trigger the built-in route table — GLM for planning, Kimi for speed, DeepSeek for debug.",
+    "routing.extra.smart.tag": "Extra",
+    "routing.extra.smart.title": "Extra smart dispatch",
+    "routing.extra.smart.desc": "A fast judge (DeepSeek V4 Flash) inspects each ordinary prompt and inserts a subtask with task_kind + complexity when delegation is appropriate.",
+    "routing.extra.control.tag": "Control",
+    "routing.extra.control.title": "Toggle and configure",
+    "routing.extra.control.desc": "Use <code>/task-policy extra-on</code> / <code>extra-off</code> / <code>extra-status</code>, or set <code>task_policy.extra_router.enabled</code> in config.",
+    "routing.extra.config": "{\n  \"task_policy\": {\n    \"extra_router\": {\n      \"enabled\": true,\n      \"confidence_threshold\": 0.7,\n      \"allow\": [\"plan\", \"refactor\", \"review\", \"debug\", \"test_fix\"],\n      \"deny\": [\"general\", \"summarize\", \"compaction\"]\n    }\n  }\n}",
 
     /* ── Compaction ── */
     "compaction.title": "Smart Compaction",
@@ -223,6 +250,19 @@ const I18N = {
     "debugging.compact.title": "Compaction profile logs",
     "debugging.test.tag": "Test",
     "debugging.test.title": "Integration report",
+
+    /* ── Session Management ── */
+    "sessions.title": "Session Management",
+    "sessions.desc": "Open the session picker with <code>/sessions</code> (aliases <code>/resume</code>, <code>/continue</code>). Use arrow keys to switch scope.",
+    "sessions.scope.tag": "Scope",
+    "sessions.scope.title": "Arrow-key scope switch",
+    "sessions.scope.desc": "Press <code>←</code> / <code>→</code> to toggle between <strong>Current Project</strong> (with pin/unpin) and <strong>All Projects</strong> (global session list).",
+    "sessions.cross.tag": "Cross-project",
+    "sessions.cross.title": "Cross-project fork",
+    "sessions.cross.desc": "Selecting another project's session offers: open the original project, or fork the session into the current directory.",
+    "sessions.manage.tag": "Manage",
+    "sessions.manage.title": "Delete and rename",
+    "sessions.manage.desc": "Delete (with confirmation) and rename are available for any session in either scope.",
 
     /* ── Media Generation ── */
     "toc.media": "Media Generation",
@@ -273,7 +313,7 @@ const I18N = {
 
     /* ── Capability strip ── */
     "cap.routing.title": "任务路由",
-    "cap.routing.desc": "子智能体按任务类型选择 GLM、Kimi、DeepSeek 或 GLM-5V。",
+    "cap.routing.desc": "双层路由：基础子智能体路由加可选 extra LLM 智能分发。",
     "cap.compaction.title": "智能压缩",
     "cap.compaction.desc": "档案评判 + 活跃任务提取 + 原始近期尾部。",
     "cap.budgets.title": "输出预算",
@@ -337,6 +377,17 @@ const I18N = {
     "media.nl.title": "自然语言或斜杠命令",
     "media.nl.desc": "直接描述需求，或运行 <code>/image-generate</code> 和 <code>/video-generate</code> 并附加可选提示词。缺少关键参数时会追问，而非随意猜测。",
 
+    /* ── Updates strip ── */
+    "updates.label": "近期更新",
+    "updates.tag.musttry": "推荐尝试",
+    "updates.tag.new": "新功能",
+    "updates.tag.enhance": "增强",
+    "updates.1": "Extra 任务路由 — 快速 LLM 判定后自动分发子任务",
+    "updates.2": "Session 选择器 — 方向键切换当前项目 / 全部项目",
+    "updates.3": "原生图片与视频生成，接入火山方舟",
+    "updates.4": "粘贴图片视觉预处理，GLM-5V 赋能所有模型",
+    "updates.5": "双层路由 — 基础路由加可选 extra 智能分发",
+
     /* ── CTA ── */
     "cta.title": "需要确切的命令和配置文件？",
     "cta.desc": "手册记录了斜杠命令、提供商认证、任务策略覆盖、智能压缩、LSP、Playwright MCP 和调试日志。",
@@ -362,6 +413,7 @@ const I18N = {
     "toc.compaction": "压缩",
     "toc.testing": "LSP 与测试",
     "toc.debugging": "调试",
+    "toc.sessions": "Session 管理",
 
     /* ── Quick Start ── */
     "qs.title": "快速开始",
@@ -407,7 +459,7 @@ const I18N = {
     "commands.maxtokens.effect": "控制滑动输出 token 预算。启发式是推荐的日常模式；LLM 模式使用低成本评判处理模糊轮次。",
     "commands.compact.effect": "运行智能压缩。<code>keep N</code> 还保留最近 N 个原始用户轮次及后续助手/工具消息。",
     "commands.lsp.effect": "启用语言服务器诊断，使模型可以看到并修复类型、语法和引用错误。",
-    "commands.taskpolicy.effect": "打开本地 TUI 任务路由表。不会调用当前模型，也不会将表注入对话。",
+    "commands.taskpolicy.effect": "打开本地 TUI 任务路由表。<code>extra-on</code>/<code>extra-off</code> 开关 extra 任务路由；<code>extra-status</code> 查看当前状态。不调用模型，不注入对话。",
     "commands.taskclassify.effect": "请求当前模型解释任务类型、复杂度、路由和分类信号。",
     "commands.testmcp.effect": "写入 Playwright MCP 配置，并在 TUI 内热连接或断开。",
     "commands.browsercheck.effect": "提示智能体运行浏览器级别检查，优先通过 Playwright MCP。",
@@ -415,6 +467,7 @@ const I18N = {
     "commands.mediaauth.effect": "保存火山方舟 API key，供原生图片和视频生成使用。",
     "commands.imagegen.effect": "打开字节跳动 Seedream 5.0 Pro 生图向导，支持内联提示词。",
     "commands.videogen.effect": "打开字节跳动 Seedance 2.0 Mini 生视频向导，支持内联提示词。",
+    "commands.sessions.effect": "打开 session 选择器。使用方向键在当前项目和全部项目 session 之间切换。",
 
     /* ── Task Routing ── */
     "routing.title": "任务路由策略",
@@ -425,6 +478,20 @@ const I18N = {
     "routing.table.complex": "复杂",
     "routing.override": "覆盖示例",
     "routing.overrideDesc": "将其放入 <code>~/.config/openchinacode/openchinacode.jsonc</code> 或项目级 OpenChinaCode 配置中。",
+
+    /* ── Extra Task Router ── */
+    "routing.extra.title": "Extra 任务路由",
+    "routing.extra.desc": "开启后，普通 prompt 会先经过快速 LLM 判定，适合时自动插入路由子任务——无需显式调用 <code>/task</code>。默认关闭。",
+    "routing.extra.base.tag": "基础",
+    "routing.extra.base.title": "系统级基础路由",
+    "routing.extra.base.desc": "显式 task/subagent 调用触发内置路由表 — GLM 负责规划，Kimi 负责速度，DeepSeek 负责调试。",
+    "routing.extra.smart.tag": "Extra",
+    "routing.extra.smart.title": "Extra 智能分发",
+    "routing.extra.smart.desc": "快速评判模型（DeepSeek V4 Flash）检查每个普通 prompt，适合委派时自动插入带 task_kind + complexity 的子任务。",
+    "routing.extra.control.tag": "控制",
+    "routing.extra.control.title": "开关与配置",
+    "routing.extra.control.desc": "使用 <code>/task-policy extra-on</code> / <code>extra-off</code> / <code>extra-status</code>，或在配置中设置 <code>task_policy.extra_router.enabled</code>。",
+    "routing.extra.config": "{\n  \"task_policy\": {\n    \"extra_router\": {\n      \"enabled\": true,\n      \"confidence_threshold\": 0.7,\n      \"allow\": [\"plan\", \"refactor\", \"review\", \"debug\", \"test_fix\"],\n      \"deny\": [\"general\", \"summarize\", \"compaction\"]\n    }\n  }\n}",
 
     /* ── Compaction ── */
     "compaction.title": "智能压缩",
@@ -460,6 +527,19 @@ const I18N = {
     "debugging.compact.title": "压缩档案日志",
     "debugging.test.tag": "测试",
     "debugging.test.title": "集成测试报告",
+
+    /* ── Session Management ── */
+    "sessions.title": "Session 管理",
+    "sessions.desc": "使用 <code>/sessions</code>（别名 <code>/resume</code>、<code>/continue</code>）打开 session 选择器。使用方向键切换范围。",
+    "sessions.scope.tag": "范围",
+    "sessions.scope.title": "方向键切换范围",
+    "sessions.scope.desc": "按 <code>←</code> / <code>→</code> 在<strong>当前项目</strong>（支持 pin/unpin）和<strong>全部项目</strong>（全局 session 列表）之间切换。",
+    "sessions.cross.tag": "跨项目",
+    "sessions.cross.title": "跨项目 fork",
+    "sessions.cross.desc": "选择其它项目的 session 时可选择：打开原项目继续，或 fork 到当前目录继续。",
+    "sessions.manage.tag": "管理",
+    "sessions.manage.title": "删除与重命名",
+    "sessions.manage.desc": "删除（需二次确认）和重命名在两种范围下均可用。",
 
     /* ── Media Generation ── */
     "toc.media": "媒体生成",

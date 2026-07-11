@@ -134,12 +134,27 @@
         </div><!-- /media-highlight-content -->
       </div>
 
+      <!-- ═══ Updates strip ═══ -->
+      <div class="updates-strip reveal" style="margin-top: 24px;">
+        <div class="updates-head">
+          <span class="badge-updated">UPDATED</span>
+          <span class="updates-label" data-i18n="updates.label">Recent updates</span>
+        </div>
+        <ul class="updates-list">
+          <li><span class="update-badge musttry" data-i18n="updates.tag.musttry">MUST TRY</span><span data-i18n="updates.1">Extra task router — auto-dispatch subtasks via fast LLM judge</span></li>
+          <li><span class="update-badge enhance" data-i18n="updates.tag.enhance">ENHANCE</span><span data-i18n="updates.2">Session picker — arrow keys to switch current / all projects</span></li>
+          <li><span class="update-badge new" data-i18n="updates.tag.new">NEW</span><span data-i18n="updates.3">Native image &amp; video generation via Volcengine Ark</span></li>
+          <li><span class="update-badge new" data-i18n="updates.tag.new">NEW</span><span data-i18n="updates.4">Paste-image visual preprocessing with GLM-5V for all models</span></li>
+          <li><span class="update-badge enhance" data-i18n="updates.tag.enhance">ENHANCE</span><span data-i18n="updates.5">Dual-layer routing — base routes plus optional extra dispatch</span></li>
+        </ul>
+      </div>
+
       <!-- Capability strip (below media, full width) -->
       <div class="bento" style="margin-top: 36px; grid-template-columns: repeat(4, 1fr);">
         <div class="card" style="--accent: var(--cinnabar); padding: 18px;">
           <div class="card-icon"><i data-lucide="route"></i></div>
           <h3 style="font-size: 15px;" data-i18n="cap.routing.title">Task routing</h3>
-          <p style="font-size: 13px;" data-i18n="cap.routing.desc">Subagents pick GLM, Kimi, DeepSeek, or GLM-5V by job type.</p>
+          <p style="font-size: 13px;" data-i18n="cap.routing.desc">Dual-layer routing: base subagent routes plus optional extra LLM dispatch.</p>
         </div>
         <div class="card" style="--accent: var(--jade); padding: 18px;">
           <div class="card-icon"><i data-lucide="layers"></i></div>

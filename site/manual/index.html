@@ -62,6 +62,7 @@
               <li><a href="#commands" data-section="commands"><i data-lucide="terminal"></i><span data-i18n="toc.commands">Slash Commands</span></a></li>
               <li><a href="#routing" data-section="routing"><i data-lucide="route"></i><span data-i18n="toc.routing">Task Routing</span></a></li>
               <li><a href="#compaction" data-section="compaction"><i data-lucide="layers"></i><span data-i18n="toc.compaction">Compaction</span></a></li>
+              <li><a href="#sessions" data-section="sessions"><i data-lucide="panels-left-right"></i><span data-i18n="toc.sessions">Sessions</span></a></li>
               <li><a href="#testing" data-section="testing"><i data-lucide="app-window"></i><span data-i18n="toc.testing">LSP &amp; Testing</span></a></li>
               <li><a href="#media" data-section="media"><i data-lucide="image"></i><span data-i18n="toc.media">Media Generation</span></a></li>
               <li><a href="#debugging" data-section="debugging"><i data-lucide="bug"></i><span data-i18n="toc.debugging">Debugging</span></a></li>
@@ -205,9 +206,14 @@ openchinacode</div>
                     <td data-i18n="commands.lsp.effect">Enables language-server diagnostics so the model can see and fix type, syntax, and reference errors.</td>
                   </tr>
                   <tr>
+                    <td><code>/sessions</code></td>
+                    <td><code>/sessions</code><br><code>/resume</code><br><code>/continue</code></td>
+                    <td data-i18n="commands.sessions.effect">Opens the session picker. Use arrow keys to switch between current-project and all-project sessions.</td>
+                  </tr>
+                  <tr>
                     <td><code>/task-policy</code></td>
-                    <td><code>/task-policy</code><br><code>/task-policy compaction</code></td>
-                    <td data-i18n="commands.taskpolicy.effect">Opens the local TUI task-route table. It does not call the current model and does not inject the table into the conversation.</td>
+                    <td><code>/task-policy</code><br><code>/task-policy compaction</code><br><code>/task-policy extra-on</code><br><code>/task-policy extra-off</code><br><code>/task-policy extra-status</code></td>
+                    <td data-i18n-html="commands.taskpolicy.effect">Opens the local TUI task-route table. <code>extra-on</code>/<code>extra-off</code> toggles the extra task router; <code>extra-status</code> shows current state. Does not call the model or inject the table into conversation.</td>
                   </tr>
                   <tr>
                     <td><code>/task-classify</code></td>
@@ -305,6 +311,36 @@ openchinacode</div>
     }
   }
 }</div>
+
+            <h3 style="margin-top: 32px; margin-bottom: 12px;" data-i18n="routing.extra.title">Extra Task Router</h3>
+            <p data-i18n-html="routing.extra.desc">When enabled, ordinary prompts pass through a fast LLM judge that can automatically insert a routed subtask — no explicit <code>/task</code> call needed. Disabled by default.</p>
+            <div class="manual-cards">
+              <div class="card" style="--accent: var(--cinnabar);">
+                <span class="tag tag-cinnabar" data-i18n="routing.extra.base.tag">Base</span>
+                <h3 data-i18n="routing.extra.base.title">System-level base routing</h3>
+                <p data-i18n="routing.extra.base.desc">Explicit task/subagent calls trigger the built-in route table — GLM for planning, Kimi for speed, DeepSeek for debug.</p>
+              </div>
+              <div class="card" style="--accent: var(--jade);">
+                <span class="tag tag-jade" data-i18n="routing.extra.smart.tag">Extra</span>
+                <h3 data-i18n="routing.extra.smart.title">Extra smart dispatch</h3>
+                <p data-i18n="routing.extra.smart.desc">A fast judge (DeepSeek V4 Flash) inspects each ordinary prompt and inserts a subtask with task_kind + complexity when delegation is appropriate.</p>
+              </div>
+              <div class="card" style="--accent: var(--gold);">
+                <span class="tag tag-gold" data-i18n="routing.extra.control.tag">Control</span>
+                <h3 data-i18n="routing.extra.control.title">Toggle and configure</h3>
+                <p data-i18n-html="routing.extra.control.desc">Use <code>/task-policy extra-on</code> / <code>extra-off</code> / <code>extra-status</code>, or set <code>task_policy.extra_router.enabled</code> in config.</p>
+              </div>
+            </div>
+            <div class="code-block" data-i18n="routing.extra.config">{
+  "task_policy": {
+    "extra_router": {
+      "enabled": true,
+      "confidence_threshold": 0.7,
+      "allow": ["plan", "refactor", "review", "debug", "test_fix"],
+      "deny": ["general", "summarize", "compaction"]
+    }
+  }
+}</div>
           </section>
 
           <!-- Smart Compaction -->
@@ -334,6 +370,35 @@ openchinacode</div>
             <div class="code-block">/compact
 /compact keep 3
 /compact keep auto</div>
+          </section>
+
+          <!-- Session Management -->
+          <section class="manual-section reveal" id="sessions">
+            <div class="manual-section-header">
+              <i data-lucide="panels-left-right"></i>
+              <h2 data-i18n="sessions.title">Session Management</h2>
+            </div>
+            <p data-i18n-html="sessions.desc">Open the session picker with <code>/sessions</code> (aliases <code>/resume</code>, <code>/continue</code>). Use arrow keys to switch scope.</p>
+            <div class="manual-cards">
+              <div class="card" style="--accent: var(--cinnabar);">
+                <span class="tag tag-cinnabar" data-i18n="sessions.scope.tag">Scope</span>
+                <h3 data-i18n="sessions.scope.title">Arrow-key scope switch</h3>
+                <p data-i18n-html="sessions.scope.desc">Press <code>←</code> / <code>→</code> to toggle between <strong>Current Project</strong> (with pin/unpin) and <strong>All Projects</strong> (global session list).</p>
+              </div>
+              <div class="card" style="--accent: var(--jade);">
+                <span class="tag tag-jade" data-i18n="sessions.cross.tag">Cross-project</span>
+                <h3 data-i18n="sessions.cross.title">Cross-project fork</h3>
+                <p data-i18n="sessions.cross.desc">Selecting another project's session offers: open the original project, or fork the session into the current directory.</p>
+              </div>
+              <div class="card" style="--accent: var(--gold);">
+                <span class="tag tag-gold" data-i18n="sessions.manage.tag">Manage</span>
+                <h3 data-i18n="sessions.manage.title">Delete and rename</h3>
+                <p data-i18n="sessions.manage.desc">Delete (with confirmation) and rename are available for any session in either scope.</p>
+              </div>
+            </div>
+            <div class="code-block">/sessions
+/resume
+/continue</div>
           </section>
 
           <!-- LSP & Browser Testing -->

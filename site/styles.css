@@ -52,6 +52,7 @@
   --max-w: 1200px;
   --radius: 12px;
   --radius-sm: 8px;
+  --radius-md: 16px;
   --radius-lg: 20px;
 
   /* Shadows */
@@ -1124,6 +1125,88 @@ tr:hover td {
   font-size: 13px;
   color: var(--mist);
   line-height: 1.5;
+}
+
+/* ── Updates strip ─────────────────────────────────────────── */
+.updates-strip {
+  padding: 20px 28px;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.updates-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.badge-updated {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 100px;
+  background: var(--azure-soft);
+  color: var(--azure);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  border: 1px solid color-mix(in srgb, var(--azure) 40%, transparent);
+}
+
+.updates-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--mist);
+}
+
+.updates-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.updates-list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  color: var(--mist);
+  line-height: 1.5;
+}
+
+.update-badge {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 100px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.update-badge.musttry {
+  background: var(--gold-soft);
+  color: var(--gold);
+  border: 1px solid color-mix(in srgb, var(--gold) 40%, transparent);
+}
+
+.update-badge.new {
+  background: var(--jade-soft);
+  color: var(--jade-glow);
+  border: 1px solid color-mix(in srgb, var(--jade) 40%, transparent);
+}
+
+.update-badge.enhance {
+  background: var(--azure-soft);
+  color: var(--azure);
+  border: 1px solid color-mix(in srgb, var(--azure) 40%, transparent);
 }
 
 /* ── Manual layout ─────────────────────────────────────────── */
