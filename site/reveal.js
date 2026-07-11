@@ -1,5 +1,5 @@
-// Scroll reveal fallback for browsers without CSS animation-timeline: view() support
-if (!CSS.supports('animation-timeline', 'view()')) {
+const reveals = document.querySelectorAll('.reveal');
+requestAnimationFrame(() => {
   const observer = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
       if (entry.isIntersecting) {
@@ -7,7 +7,6 @@ if (!CSS.supports('animation-timeline', 'view()')) {
         observer.unobserve(entry.target);
       }
     });
-  }, { rootMargin: '0px 0px -100px 0px' });
-
-  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
-}
+  }, { rootMargin: '-50px 0px -50px 0px' });
+  reveals.forEach(el => observer.observe(el));
+});
