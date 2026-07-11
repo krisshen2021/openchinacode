@@ -11,8 +11,8 @@ import type { Agent } from "./agent"
  * 2. Default `todowrite` and `task` denies if the subagent's own ruleset
  *    doesn't already permit them.
  * 3. Plan-mode parent sessions are a hard read-only boundary. Subagents spawned
- *    from plan mode must not edit files or mutate todos, even if their own
- *    agent or project-level permissions would normally allow it.
+ *    from plan mode must not edit files, mutate todos, or use shell commands,
+ *    even if their own agent or project-level permissions would normally allow it.
  */
 export function deriveSubagentSessionPermission(input: {
   parentSessionPermission: PermissionV1.Ruleset
@@ -26,6 +26,7 @@ export function deriveSubagentSessionPermission(input: {
       ? [
           { permission: "edit" as const, pattern: "*" as const, action: "deny" as const },
           { permission: "todowrite" as const, pattern: "*" as const, action: "deny" as const },
+          { permission: "bash" as const, pattern: "*" as const, action: "deny" as const },
         ]
       : []
   return [

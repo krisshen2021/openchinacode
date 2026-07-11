@@ -50,6 +50,7 @@ function planModeReadonlyPrompt(prompt: string) {
     "<openchinacode-plan-mode-readonly>",
     PLAN_MODE_READONLY_NOTICE,
     "Do not edit files, write files, apply patches, update todos, or make system changes.",
+    "Do not use bash. Use read, grep, glob, list, and other non-mutating inspection tools only.",
     "You may read, inspect, search, analyze, and produce a concrete implementation plan.",
     "If the user asked for implementation, explain that implementation requires switching to Build mode.",
     "</openchinacode-plan-mode-readonly>",
@@ -201,7 +202,7 @@ export const TaskTool = Tool.define(
           (rule) =>
             rule.action === "deny" &&
             rule.pattern === "*" &&
-            (rule.permission === "edit" || rule.permission === "todowrite"),
+            (rule.permission === "edit" || rule.permission === "todowrite" || rule.permission === "bash"),
         )
         const inheritedRules = childPermission.filter((rule) => !planReadonlyRules.includes(rule))
         const mergedPermission = [
@@ -305,7 +306,9 @@ export const TaskTool = Tool.define(
       if (!ops) return yield* Effect.fail(new Error("TaskTool requires promptOps in ctx.extra"))
 
       const runTask = Effect.fn("TaskTool.runTask")(function* () {
-        const parts = yield* ops.resolvePromptParts(planReadonly ? planModeReadonlyPrompt(params.prompt) : params.prompt)
+        const parts = yield* ops.resolvePromptParts(
+          planReadonly ? planModeReadonlyPrompt(params.prompt) : params.prompt,
+        )
         const result = yield* ops.prompt({
           messageID: MessageID.ascending(),
           sessionID: nextSession.id,

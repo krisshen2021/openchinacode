@@ -519,7 +519,7 @@ describe("tool.task", () => {
       )
 
       const child = yield* sessions.get(result.metadata.sessionId)
-      expect(child.permission?.slice(-2)).toEqual([
+      expect(child.permission?.slice(-3)).toEqual([
         {
           permission: "edit",
           pattern: "*",
@@ -530,12 +530,18 @@ describe("tool.task", () => {
           pattern: "*",
           action: "deny",
         },
+        {
+          permission: "bash",
+          pattern: "*",
+          action: "deny",
+        },
       ])
       expect(result.metadata.planReadonly).toBe(true)
       expect(seen?.parts[0]?.type).toBe("text")
       expect(seen?.parts[0]?.type === "text" ? seen.parts[0].text : "").toContain(
         "Current parent session is in Plan mode",
       )
+      expect(seen?.parts[0]?.type === "text" ? seen.parts[0].text : "").toContain("Do not use bash")
       expect(result.output).toContain("This subtask is forced read-only")
       expect(result.output).toContain("read-only plan")
     }),

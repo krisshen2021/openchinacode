@@ -52,8 +52,10 @@ it.instance("plan-mode parent forces subagents read-only", () =>
 
     expect(Permission.evaluate("edit", "/some/file.ts", effective).action).toBe("deny")
     expect(Permission.evaluate("todowrite", "*", effective).action).toBe("deny")
-    expect(Permission.disabled(["edit", "write", "apply_patch"], effective)).toEqual(
-      new Set(["edit", "write", "apply_patch"]),
+    expect(Permission.evaluate("bash", "cat > /some/file.ts", effective).action).toBe("deny")
+    expect(Permission.evaluate("bash", "git status", effective).action).toBe("deny")
+    expect(Permission.disabled(["edit", "write", "apply_patch", "bash"], effective)).toEqual(
+      new Set(["edit", "write", "apply_patch", "bash"]),
     )
   }),
 )
@@ -92,7 +94,7 @@ it.instance("subagent's own read-only restriction remains effective", () =>
 )
 
 it.instance(
-  "custom subagent edit allows cannot override plan-mode parent",
+  "custom subagent edit and bash allows cannot override plan-mode parent",
   () =>
     Effect.gen(function* () {
       const planAgent = yield* Agent.use.get("plan")
@@ -110,8 +112,15 @@ it.instance(
 
       expect(Permission.evaluate("edit", "/some/file.ts", planAgent!.permission).action).toBe("deny")
       expect(Permission.evaluate("edit", "/some/file.ts", effective).action).toBe("deny")
-      expect(Permission.disabled(["edit", "write", "apply_patch"], effective)).toEqual(
-        new Set(["edit", "write", "apply_patch"]),
+      expect(
+        Permission.evaluate(
+          "bash",
+          "python3 - << 'PY'\nfrom pathlib import Path\nPath('x').write_text('x')\nPY",
+          effective,
+        ).action,
+      ).toBe("deny")
+      expect(Permission.disabled(["edit", "write", "apply_patch", "bash"], effective)).toEqual(
+        new Set(["edit", "write", "apply_patch", "bash"]),
       )
     }),
   {
@@ -121,6 +130,7 @@ it.instance(
           description: "A user-defined subagent",
           mode: "subagent",
           permission: {
+            bash: "allow",
             edit: "allow",
           },
         },
