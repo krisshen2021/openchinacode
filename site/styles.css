@@ -1139,6 +1139,8 @@ tr:hover td {
   display: flex;
   align-items: center;
   gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
 }
 
 .badge-updated {
@@ -1156,38 +1158,46 @@ tr:hover td {
 }
 
 .updates-label {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--mist);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--moonlight);
 }
 
 .updates-list {
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-top: 14px;
+  margin-top: 20px;
 }
 
 .updates-list li {
   display: flex;
   align-items: center;
   gap: 12px;
+  padding: 10px 0;
   font-size: 14px;
   color: var(--mist);
   line-height: 1.5;
+  border-bottom: 1px dotted var(--border);
+}
+
+.updates-list li:last-child {
+  border-bottom: none;
 }
 
 .update-badge {
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  min-width: 72px;
   padding: 2px 8px;
   border-radius: 100px;
   font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.06em;
+  line-height: 1;
   white-space: nowrap;
 }
 
