@@ -203,6 +203,16 @@ export function DialogTaskPolicy(props: { focus?: string }) {
             OpenChinaCode default, parent model fallback
           </text>
         </box>
+
+        <box gap={0} paddingTop={1}>
+          <text fg={theme.textMuted} attributes={TextAttributes.BOLD}>
+            Extra router
+          </text>
+          <text fg={theme.textMuted} wrapMode="word">
+            Disabled by default. Use /task-policy extra-on to run a fast judge before ordinary prompts and auto-insert a
+            routed subtask when useful. Use /task-policy extra-off to disable and /task-policy extra-status to check.
+          </text>
+        </box>
       </scrollbox>
     </box>
   )

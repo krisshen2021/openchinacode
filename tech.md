@@ -406,14 +406,48 @@ TUI 工具调用摘要：
 /task-policy
 /task-policy review
 /task-policy compaction
+/task-policy extra-status
+/task-policy extra-on
+/task-policy extra-off
 ```
 
 实现入口：
 
 - `packages/tui/src/component/dialog-task-policy.tsx`
 - `packages/tui/src/component/prompt/index.tsx`
+- `packages/tui/src/component/prompt/slash.ts`
 
 注意：当前面板展示的是内置默认策略表，不是用户配置覆盖后的 effective policy。运行时会尊重用户配置，subagent footer 的 `source` 会显示来源。
+
+`extra-on/off/status` 是本地 TUI command，写入全局配置：
+
+```jsonc
+{
+  "task_policy": {
+    "extra_router": {
+      "enabled": true,
+    },
+  },
+}
+```
+
+运行管线：
+
+```text
+ordinary prompt
+-> SessionPrompt.applyExtraTaskRouter()
+-> TaskRouterJudge.run() fast JSON judge
+-> insert synthetic route note + subtask part
+-> MessageV2.latest() picks queued subtask
+-> TaskTool receives task_kind/task_complexity
+-> TaskPolicy.select() chooses routed model
+```
+
+保护条件：
+
+- `task_policy.extra_router.enabled !== true` 时不运行。
+- `noReply`、显式 `subtask`、显式 `agent`、file attachment、slash-like prompt、subagent 自己的 prompt 都跳过。
+- 目标是补足普通 build/plan/debug/refactor 请求不会主动调用 `task` tool 的短板，不干扰粘贴图片视觉预处理和媒体生成命令。
 
 ### `/task-classify`
 
@@ -565,6 +599,33 @@ TUI 新用户优先使用：
 任务分类和路由：
 
 - `packages/opencode/src/session/task-policy.ts`
+- `packages/opencode/src/session/judge/json-judge.ts`
+- `packages/opencode/src/session/judge/auto-maxtokens.ts`
+- `packages/opencode/src/session/judge/task-router.ts`
+- `packages/opencode/src/session/compaction-profile.ts`
+
+Shared LLM judge runner:
+
+```text
+JsonJudge.runJsonJudge()
+```
+
+统一处理：
+
+- judge 模型候选选择
+- current model / configured model / fallback small model
+- timeout + abort
+- JSON 抽取
+- invalid raw preview
+- usage / reasoning token 日志
+
+当前业务 judge：
+
+| Judge                | 配置路径                                | 默认模型候选                            | 用途                                          |
+| -------------------- | --------------------------------------- | --------------------------------------- | --------------------------------------------- |
+| `auto_maxtokens`     | `task_policy.judges.auto_maxtokens`     | `deepseek/deepseek-v4-flash`            | 模糊场景判断 `default` / `max` 输出预算       |
+| `compaction_profile` | `task_policy.judges.compaction_profile` | current model -> Kimi -> DeepSeek flash | 智能压缩前输出稳定 profile JSON               |
+| `task_router`        | `task_policy.judges.task_router`        | `deepseek/deepseek-v4-flash`            | 普通 prompt 前判断是否自动插入 routed subtask |
 
 Task kinds：
 
@@ -623,6 +684,38 @@ deepseek/deepseek-v4-flash
 {
   "task_policy": {
     "enabled": true,
+    "extra_router": {
+      "enabled": false,
+      "confidence_threshold": 0.7,
+      "allow": [
+        "plan",
+        "architecture",
+        "refactor",
+        "review",
+        "implement",
+        "explore",
+        "visual_check",
+        "debug",
+        "test_fix",
+      ],
+      "deny": ["general", "summarize", "compaction"],
+    },
+    "judges": {
+      "auto_maxtokens": {
+        "models": ["deepseek/deepseek-v4-flash"],
+        "timeout_ms": 1000,
+        "max_output_tokens": 64,
+      },
+      "compaction_profile": {
+        "models": ["zhipuai-pay2go/glm-5.2", "moonshotai-cn/kimi-k2.7-code-highspeed", "deepseek/deepseek-v4-flash"],
+        "timeout_ms": 60000,
+      },
+      "task_router": {
+        "models": ["deepseek/deepseek-v4-flash"],
+        "timeout_ms": 12000,
+        "max_output_tokens": 1024,
+      },
+    },
     "routes": {
       "review.complex": {
         "model": "zhipuai-pay2go/glm-5.2",
@@ -650,7 +743,7 @@ deepseek/deepseek-v4-flash
 }
 ```
 
-`routes` 是全局覆盖；`agents` 是按 subagent 名称覆盖。key 支持 `kind` 和 `kind.complexity`，精确 key 优先。
+`routes` 是全局覆盖；`agents` 是按 subagent 名称覆盖。key 支持 `kind` 和 `kind.complexity`，精确 key 优先。`extra_router` 默认关闭，开启后普通 prompt 会先经过 fast judge，适合时自动插入 subtask。`judges` 配置共享 LLM judge 的模型候选、超时和输出 token。
 
 ## Subagent 管线
 
@@ -681,7 +774,9 @@ TUI subagent 行应显示：
 
 ## Build 模式
 
-当前 build 模式不再做代码级自动实施路由。用户在 build 模式里确认“可以开始”“继续执行”时，primary build agent 会按正常对话执行；是否调用 `task` 只由模型根据 `china-tools.txt` 的 task routing contract 自行决定。
+默认情况下，build 模式不做额外代码级自动实施路由。用户在 build 模式里确认“可以开始”“继续执行”时，primary build agent 会按正常对话执行；是否调用 `task` 由模型根据 `china-tools.txt` 的 task routing contract 自行决定。
+
+如果启用 `task_policy.extra_router.enabled`，普通 build/plan prompt 会先经过 `TaskRouterJudge`。当 judge 判断应委派时，runtime 会直接插入 `subtask` part，而不是只提示主模型“应该调用 task”。这条路径用于让 implement/refactor/debug/test_fix 等不常主动触发 tool call 的任务也能进入 task policy。
 
 曾经加入过一版代码级自动策略：由 `packages/opencode/src/session/prompt.ts` 捕捉批准实施的 turn，自动包装成 `general` subtask，并用本地/LLM 分类判断 `implement.quick|medium|complex`。这版已回滚，因为它可能在 build 管线里引入上下文拼接、复杂度判断或 subagent 执行时机问题。
 

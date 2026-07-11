@@ -6,7 +6,7 @@ import { SessionV1 } from "@opencode-ai/core/v1/session"
 import { serviceUse } from "@opencode-ai/core/effect/service-use"
 import { Context, Effect, Layer } from "effect"
 import * as Stream from "effect/Stream"
-import { generateText, streamText, wrapLanguageModel, type ModelMessage, type Tool } from "ai"
+import { streamText, wrapLanguageModel, type ModelMessage, type Tool } from "ai"
 import type { LLMEvent } from "@opencode-ai/llm"
 import { LLMClient } from "@opencode-ai/llm/route"
 import type { LLMClientService } from "@opencode-ai/llm/route"
@@ -30,6 +30,7 @@ import { LLMAISDK } from "./llm/ai-sdk"
 import { LLMNativeRuntime } from "./llm/native-runtime"
 import { LLMRequestPrep } from "./llm/request"
 import * as OutputBudget from "./llm/budget"
+import { AutoMaxTokensJudge } from "./judge/auto-maxtokens"
 
 export const OUTPUT_TOKEN_MAX = ProviderTransform.OUTPUT_TOKEN_MAX
 
@@ -59,52 +60,6 @@ export interface Interface {
 export class Service extends Context.Service<Service, Interface>()("@opencode/LLM") {}
 
 export const use = serviceUse(Service)
-
-function appendText(value: unknown, output: string[], depth = 0) {
-  if (output.join("").length >= 8_000 || depth > 5) return
-  if (typeof value === "string") {
-    output.push(value)
-    return
-  }
-  if (Array.isArray(value)) {
-    for (const item of value) appendText(item, output, depth + 1)
-    return
-  }
-  if (typeof value !== "object" || value === null) return
-  const record = value as Record<string, unknown>
-  for (const key of ["text", "content", "value", "output"]) {
-    if (key in record) appendText(record[key], output, depth + 1)
-  }
-}
-
-function compactMessageText(value: unknown, limit = 4_000) {
-  const output: string[] = []
-  appendText(value, output)
-  return output.join("\n").slice(0, limit)
-}
-
-function latestUserText(messages: readonly ModelMessage[]) {
-  for (let i = messages.length - 1; i >= 0; i--) {
-    if (messages[i].role === "user") return compactMessageText(messages[i], 2_000)
-  }
-  return ""
-}
-
-function parseAutoMaxJudgeDecision(text: string): "default" | "max" | undefined {
-  const json = text.match(/\{[\s\S]*\}/)?.[0]
-  if (json) {
-    try {
-      const parsed = JSON.parse(json) as Record<string, unknown>
-      const value = String(parsed.maxTokens ?? parsed.max_tokens ?? parsed.decision ?? "").toLowerCase()
-      if (value === "max") return "max"
-      if (value === "default") return "default"
-    } catch {}
-  }
-  const normalized = text.trim().toLowerCase()
-  if (/^max\b/.test(normalized)) return "max"
-  if (/^default\b/.test(normalized)) return "default"
-  return undefined
-}
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {
   return typeof value === "object" && value !== null && !Array.isArray(value)
@@ -240,86 +195,6 @@ const live: Layer.Layer<
     const llmClient = yield* LLMClient.Service
     const flags = yield* RuntimeFlags.Service
 
-    const runAutoMaxTokensJudge = Effect.fn("LLM.autoMaxTokensJudge")(function* (input: {
-      autoMaxTokens: ProviderTransform.AutoMaxTokensConfig | undefined
-      currentModel: Provider.Model
-      decision: ProviderTransform.MaxOutputDecision
-      messages: readonly ModelMessage[]
-      agent: Agent.Info
-      toolCount: number
-      sessionID: string
-      abort: AbortSignal
-    }) {
-      const auto = ProviderTransform.normalizeAutoMaxTokens(input.autoMaxTokens)
-      if (auto.mode !== "llm") return undefined
-
-      const judgeModel = yield* Effect.gen(function* () {
-        if (auto.model) {
-          const parsed = Provider.parseModel(auto.model)
-          const configured = yield* provider
-            .getModel(parsed.providerID, parsed.modelID)
-            .pipe(Effect.catchCause(() => Effect.succeed(undefined)))
-          if (configured) return configured
-        }
-        const fastJudge = Provider.parseModel("deepseek/deepseek-v4-flash")
-        const deepseekFlash = yield* provider
-          .getModel(fastJudge.providerID, fastJudge.modelID)
-          .pipe(Effect.catchCause(() => Effect.succeed(undefined)))
-        if (deepseekFlash) return deepseekFlash
-        return yield* provider
-          .getSmallModel(input.currentModel.providerID)
-          .pipe(Effect.catch(() => Effect.succeed(undefined)))
-      })
-      if (!judgeModel) return undefined
-
-      const language = yield* provider.getLanguage(judgeModel)
-      const ctrl = new AbortController()
-      const timeout = setTimeout(() => ctrl.abort(), auto.timeoutMs)
-      const abort = () => ctrl.abort()
-      if (input.abort.aborted) ctrl.abort()
-      else input.abort.addEventListener("abort", abort, { once: true })
-      try {
-        const response = yield* Effect.promise(() =>
-          generateText({
-            model: language,
-            maxOutputTokens: 64,
-            abortSignal: ctrl.signal,
-            messages: [
-              {
-                role: "system",
-                content:
-                  'Decide whether this coding assistant turn needs the model\'s default output token budget or maximum output token budget. Return JSON only: {"maxTokens":"default"} or {"maxTokens":"max"}. Use max for implementation, bug fixing, refactoring, diagnostics, tests, or long outputs. Use default for simple explanation, status, or short configuration questions.',
-              },
-              {
-                role: "user",
-                content: JSON.stringify({
-                  agentMode: input.agent.mode,
-                  toolCount: input.toolCount,
-                  localReasons: input.decision.reasons,
-                  currentModel: `${input.currentModel.providerID}/${input.currentModel.id}`,
-                  defaultTokens: input.decision.policy?.default,
-                  maxTokens: input.decision.policy?.max,
-                  latestUserMessage: latestUserText(input.messages),
-                  recentTurnExcerpt: compactMessageText(input.messages.slice(-4), 2_000),
-                }),
-              },
-            ],
-          }),
-        )
-        const judged = parseAutoMaxJudgeDecision(response.text)
-        yield* Effect.logInfo("auto-maxtokens judge", {
-          providerID: judgeModel.providerID,
-          modelID: judgeModel.id,
-          decision: judged ?? "invalid",
-          "session.id": input.sessionID,
-        })
-        return judged
-      } finally {
-        clearTimeout(timeout)
-        input.abort.removeEventListener("abort", abort)
-      }
-    })
-
     const run = Effect.fn("LLM.run")(function* (input: StreamRequest) {
       yield* Effect.logInfo("stream", {
         providerID: input.model.providerID,
@@ -362,7 +237,9 @@ const live: Layer.Layer<
       let maxOutputTokens = prepared.params.maxOutputTokens
       let outputLevel = outputDecision?.level
       if (!input.small && outputDecision?.needsJudge && outputDecision.policy) {
-        const judged = yield* runAutoMaxTokensJudge({
+        const judged = yield* AutoMaxTokensJudge.run({
+          provider,
+          taskPolicyJudge: cfg.task_policy?.judges?.auto_maxtokens,
           autoMaxTokens: cfg.auto_maxtokens,
           currentModel: input.model,
           decision: outputDecision,
@@ -432,8 +309,7 @@ const live: Layer.Layer<
           })
           return yield* Effect.fail(
             new SessionV1.ContextOverflowError({
-              message:
-                "Conversation history leaves too little output budget for this model; compacting before retry.",
+              message: "Conversation history leaves too little output budget for this model; compacting before retry.",
             }),
           )
         }

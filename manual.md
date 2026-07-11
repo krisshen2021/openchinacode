@@ -557,12 +557,18 @@ TUI 工具调用行会显示安全摘要，不展示完整路径、URL 或 base6
 /task-policy
 /task-policy review
 /task-policy compaction
+/task-policy extra-status
+/task-policy extra-on
+/task-policy extra-off
 ```
 
 用法：
 
 ```text
 /task-policy [focus]
+/task-policy extra-status
+/task-policy extra-on
+/task-policy extra-off
 ```
 
 示例：
@@ -572,6 +578,16 @@ TUI 工具调用行会显示安全摘要，不展示完整路径、URL 或 base6
 ```
 
 会打开同一张固定策略表，并标记 focus。表中包含 `compaction` 的 quick / medium / complex 路由，以及模型 ID legend 和覆盖优先级。
+
+Extra router：
+
+| 命令                        | 作用                                                                 |
+| --------------------------- | -------------------------------------------------------------------- |
+| `/task-policy extra-status` | 查看普通 prompt 额外任务路由是否开启                                 |
+| `/task-policy extra-on`     | 开启 fast judge。普通 prompt 会先判断是否需要自动插入 routed subtask |
+| `/task-policy extra-off`    | 关闭 fast judge，回到只有显式 task/subtask 才触发路由的模式          |
+
+默认是关闭。开启后，普通请求如果被判断为适合委派，例如复杂重构、代码审查、debug、测试修复、架构规划，会自动插入一个 `subtask` part，并带上 `task_kind` / `task_complexity`，再由 task policy 选择 GLM/Kimi/DeepSeek 路由。已有粘贴图片视觉预处理、显式 subtask、agent 调用、附件输入不会再次触发 extra router。
 
 ### `/task-classify`
 
@@ -667,6 +683,38 @@ OpenChinaCode 的 task policy 已切换到新 schema，不再兼容旧的 `tasks
 {
   "task_policy": {
     "enabled": true,
+    "extra_router": {
+      "enabled": false,
+      "confidence_threshold": 0.7,
+      "allow": [
+        "plan",
+        "architecture",
+        "refactor",
+        "review",
+        "implement",
+        "explore",
+        "visual_check",
+        "debug",
+        "test_fix",
+      ],
+      "deny": ["general", "summarize", "compaction"],
+    },
+    "judges": {
+      "auto_maxtokens": {
+        "models": ["deepseek/deepseek-v4-flash"],
+        "timeout_ms": 1000,
+        "max_output_tokens": 64,
+      },
+      "compaction_profile": {
+        "models": ["zhipuai-pay2go/glm-5.2", "moonshotai-cn/kimi-k2.7-code-highspeed", "deepseek/deepseek-v4-flash"],
+        "timeout_ms": 60000,
+      },
+      "task_router": {
+        "models": ["deepseek/deepseek-v4-flash"],
+        "timeout_ms": 12000,
+        "max_output_tokens": 1024,
+      },
+    },
     "routes": {
       "review.complex": {
         "model": "zhipuai-pay2go/glm-5.2",
@@ -715,6 +763,9 @@ compaction
 - `kind.complexity` 比 `kind` 更精确，会优先匹配。
 - `inherit: true` 表示继承父模型。
 - `enabled: false` 会关闭 OpenChinaCode task policy，回到更接近父模型继承的行为。
+- `extra_router.enabled: true` 会让普通 prompt 先经过 fast judge，适合时自动插入 routed subtask；也可以用 `/task-policy extra-on/off` 修改。
+- `extra_router.allow/deny` 控制哪些 task kind 允许被自动委派。默认拒绝 `general`、`summarize`、`compaction`。
+- `judges` 是 OpenChinaCode 共享 LLM judge 配置，当前用于 `auto_maxtokens`、`compaction_profile`、`task_router`。可以分别设置候选模型、超时和输出 token 上限。
 - 配置里指定的模型必须存在于当前 provider 列表，否则会跳过该条，继续尝试后续候选。
 - 修改后建议重启 OpenChinaCode，确保 TUI 和 session runtime 读取最新配置。
 

@@ -87,3 +87,24 @@ export function parseAutoMaxTokensSlashAction(args: string): AutoMaxTokensSlashA
   if (normalized === "model") return value ? { type: "model", model: value } : { type: "help" }
   return { type: "help" }
 }
+
+export type TaskPolicySlashAction =
+  | { type: "dialog"; focus?: string }
+  | { type: "extra-status" }
+  | { type: "extra-on" }
+  | { type: "extra-off" }
+  | { type: "help" }
+
+export function parseTaskPolicySlashAction(args: string): TaskPolicySlashAction {
+  const trimmed = args.trim()
+  if (!trimmed) return { type: "dialog" }
+
+  const [command = "", ...rest] = trimmed.split(/\s+/)
+  const normalized = command.toLowerCase()
+  if (["extra-status", "extra", "status"].includes(normalized)) return { type: "extra-status" }
+  if (["extra-on", "extra-enable", "extra-enabled"].includes(normalized)) return { type: "extra-on" }
+  if (["extra-off", "extra-disable", "extra-disabled"].includes(normalized)) return { type: "extra-off" }
+  if (["help", "-h", "--help"].includes(normalized)) return { type: "help" }
+  if (rest.length === 0) return { type: "dialog", focus: trimmed }
+  return { type: "help" }
+}

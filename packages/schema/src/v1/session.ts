@@ -208,6 +208,23 @@ export const SubtaskPart = Schema.Struct({
   prompt: Schema.String,
   description: Schema.String,
   agent: Schema.String,
+  task_kind: Schema.optional(
+    Schema.Literals([
+      "general",
+      "plan",
+      "architecture",
+      "refactor",
+      "review",
+      "implement",
+      "explore",
+      "visual_check",
+      "debug",
+      "test_fix",
+      "summarize",
+      "compaction",
+    ]),
+  ),
+  task_complexity: Schema.optional(Schema.Literals(["quick", "medium", "complex"])),
   model: Schema.optional(
     Schema.Struct({
       providerID: Provider.ID,
@@ -441,6 +458,23 @@ export const SubtaskPartInput = Schema.Struct({
   prompt: Schema.String,
   description: Schema.String,
   agent: Schema.String,
+  task_kind: Schema.optional(
+    Schema.Literals([
+      "general",
+      "plan",
+      "architecture",
+      "refactor",
+      "review",
+      "implement",
+      "explore",
+      "visual_check",
+      "debug",
+      "test_fix",
+      "summarize",
+      "compaction",
+    ]),
+  ),
+  task_complexity: Schema.optional(Schema.Literals(["quick", "medium", "complex"])),
   model: Schema.optional(
     Schema.Struct({
       providerID: Provider.ID,

@@ -13,7 +13,7 @@ import { Plugin } from "@/plugin"
 import { Config } from "@/config/config"
 import { NotFoundError } from "@/storage/storage"
 
-import { Cause, Effect, Exit, Layer, Context } from "effect"
+import { Effect, Layer, Context } from "effect"
 import { InstanceState } from "@/effect/instance-state"
 import { isOverflow as overflow, usable } from "./overflow"
 import { serviceUse } from "@opencode-ai/core/effect/service-use"
@@ -24,8 +24,7 @@ import { ModelV2 } from "@opencode-ai/core/model"
 import { SessionCompactionEvent } from "@opencode-ai/schema/session-compaction-event"
 import { TaskPolicy } from "./task-policy"
 import { CompactionProfile, type Decision } from "./compaction-profile"
-import { generateText, type ModelMessage } from "ai"
-import { errorMessage } from "@/util/error"
+import { JsonJudge } from "./judge/json-judge"
 
 export const Event = SessionCompactionEvent
 
@@ -41,7 +40,6 @@ const MAX_PRESERVE_RECENT_TOKENS = 8_000
 // failures still fall back to deterministic local inference.
 const PROFILE_JUDGE_TIMEOUT_MS = 60_000
 const PROFILE_JUDGE_FALLBACKS = ["moonshotai-cn/kimi-k2.7-code-highspeed", "deepseek/deepseek-v4-flash"]
-const PROFILE_JUDGE_RAW_PREVIEW_CHARS = 1_200
 type ProgressData = typeof Event.Progress.data.Type
 type ProgressStage = ProgressData["stage"]
 type ProgressModel = ProgressData["model"]
@@ -75,32 +73,6 @@ type CompletedCompaction = {
   userIndex: number
   assistantIndex: number
   summary: string | undefined
-}
-
-function judgeRawPreview(text: string) {
-  const normalized = text.trim().replace(/\s+/g, " ")
-  if (!normalized) return "(empty)"
-  if (normalized.length <= PROFILE_JUDGE_RAW_PREVIEW_CHARS) return normalized
-  return `${normalized.slice(0, PROFILE_JUDGE_RAW_PREVIEW_CHARS - 3)}...`
-}
-
-function record(value: unknown) {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : undefined
-}
-
-function usageMetric(usage: unknown, key: string) {
-  const value = record(usage)?.[key]
-  return typeof value === "number" ? value : undefined
-}
-
-function reasoningTokens(usage: unknown) {
-  const direct = usageMetric(usage, "reasoningTokens")
-  if (direct !== undefined) return direct
-  const details = record(record(usage)?.outputTokenDetails)
-  const value = details?.reasoningTokens
-  return typeof value === "number" ? value : undefined
 }
 
 function summaryText(message: SessionV1.WithParts) {
@@ -359,154 +331,80 @@ const layer = Layer.effect(
       }
     })
 
-    const usableJudgeModel = Effect.fn("SessionCompaction.usableJudgeModel")(function* (model: Provider.Model) {
-      const language = yield* provider.getLanguage(model).pipe(Effect.catchCause(() => Effect.succeed(undefined)))
-      return language ? { model, language } : undefined
-    })
-
-    const profileJudgeModel = Effect.fn("SessionCompaction.profileJudgeModel")(function* (
-      currentModel: Provider.Model,
-    ) {
-      const current = yield* usableJudgeModel(currentModel)
-      if (current) return current
-      for (const candidate of PROFILE_JUDGE_FALLBACKS) {
-        const parsed = Provider.parseModel(candidate)
-        const model = yield* provider
-          .getModel(parsed.providerID, parsed.modelID)
-          .pipe(Effect.catchCause(() => Effect.succeed(undefined)))
-        if (!model) continue
-        const usable = yield* usableJudgeModel(model)
-        if (usable) return usable
-      }
-      const small = yield* provider
-        .getSmallModel(currentModel.providerID)
-        .pipe(Effect.catchCause(() => Effect.succeed(undefined)))
-      return small ? yield* usableJudgeModel(small) : undefined
-    })
-
     const judgeProfile = Effect.fn("SessionCompaction.profileJudge")(function* (input: {
       messages: readonly SessionV1.WithParts[]
       previousSummary?: string
       currentModel: Provider.Model
       sessionID: SessionID
     }) {
-      const judge = yield* profileJudgeModel(input.currentModel)
-      if (!judge) {
-        yield* publishProgress({
-          sessionID: input.sessionID,
-          stage: "judge_result",
-          message: "Compaction judge unavailable; using heuristic profile",
-          judge: { status: "unavailable" },
-        })
-        return { status: "unavailable", decision: undefined } satisfies ProfileJudgeResult
-      }
+      const cfg = yield* config.get()
+      const result = yield* JsonJudge.runJsonJudge<Decision>({
+        name: "compaction profile",
+        sessionID: input.sessionID,
+        provider,
+        config: cfg.task_policy?.judges?.compaction_profile,
+        messages: CompactionProfile.judgeMessages({
+          messages: input.messages,
+          previousSummary: input.previousSummary,
+        }),
+        parse: CompactionProfile.parseJudgeOutput,
+        modelCandidates: PROFILE_JUDGE_FALLBACKS,
+        currentModel: input.currentModel,
+        includeCurrentModel: true,
+        smallModelProviderID: input.currentModel.providerID,
+        timeoutMs: PROFILE_JUDGE_TIMEOUT_MS,
+        maxOutputTokens: (model) => ProviderTransform.maxOutputTokens(model, flags.outputTokenMax),
+        onSelected: (model) =>
+          publishProgress({
+            sessionID: input.sessionID,
+            stage: "judge_started",
+            message: "Compaction profile judge started",
+            model: modelProgress(model),
+            judge: {
+              status: "skipped",
+              providerID: model.providerID,
+              modelID: model.id,
+            },
+          }),
+      })
 
-      const maxOutputTokens = ProviderTransform.maxOutputTokens(judge.model, flags.outputTokenMax)
-      const ctrl = new AbortController()
-      const timeout = setTimeout(() => ctrl.abort(), PROFILE_JUDGE_TIMEOUT_MS)
-      const started = Date.now()
+      const model = result.model ? modelProgress(result.model) : undefined
+      const progressJudge: ProgressJudge = {
+        status: result.status === "disabled" ? "skipped" : result.status,
+        ...(result.model
+          ? {
+              providerID: result.model.providerID,
+              modelID: result.model.id,
+            }
+          : {}),
+        ...(result.elapsedMs !== undefined ? { elapsedMs: result.elapsedMs } : {}),
+        ...(result.error
+          ? { error: result.status === "invalid" ? `invalid output: ${result.error}` : result.error }
+          : {}),
+      }
       yield* publishProgress({
         sessionID: input.sessionID,
-        stage: "judge_started",
-        message: "Compaction profile judge started",
-        model: modelProgress(judge.model),
-        judge: {
-          status: "skipped",
-          providerID: judge.model.providerID,
-          modelID: judge.model.id,
-        },
-      })
-      try {
-        const exit = yield* Effect.exit(
-          Effect.tryPromise(() =>
-            generateText({
-              model: judge.language,
-              maxOutputTokens,
-              abortSignal: ctrl.signal,
-              messages: CompactionProfile.judgeMessages({
-                messages: input.messages,
-                previousSummary: input.previousSummary,
-              }) as ModelMessage[],
-            }),
-          ),
-        )
-        const elapsedMs = Date.now() - started
-        if (Exit.isFailure(exit)) {
-          const message = errorMessage(Cause.squash(exit.cause))
-          yield* Effect.logWarning("compaction profile judge failed", {
-            "session.id": input.sessionID,
-            providerID: judge.model.providerID,
-            modelID: judge.model.id,
-            elapsedMs,
-            error: message,
-          })
-          yield* publishProgress({
-            sessionID: input.sessionID,
-            stage: "judge_result",
-            message: "Compaction judge failed; using heuristic profile",
-            model: modelProgress(judge.model),
-            judge: {
-              status: "failed",
-              providerID: judge.model.providerID,
-              modelID: judge.model.id,
-              elapsedMs,
-              error: message,
-            },
-          })
-          return {
-            status: "failed",
-            decision: undefined,
-            model: modelProgress(judge.model),
-            elapsedMs,
-            error: message,
-          } satisfies ProfileJudgeResult
-        }
-
-        const rawText = exit.value.text
-        const decision = CompactionProfile.parseJudgeOutput(rawText)
-        const status = decision ? "valid" : "invalid"
-        const rawPreview = decision ? undefined : judgeRawPreview(rawText)
-        const usage = exit.value.usage
-        yield* Effect.logInfo("compaction profile judge", {
-          "session.id": input.sessionID,
-          providerID: judge.model.providerID,
-          modelID: judge.model.id,
-          elapsedMs,
-          decision: status,
-          finishReason: exit.value.finishReason,
-          maxOutputTokens,
-          rawChars: rawText.length,
-          "usage.inputTokens": usageMetric(usage, "inputTokens"),
-          "usage.outputTokens": usageMetric(usage, "outputTokens"),
-          "usage.reasoningTokens": reasoningTokens(usage),
-          "usage.totalTokens": usageMetric(usage, "totalTokens"),
-          ...(rawPreview ? { rawPreview } : {}),
-        })
-        yield* publishProgress({
-          sessionID: input.sessionID,
-          stage: "judge_result",
-          message: decision
+        stage: "judge_result",
+        message:
+          result.status === "valid"
             ? "Compaction judge returned a valid profile"
-            : "Compaction judge returned invalid JSON; using heuristic profile",
-          model: modelProgress(judge.model),
-          judge: {
-            status,
-            providerID: judge.model.providerID,
-            modelID: judge.model.id,
-            elapsedMs,
-            ...(rawPreview ? { error: `invalid output: ${rawPreview}` } : {}),
-          },
-        })
-        return {
-          status,
-          decision,
-          model: modelProgress(judge.model),
-          elapsedMs,
-          ...(rawPreview ? { error: rawPreview } : {}),
-        } satisfies ProfileJudgeResult
-      } finally {
-        clearTimeout(timeout)
-      }
+            : result.status === "invalid"
+              ? "Compaction judge returned invalid JSON; using heuristic profile"
+              : result.status === "disabled"
+                ? "Compaction judge disabled; using heuristic profile"
+                : result.status === "unavailable"
+                  ? "Compaction judge unavailable; using heuristic profile"
+                  : "Compaction judge failed; using heuristic profile",
+        model,
+        judge: progressJudge,
+      })
+      return {
+        status: progressJudge.status,
+        decision: result.decision,
+        model,
+        elapsedMs: result.elapsedMs,
+        error: result.error,
+      } satisfies ProfileJudgeResult
     })
 
     // goes backwards through parts until there are PRUNE_PROTECT tokens worth of tool
@@ -709,23 +607,24 @@ const layer = Layer.effect(
           currentModel: model,
           sessionID: input.sessionID,
         })
-        profile =
+        const readyProfile =
           judged.decision ??
           CompactionProfile.infer({
             messages: visibleHistory,
             previousSummary,
           })
+        profile = readyProfile
         yield* publishProgress({
           sessionID: input.sessionID,
           stage: "profile_ready",
-          message: `Compaction profile ready from ${profile.source}`,
-          profile: profileProgress(profile),
+          message: `Compaction profile ready from ${readyProfile.source}`,
+          profile: profileProgress(readyProfile),
         })
         yield* publishProgress({
           sessionID: input.sessionID,
           stage: "active_task",
-          message: profile.active_task.present
-            ? `${profile.active_task.kind}, window ${profile.active_task.window_turns} turns - ${profile.active_task.reason}`
+          message: readyProfile.active_task.present
+            ? `${readyProfile.active_task.kind}, window ${readyProfile.active_task.window_turns} turns - ${readyProfile.active_task.reason}`
             : "none detected",
         })
       }

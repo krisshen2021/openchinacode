@@ -78,6 +78,7 @@ import {
   parseCompactSlashAction,
   parseDirectSlashCommand,
   parseLspSlashAction,
+  parseTaskPolicySlashAction,
   parseTestMcpSlashAction,
 } from "./slash"
 
@@ -226,7 +227,10 @@ function visualPreprocessUserText(inputText: string, imagePaths: string[]) {
   ].join("\n")
 }
 
-function visualPreprocessSubtask(inputText: string, imagePaths: string[]): Omit<SubtaskPart, "id" | "messageID" | "sessionID"> {
+function visualPreprocessSubtask(
+  inputText: string,
+  imagePaths: string[],
+): Omit<SubtaskPart, "id" | "messageID" | "sessionID"> {
   return {
     type: "subtask",
     agent: "general",
@@ -329,6 +333,17 @@ async function writeGlobalAutoMaxTokensConfig(value: AutoMaxTokensConfig) {
   const current = await readGlobalConfigFile()
   const before = current.text.trim() ? current.text : JSON.stringify({ $schema: CONFIG_SCHEMA }, null, 2)
   const after = Jsonc.patch(before, { auto_maxtokens: value })
+  if (after !== current.text) await writeFile(current.file, after)
+  return {
+    file: current.file,
+    changed: after !== current.text,
+  }
+}
+
+async function writeGlobalTaskPolicyExtraRouterConfig(enabled: boolean) {
+  const current = await readGlobalConfigFile()
+  const before = current.text.trim() ? current.text : JSON.stringify({ $schema: CONFIG_SCHEMA }, null, 2)
+  const after = Jsonc.patch(before, { task_policy: { extra_router: { enabled } } })
   if (after !== current.text) await writeFile(current.file, after)
   return {
     file: current.file,
@@ -773,6 +788,84 @@ export function Prompt(props: PromptProps) {
     }
   }
 
+  function currentTaskPolicyConfig() {
+    const value = (sync.data.config as { task_policy?: unknown }).task_policy
+    return isRecord(value) ? value : {}
+  }
+
+  function currentTaskPolicyExtraRouterEnabled() {
+    const policy = currentTaskPolicyConfig()
+    const extra = isRecord(policy.extra_router) ? policy.extra_router : {}
+    return extra.enabled === true
+  }
+
+  function showTaskPolicyExtraRouterStatus() {
+    toast.show({
+      title: "Task policy extra router",
+      message: `Extra router is ${currentTaskPolicyExtraRouterEnabled() ? "on" : "off"}. Usage: /task-policy extra-on, /task-policy extra-off, /task-policy extra-status`,
+      variant: "info",
+      duration: 8000,
+    })
+  }
+
+  async function setTaskPolicyExtraRouterEnabled(enabled: boolean) {
+    try {
+      const result = await writeGlobalTaskPolicyExtraRouterConfig(enabled)
+      const current = currentTaskPolicyConfig()
+      const currentExtra = isRecord(current.extra_router) ? current.extra_router : {}
+      sync.set(
+        "config",
+        "task_policy" as any,
+        {
+          ...current,
+          extra_router: {
+            ...currentExtra,
+            enabled,
+          },
+        } as any,
+      )
+      toast.show({
+        title: enabled ? "Task policy extra router enabled" : "Task policy extra router disabled",
+        message: `${result.changed ? "Updated config" : "Config already set"}: ${result.file}. Restart OpenChinaCode to apply it to new turns.`,
+        variant: "success",
+        duration: 8000,
+      })
+    } catch (error) {
+      toast.show({
+        title: "Failed to update task policy extra router",
+        message: errorMessage(error),
+        variant: "error",
+        duration: 7000,
+      })
+    }
+  }
+
+  function handleTaskPolicySlash(args: string) {
+    const action = parseTaskPolicySlashAction(args)
+    switch (action.type) {
+      case "dialog":
+        showTaskPolicyDialog(action.focus)
+        return
+      case "extra-status":
+        showTaskPolicyExtraRouterStatus()
+        return
+      case "extra-on":
+        void setTaskPolicyExtraRouterEnabled(true)
+        return
+      case "extra-off":
+        void setTaskPolicyExtraRouterEnabled(false)
+        return
+      case "help":
+        toast.show({
+          title: "Task policy command",
+          message: "Usage: /task-policy [focus|extra-status|extra-on|extra-off]",
+          variant: "info",
+          duration: 8000,
+        })
+        return
+    }
+  }
+
   function selectDialog<T>(title: string, options: readonly DialogSelectOption<T>[], current?: T) {
     return new Promise<T | null>((resolve) => {
       let settled = false
@@ -1018,7 +1111,11 @@ export function Prompt(props: PromptProps) {
       [
         { title: "Text/reference", value: "reference", description: "Prompt plus optional reference images/videos" },
         { title: "First frame", value: "first_frame", description: "Use one image as the exact first frame" },
-        { title: "First + last frame", value: "first_last_frame", description: "Use two images as strict first and last frames" },
+        {
+          title: "First + last frame",
+          value: "first_last_frame",
+          description: "Use two images as strict first and last frames",
+        },
       ] as const,
       "reference",
     )
@@ -1418,7 +1515,7 @@ export function Prompt(props: PromptProps) {
       },
       {
         title: "Task policy",
-        desc: "Usage: /task-policy [focus] - show OpenChinaCode task routing",
+        desc: "Usage: /task-policy [focus|extra-status|extra-on|extra-off] - show routing or toggle extra task router",
         name: "openchinacode.task_policy",
         category: "OpenChinaCode",
         slashName: "task-policy",
@@ -2371,7 +2468,8 @@ export function Prompt(props: PromptProps) {
       return true
     }
     if (parsed.command === "task-policy") {
-      showTaskPolicyDialog(parsed.args)
+      clearPrompt()
+      handleTaskPolicySlash(parsed.args)
       return true
     }
     if (parsed.args) return false

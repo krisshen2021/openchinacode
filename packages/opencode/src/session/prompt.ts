@@ -56,6 +56,7 @@ import { SessionTable } from "@opencode-ai/core/session/sql"
 import { SessionReminders } from "./reminders"
 import { SessionTools } from "./tools"
 import { LLMEvent } from "@opencode-ai/llm"
+import { TaskRouterJudge } from "./judge/task-router"
 
 // @ts-ignore
 globalThis.AI_SDK_LOG_WARNINGS = false
@@ -97,6 +98,64 @@ function isOrphanedInterruptedTool(part: SessionV1.ToolPart) {
   // cleanup() marks abandoned tool_use blocks this way after retries/aborts.
   // They are not pending work and must not trigger an assistant-prefill request.
   return part.state.status === "error" && part.state.metadata?.interrupted === true
+}
+
+function truncateText(value: string, max: number) {
+  const text = value.trim()
+  if (text.length <= max) return text
+  return `${text.slice(0, max - 3)}...`
+}
+
+function promptPartText(parts: readonly PromptInput["parts"][number][]) {
+  return parts
+    .filter((part): part is SessionV1.TextPartInput => part.type === "text")
+    .map((part) => part.text.trim())
+    .filter(Boolean)
+    .join("\n\n")
+    .trim()
+}
+
+function promptPartSummary(parts: readonly PromptInput["parts"][number][]) {
+  return parts.map((part) => {
+    if (part.type === "text") return `text:${Math.min(part.text.length, 9999)}chars`
+    if (part.type === "file") return `file:${part.mime}:${part.filename ?? "attachment"}`
+    if (part.type === "agent") return `agent:${part.name}`
+    if (part.type === "subtask") return `subtask:${part.agent}:${part.description}`
+    return "part"
+  })
+}
+
+function sessionMessageText(message: SessionV1.WithParts) {
+  const chunks: string[] = []
+  for (const part of message.parts) {
+    if (part.type === "text" && part.text.trim()) chunks.push(part.text)
+    if (part.type === "tool") {
+      const state = part.state
+      if (state.status === "completed" && typeof state.output === "string" && state.output.trim()) {
+        chunks.push(`[tool:${part.tool}] ${truncateText(state.output, 1_200)}`)
+      }
+      if (state.status === "error" && state.error) chunks.push(`[tool:${part.tool} error] ${state.error}`)
+    }
+  }
+  return chunks
+    .map((chunk) => truncateText(chunk, 1_500))
+    .filter(Boolean)
+    .join("\n")
+}
+
+function recentSessionContext(messages: SessionV1.WithParts[], limit = 8_000) {
+  const lines: string[] = []
+  let total = 0
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i]
+    const text = sessionMessageText(msg)
+    if (!text) continue
+    const line = `[${msg.info.role}${msg.info.agent ? `:${msg.info.agent}` : ""}] ${text}`
+    total += line.length
+    lines.unshift(line)
+    if (total >= limit) break
+  }
+  return truncateText(lines.join("\n\n"), limit)
 }
 
 export interface Interface {
@@ -294,6 +353,8 @@ const layer = Layer.effect(
             description: task.description,
             subagent_type: task.agent,
             command: task.command,
+            task_kind: task.task_kind,
+            task_complexity: task.task_complexity,
           },
           time: { start: Date.now() },
         },
@@ -303,6 +364,8 @@ const layer = Layer.effect(
         description: task.description,
         subagent_type: task.agent,
         command: task.command,
+        task_kind: task.task_kind,
+        task_complexity: task.task_complexity,
       }
       yield* plugin.trigger(
         "tool.execute.before",
@@ -635,6 +698,94 @@ const layer = Layer.effect(
         .pipe(Effect.orDie)
       if (Option.isSome(match) && match.value.info.role === "user") return match.value.info.model
       return yield* provider.defaultModel().pipe(Effect.orDie)
+    })
+
+    const applyExtraTaskRouter = Effect.fn("SessionPrompt.applyExtraTaskRouter")(function* (input: PromptInput) {
+      const cfg = yield* config.get()
+      const extra = cfg.task_policy?.extra_router
+      if (cfg.task_policy?.enabled === false || extra?.enabled !== true) return input
+      if (input.noReply === true) return input
+      if (input.parts.some((part) => part.type === "subtask" || part.type === "agent" || part.type === "file")) {
+        return input
+      }
+
+      const promptText = promptPartText(input.parts)
+      if (!promptText || promptText.startsWith("/")) return input
+
+      const ag = input.agent ? yield* agents.get(input.agent) : yield* agents.defaultInfo()
+      if (ag.mode === "subagent") return input
+
+      const modelRef = input.model ?? ag.model ?? (yield* currentModel(input.sessionID))
+      const current = yield* getModel(modelRef.providerID, modelRef.modelID, input.sessionID)
+      const history = yield* MessageV2.filterCompactedEffect(input.sessionID).pipe(
+        Effect.provideService(Database.Service, database),
+        Effect.catchCause(() => Effect.succeed([] as SessionV1.WithParts[])),
+      )
+      const recentContext = recentSessionContext(history)
+      const localAssignment = TaskRouterJudge.localAssignment({ prompt: promptText, agent: ag })
+      const judged = yield* TaskRouterJudge.run({
+        provider,
+        taskPolicyJudge: cfg.task_policy?.judges?.task_router,
+        prompt: promptText,
+        recentContext,
+        currentModel: current,
+        agent: ag,
+        localAssignment,
+        partSummary: promptPartSummary(input.parts),
+        sessionID: input.sessionID,
+      }).pipe(
+        Effect.catchCause((cause) =>
+          Effect.logWarning("extra task router failed", {
+            "session.id": input.sessionID,
+            error: Cause.pretty(cause),
+          }).pipe(Effect.as(undefined)),
+        ),
+      )
+      const decision = judged?.decision
+      if (!decision || !TaskRouterJudge.shouldDelegate(decision, extra)) return input
+
+      const subagent = yield* agents
+        .get(decision.subagent_type)
+        .pipe(Effect.catchCause(() => agents.get(decision.task_kind === "explore" ? "explore" : "general")))
+      const subtaskPrompt = TaskRouterJudge.buildSubtaskPrompt({
+        decision,
+        prompt: promptText,
+        recentContext,
+      })
+      yield* Effect.logInfo("extra task router delegated", {
+        "session.id": input.sessionID,
+        agent: subagent.name,
+        taskKind: decision.task_kind,
+        taskComplexity: decision.task_complexity,
+        confidence: decision.confidence,
+        description: decision.description,
+        reason: decision.reason,
+      })
+      const routerPart: SessionV1.TextPartInput = {
+        type: "text",
+        synthetic: true,
+        text: [
+          "<openchinacode-extra-task-router>",
+          `decision: ${decision.task_kind}.${decision.task_complexity}`,
+          `subagent: ${subagent.name}`,
+          `confidence: ${decision.confidence}`,
+          `reason: ${decision.reason}`,
+          "</openchinacode-extra-task-router>",
+        ].join("\n"),
+      }
+      const subtaskPart: SessionV1.SubtaskPartInput = {
+        type: "subtask",
+        agent: subagent.name,
+        description: decision.description,
+        command: "openchinacode.extra_task_router",
+        prompt: subtaskPrompt,
+        task_kind: decision.task_kind,
+        task_complexity: decision.task_complexity,
+      }
+      return {
+        ...input,
+        parts: [...input.parts, routerPart, subtaskPart],
+      }
     })
 
     const createUserMessage = Effect.fn("SessionPrompt.createUserMessage")(function* (input: PromptInput) {
@@ -1059,11 +1210,12 @@ const layer = Layer.effect(
     )(function* (input: PromptInput) {
       const session = yield* sessions.get(input.sessionID).pipe(Effect.orDie)
       yield* revert.cleanup(session)
-      const message = yield* createUserMessage(input)
-      yield* sessions.touch(input.sessionID)
+      const routedInput = yield* applyExtraTaskRouter(input)
+      const message = yield* createUserMessage(routedInput)
+      yield* sessions.touch(routedInput.sessionID)
 
       const permissions: PermissionV1.Rule[] = []
-      for (const [t, enabled] of Object.entries(input.tools ?? {})) {
+      for (const [t, enabled] of Object.entries(routedInput.tools ?? {})) {
         permissions.push({ permission: t, action: enabled ? "allow" : "deny", pattern: "*" })
       }
       if (permissions.length > 0) {
@@ -1071,8 +1223,8 @@ const layer = Layer.effect(
         yield* sessions.setPermission({ sessionID: session.id, permission: permissions })
       }
 
-      if (input.noReply === true) return message
-      return yield* loop({ sessionID: input.sessionID })
+      if (routedInput.noReply === true) return message
+      return yield* loop({ sessionID: routedInput.sessionID })
     })
 
     const lastAssistant = Effect.fnUntraced(function* (sessionID: SessionID) {
