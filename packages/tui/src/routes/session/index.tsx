@@ -89,6 +89,7 @@ const GO_UPSELL_FREE_TIER_LAST_SEEN_AT = "go_upsell_last_seen_at"
 const GO_UPSELL_FREE_TIER_DONT_SHOW = "go_upsell_dont_show"
 const GO_UPSELL_ACCOUNT_RATE_LIMIT_LAST_SEEN_AT = "go_upsell_account_rate_limit_last_seen_at"
 const GO_UPSELL_ACCOUNT_RATE_LIMIT_DONT_SHOW = "go_upsell_account_rate_limit_dont_show"
+const EXTRA_TASK_ROUTER_STATUS_KIND = "openchinacode.extra_router_status"
 const GO_UPSELL_WINDOW = 86_400_000 // 24 hrs
 const GO_UPSELL_PROVIDERS = new Set(["opencode", "opencode-go"])
 
@@ -1481,6 +1482,11 @@ function UserMessage(props: {
   const metadataVisible = createMemo(() => queued() || ctx.showTimestamps())
 
   const compaction = createMemo(() => props.parts.find((x) => x.type === "compaction"))
+  const extraRouterStatus = createMemo(() =>
+    props.parts.find(
+      (part): part is TextPart => part.type === "text" && part.metadata?.kind === EXTRA_TASK_ROUTER_STATUS_KIND,
+    ),
+  )
 
   return (
     <>
@@ -1543,6 +1549,13 @@ function UserMessage(props: {
             </Show>
           </box>
         </box>
+      </Show>
+      <Show when={extraRouterStatus()}>
+        {(part) => (
+          <box marginTop={1} paddingLeft={2}>
+            <Spinner color={theme.textMuted}>{part().text || "Task policy judging..."}</Spinner>
+          </box>
+        )}
       </Show>
       <Show when={compaction()}>
         <box
@@ -2770,7 +2783,8 @@ function safeMediaRef(value: unknown) {
   if (typeof value !== "string" || !value.trim()) return
   const raw = value.trim()
   if (raw.startsWith("data:")) return raw.split(";")[0] ?? "data"
-  if (raw.startsWith("asset://") || raw.startsWith("qasset://")) return raw.slice(0, 36) + (raw.length > 36 ? "..." : "")
+  if (raw.startsWith("asset://") || raw.startsWith("qasset://"))
+    return raw.slice(0, 36) + (raw.length > 36 ? "..." : "")
   try {
     const url = new URL(raw)
     if (url.protocol === "http:" || url.protocol === "https:") {

@@ -687,6 +687,8 @@ Extra router：
 
 默认是关闭。开启后，普通请求如果被判断为适合委派，例如复杂重构、代码审查、debug、测试修复、架构规划，会自动插入一个 `subtask` part，并带上 `task_kind` / `task_complexity`，再由 task policy 选择 GLM/Kimi/DeepSeek 路由。已有粘贴图片视觉预处理、显式 subtask、agent 调用、附件输入不会再次触发 extra router。
 
+开启后，用户输入会先立即上屏；判断期间 TUI 会显示 `Task policy judging...` 动画提示，判断完成后提示消失，并切换为真实 subtask 行或普通模型回复。
+
 ### `/task-classify`
 
 让模型根据任务内容判断：

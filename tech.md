@@ -514,13 +514,31 @@ TUI 工具调用摘要：
 
 ```text
 ordinary prompt
+-> SessionPrompt.createUserMessage() saves the visible user prompt first
+-> insert ignored synthetic extra-router status text part
 -> SessionPrompt.applyExtraTaskRouter()
 -> TaskRouterJudge.run() fast JSON judge
--> insert synthetic route note + subtask part
+-> remove status part
+-> insert synthetic route note + subtask part when delegated
 -> MessageV2.latest() picks queued subtask
 -> TaskTool receives task_kind/task_complexity
 -> TaskPolicy.select() chooses routed model
 ```
+
+TUI 状态 part 约定：
+
+```ts
+{
+  type: "text",
+  synthetic: true,
+  ignored: true,
+  metadata: { kind: "openchinacode.extra_router_status" }
+}
+```
+
+`ignored: true` 保证状态提示不会进入模型上下文；`packages/tui/src/routes/session/index.tsx` 只用它显示 `Task policy judging...` spinner。judge 完成、失败或不委派时，后端都会删除该 part。
+
+委派成功后的 route note 仍保持原有行为：`synthetic: true` 但不设置 `ignored`，用于给后续主模型保留路由决策上下文。
 
 保护条件：
 

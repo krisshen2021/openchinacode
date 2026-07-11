@@ -64,6 +64,8 @@ globalThis.AI_SDK_LOG_WARNINGS = false
 const decodeMessageInfo = Schema.decodeUnknownExit(SessionV1.Info)
 const decodeMessagePart = Schema.decodeUnknownExit(SessionV1.Part)
 const MAX_MCP_RESOURCE_BLOB_BYTES = 10 * 1024 * 1024
+const EXTRA_TASK_ROUTER_COMMAND = "openchinacode.extra_task_router"
+const EXTRA_TASK_ROUTER_STATUS_KIND = "openchinacode.extra_router_status"
 const SUPPORTED_MCP_RESOURCE_ATTACHMENT_MIMES = new Set([
   "application/pdf",
   "image/gif",
@@ -700,92 +702,136 @@ const layer = Layer.effect(
       return yield* provider.defaultModel().pipe(Effect.orDie)
     })
 
-    const applyExtraTaskRouter = Effect.fn("SessionPrompt.applyExtraTaskRouter")(function* (input: PromptInput) {
+    const applyExtraTaskRouter = Effect.fn("SessionPrompt.applyExtraTaskRouter")(function* (
+      input: PromptInput,
+      message: SessionV1.WithParts,
+    ) {
       const cfg = yield* config.get()
       const extra = cfg.task_policy?.extra_router
-      if (cfg.task_policy?.enabled === false || extra?.enabled !== true) return input
-      if (input.noReply === true) return input
+      if (cfg.task_policy?.enabled === false || extra?.enabled !== true) return
+      if (input.noReply === true) return
       if (input.parts.some((part) => part.type === "subtask" || part.type === "agent" || part.type === "file")) {
-        return input
+        return
       }
 
       const promptText = promptPartText(input.parts)
-      if (!promptText || promptText.startsWith("/")) return input
+      if (!promptText || promptText.startsWith("/")) return
 
       const ag = input.agent ? yield* agents.get(input.agent) : yield* agents.defaultInfo()
-      if (ag.mode === "subagent") return input
+      if (ag.mode === "subagent") return
 
       const modelRef = input.model ?? ag.model ?? (yield* currentModel(input.sessionID))
       const current = yield* getModel(modelRef.providerID, modelRef.modelID, input.sessionID)
-      const history = yield* MessageV2.filterCompactedEffect(input.sessionID).pipe(
-        Effect.provideService(Database.Service, database),
-        Effect.catchCause(() => Effect.succeed([] as SessionV1.WithParts[])),
-      )
-      const recentContext = recentSessionContext(history)
-      const localAssignment = TaskRouterJudge.localAssignment({ prompt: promptText, agent: ag })
-      const judged = yield* TaskRouterJudge.run({
-        provider,
-        taskPolicyJudge: cfg.task_policy?.judges?.task_router,
-        prompt: promptText,
-        recentContext,
-        currentModel: current,
-        agent: ag,
-        localAssignment,
-        partSummary: promptPartSummary(input.parts),
+      const statusPart: SessionV1.TextPart = {
+        id: PartID.ascending(),
+        messageID: message.info.id,
         sessionID: input.sessionID,
-      }).pipe(
-        Effect.catchCause((cause) =>
-          Effect.logWarning("extra task router failed", {
-            "session.id": input.sessionID,
-            error: Cause.pretty(cause),
-          }).pipe(Effect.as(undefined)),
-        ),
-      )
-      const decision = judged?.decision
-      if (!decision || !TaskRouterJudge.shouldDelegate(decision, extra)) return input
-
-      const subagent = yield* agents
-        .get(decision.subagent_type)
-        .pipe(Effect.catchCause(() => agents.get(decision.task_kind === "explore" ? "explore" : "general")))
-      const subtaskPrompt = TaskRouterJudge.buildSubtaskPrompt({
-        decision,
-        prompt: promptText,
-        recentContext,
-      })
-      yield* Effect.logInfo("extra task router delegated", {
-        "session.id": input.sessionID,
-        agent: subagent.name,
-        taskKind: decision.task_kind,
-        taskComplexity: decision.task_complexity,
-        confidence: decision.confidence,
-        description: decision.description,
-        reason: decision.reason,
-      })
-      const routerPart: SessionV1.TextPartInput = {
         type: "text",
         synthetic: true,
-        text: [
-          "<openchinacode-extra-task-router>",
-          `decision: ${decision.task_kind}.${decision.task_complexity}`,
-          `subagent: ${subagent.name}`,
-          `confidence: ${decision.confidence}`,
-          `reason: ${decision.reason}`,
-          "</openchinacode-extra-task-router>",
-        ].join("\n"),
+        ignored: true,
+        text: "Task policy judging...",
+        metadata: {
+          kind: EXTRA_TASK_ROUTER_STATUS_KIND,
+          command: EXTRA_TASK_ROUTER_COMMAND,
+        },
+        time: { start: Date.now() },
       }
-      const subtaskPart: SessionV1.SubtaskPartInput = {
-        type: "subtask",
-        agent: subagent.name,
-        description: decision.description,
-        command: "openchinacode.extra_task_router",
-        prompt: subtaskPrompt,
-        task_kind: decision.task_kind,
-        task_complexity: decision.task_complexity,
-      }
-      return {
-        ...input,
-        parts: [...input.parts, routerPart, subtaskPart],
-      }
+      yield* sessions.updatePart(statusPart)
+
+      return yield* Effect.gen(function* () {
+        const history = yield* MessageV2.filterCompactedEffect(input.sessionID).pipe(
+          Effect.provideService(Database.Service, database),
+          Effect.map((items) => items.filter((item) => item.info.id !== message.info.id)),
+          Effect.catchCause(() => Effect.succeed([] as SessionV1.WithParts[])),
+        )
+        const recentContext = recentSessionContext(history)
+        const localAssignment = TaskRouterJudge.localAssignment({ prompt: promptText, agent: ag })
+        const judged = yield* TaskRouterJudge.run({
+          provider,
+          taskPolicyJudge: cfg.task_policy?.judges?.task_router,
+          prompt: promptText,
+          recentContext,
+          currentModel: current,
+          agent: ag,
+          localAssignment,
+          partSummary: promptPartSummary(input.parts),
+          sessionID: input.sessionID,
+        }).pipe(
+          Effect.catchCause((cause) =>
+            Effect.logWarning("extra task router failed", {
+              "session.id": input.sessionID,
+              error: Cause.pretty(cause),
+            }).pipe(Effect.as(undefined)),
+          ),
+        )
+        const decision = judged?.decision
+        if (!decision || !TaskRouterJudge.shouldDelegate(decision, extra)) return
+
+        const subagent = yield* agents
+          .get(decision.subagent_type)
+          .pipe(Effect.catchCause(() => agents.get(decision.task_kind === "explore" ? "explore" : "general")))
+        const subtaskPrompt = TaskRouterJudge.buildSubtaskPrompt({
+          decision,
+          prompt: promptText,
+          recentContext,
+        })
+        yield* Effect.logInfo("extra task router delegated", {
+          "session.id": input.sessionID,
+          agent: subagent.name,
+          taskKind: decision.task_kind,
+          taskComplexity: decision.task_complexity,
+          confidence: decision.confidence,
+          description: decision.description,
+          reason: decision.reason,
+        })
+        const routerPart: SessionV1.TextPart = {
+          id: PartID.ascending(),
+          messageID: message.info.id,
+          sessionID: input.sessionID,
+          type: "text",
+          synthetic: true,
+          text: [
+            "<openchinacode-extra-task-router>",
+            `decision: ${decision.task_kind}.${decision.task_complexity}`,
+            `subagent: ${subagent.name}`,
+            `confidence: ${decision.confidence}`,
+            `reason: ${decision.reason}`,
+            "</openchinacode-extra-task-router>",
+          ].join("\n"),
+          metadata: {
+            kind: "openchinacode.extra_router_decision",
+            command: EXTRA_TASK_ROUTER_COMMAND,
+            task_kind: decision.task_kind,
+            task_complexity: decision.task_complexity,
+            subagent: subagent.name,
+            confidence: decision.confidence,
+          },
+        }
+        const subtaskPart: SessionV1.SubtaskPart = {
+          id: PartID.ascending(),
+          messageID: message.info.id,
+          sessionID: input.sessionID,
+          type: "subtask",
+          agent: subagent.name,
+          description: decision.description,
+          command: EXTRA_TASK_ROUTER_COMMAND,
+          prompt: subtaskPrompt,
+          task_kind: decision.task_kind,
+          task_complexity: decision.task_complexity,
+        }
+        yield* sessions.updatePart(routerPart)
+        yield* sessions.updatePart(subtaskPart)
+      }).pipe(
+        Effect.ensuring(
+          sessions
+            .removePart({
+              sessionID: input.sessionID,
+              messageID: message.info.id,
+              partID: statusPart.id,
+            })
+            .pipe(Effect.ignore),
+        ),
+      )
     })
 
     const createUserMessage = Effect.fn("SessionPrompt.createUserMessage")(function* (input: PromptInput) {
@@ -1210,12 +1256,11 @@ const layer = Layer.effect(
     )(function* (input: PromptInput) {
       const session = yield* sessions.get(input.sessionID).pipe(Effect.orDie)
       yield* revert.cleanup(session)
-      const routedInput = yield* applyExtraTaskRouter(input)
-      const message = yield* createUserMessage(routedInput)
-      yield* sessions.touch(routedInput.sessionID)
+      const message = yield* createUserMessage(input)
+      yield* sessions.touch(input.sessionID)
 
       const permissions: PermissionV1.Rule[] = []
-      for (const [t, enabled] of Object.entries(routedInput.tools ?? {})) {
+      for (const [t, enabled] of Object.entries(input.tools ?? {})) {
         permissions.push({ permission: t, action: enabled ? "allow" : "deny", pattern: "*" })
       }
       if (permissions.length > 0) {
@@ -1223,8 +1268,9 @@ const layer = Layer.effect(
         yield* sessions.setPermission({ sessionID: session.id, permission: permissions })
       }
 
-      if (routedInput.noReply === true) return message
-      return yield* loop({ sessionID: routedInput.sessionID })
+      if (input.noReply === true) return message
+      yield* applyExtraTaskRouter(input, message)
+      return yield* loop({ sessionID: input.sessionID })
     })
 
     const lastAssistant = Effect.fnUntraced(function* (sessionID: SessionID) {
