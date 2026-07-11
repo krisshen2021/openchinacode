@@ -692,12 +692,13 @@ const layer: Layer.Layer<
 
     const fork = Effect.fn("Session.fork")(function* (input: { sessionID: SessionID; messageID?: MessageID }) {
       const ctx = yield* InstanceState.context
+      const workspace = yield* InstanceState.workspaceID
       const original = yield* get(input.sessionID)
       const title = getForkedTitle(original.title)
       const session = yield* createNext({
         directory: ctx.directory,
         path: sessionPath(ctx.worktree, ctx.directory),
-        workspaceID: original.workspaceID,
+        workspaceID: workspace,
         title,
         metadata: structuredClone(original.metadata),
       })

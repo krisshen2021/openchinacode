@@ -18,8 +18,11 @@ import { errorMessage } from "../util/error"
 import { DialogSessionDeleteFailed } from "./dialog-session-delete-failed"
 import { useCommandShortcut } from "../keymap"
 import { useEvent } from "../context/event"
+import { createOpencodeClient, type GlobalSession, type Session } from "@opencode-ai/sdk/v2"
 
 type SessionListFilter = { scope?: "project"; path?: string }
+type SessionListScope = "project" | "all"
+type SessionListItem = Session | GlobalSession
 
 export function createDialogSessionListQuery(input: { search?: string; filter: SessionListFilter }) {
   const search = input.search?.trim()
@@ -42,7 +45,26 @@ export function loadDialogSessionList<T>(input: {
   )
 }
 
-export function DialogSessionList() {
+function createGlobalSessionListQuery(input: { search?: string }) {
+  const search = input.search?.trim()
+  return {
+    roots: true,
+    limit: search ? 30 : 100,
+    ...(search ? { search } : {}),
+  }
+}
+
+function loadGlobalSessionList(input: {
+  search?: string
+  list: (query: ReturnType<typeof createGlobalSessionListQuery>) => Promise<{ data?: GlobalSession[] }>
+}) {
+  return input.list(createGlobalSessionListQuery(input)).then(
+    (result) => result.data,
+    () => undefined,
+  )
+}
+
+export function DialogSessionList(props?: { initialScope?: SessionListScope }) {
   const dialog = useDialog()
   const route = useRoute()
   const sync = useSync()
@@ -52,6 +74,8 @@ export function DialogSessionList() {
   const event = useEvent()
   const local = useLocal()
   const toast = useToast()
+  const globalClient = createMemo(() => createOpencodeClient({ baseUrl: sdk.url, fetch: sdk.fetch }))
+  const [scope, setScope] = createSignal<SessionListScope>(props?.initialScope ?? "project")
   const [toDelete, setToDelete] = createSignal<string>()
   const [deleted, setDeleted] = createSignal(new Set<string>())
   const [search, setSearch] = createDebouncedSignal("", 150)
@@ -59,14 +83,16 @@ export function DialogSessionList() {
   const quickSwitch1 = useCommandShortcut("session.quick_switch.1")
   const quickSwitch9 = useCommandShortcut("session.quick_switch.9")
 
-  const [browseResults, { refetch: refetchBrowse }] = createResource(
-    () => sync.session.query(),
+  const projectListFilter = () => ({ scope: "project" as const })
+
+  const [projectBrowseResults, { refetch: refetchProjectBrowse }] = createResource(
+    projectListFilter,
     (filter) => loadDialogSessionList({ filter, list: (query) => sdk.client.session.list(query) }),
   )
-  const [searchResults, { refetch }] = createResource(
-    () => ({ query: search(), filter: sync.session.query() }),
+  const [projectSearchResults, { refetch: refetchProjectSearch }] = createResource(
+    () => ({ query: search(), scope: scope(), filter: projectListFilter() }),
     (input) => {
-      if (!input.query) return undefined
+      if (input.scope !== "project" || !input.query) return undefined
       return loadDialogSessionList({
         search: input.query,
         filter: input.filter,
@@ -74,20 +100,39 @@ export function DialogSessionList() {
       })
     },
   )
+  const [globalBrowseResults, { refetch: refetchGlobalBrowse }] = createResource(
+    () => scope() === "all",
+    (enabled) =>
+      enabled ? loadGlobalSessionList({ list: (query) => globalClient().experimental.session.list(query) }) : undefined,
+  )
+  const [globalSearchResults, { refetch: refetchGlobalSearch }] = createResource(
+    () => ({ query: search(), scope: scope() }),
+    (input) => {
+      if (input.scope !== "all" || !input.query) return undefined
+      return loadGlobalSessionList({
+        search: input.query,
+        list: (query) => globalClient().experimental.session.list(query),
+      })
+    },
+  )
 
   const currentSessionID = createMemo(() => (route.data.type === "session" ? route.data.sessionID : undefined))
   const sessions = createMemo(() => {
-    const result = searchResults() ?? browseResults() ?? sync.data.session
+    const result =
+      scope() === "all"
+        ? (globalSearchResults() ?? globalBrowseResults() ?? [])
+        : (projectSearchResults() ?? projectBrowseResults() ?? sync.data.session)
     const synced = new Map(sync.data.session.map((session) => [session.id, session]))
     const ids = new Set(result.map((session) => session.id))
-    const extra = [currentSessionID(), ...local.session.pinned()].flatMap((id) => {
+    const extraIDs = scope() === "all" ? [currentSessionID()] : [currentSessionID(), ...local.session.pinned()]
+    const extra = extraIDs.flatMap((id) => {
       if (!id || ids.has(id)) return []
       const session = synced.get(id)
       if (session) ids.add(id)
       return session ? [session] : []
     })
     const query = search().trim().toLowerCase()
-    return [...result.map((session) => synced.get(session.id) ?? session), ...extra]
+    return [...result.map((session) => (scope() === "project" ? (synced.get(session.id) ?? session) : session)), ...extra]
       .filter((session) => !deleted().has(session.id))
       .filter((session) => !query || session.title.toLowerCase().includes(query))
   })
@@ -161,8 +206,12 @@ export function DialogSessionList() {
           }
           await project.workspace.sync()
           await sync.session.refresh()
-          await refetchBrowse()
-          if (search()) await refetch()
+          await refetchProjectBrowse()
+          if (search()) await refetchProjectSearch()
+          if (scope() === "all") {
+            await refetchGlobalBrowse()
+            if (search()) await refetchGlobalSearch()
+          }
           if (info?.workspaceID === session.workspaceID) {
             route.navigate({ type: "home" })
           }
@@ -185,14 +234,16 @@ export function DialogSessionList() {
     ))
   }
 
-  function orderByRecency(sessionsList: NonNullable<ReturnType<typeof sessions>>) {
+  function orderByRecency(sessionsList: SessionListItem[]) {
     return sessionsList
       .filter((x) => x.parentID === undefined)
       .toSorted((a, b) => b.time.updated - a.time.updated)
       .map((x) => x.id)
   }
 
-  const browseOrder = createMemo(() => orderByRecency(browseResults() ?? sync.data.session))
+  const browseOrder = createMemo(() =>
+    orderByRecency(scope() === "all" ? (globalBrowseResults() ?? []) : (projectBrowseResults() ?? sync.data.session)),
+  )
 
   const quickSwitchHint = createMemo(() => {
     const first = quickSwitch1()
@@ -213,25 +264,19 @@ export function DialogSessionList() {
         .map((x) => [x.id, x]),
     )
 
-    const searchResult = searchResults()
+    const searchResult = scope() === "all" ? globalSearchResults() : projectSearchResults()
     const order = searchResult ? orderByRecency(sessions()) : browseOrder()
     const current = currentSessionID()
     const displayOrder = current && sessionMap.has(current) && !order.includes(current) ? [...order, current] : order
 
-    const pinned = local.session.pinned().filter((id) => sessionMap.has(id))
+    const pinned = scope() === "project" ? local.session.pinned().filter((id) => sessionMap.has(id)) : []
     const pinnedSet = new Set(pinned)
     const slotByID = new Map<string, number>(local.session.slots().map((id, i) => [id, i + 1]))
 
     function buildOption(id: string, category: string) {
       const x = sessionMap.get(id)
       if (!x) return undefined
-      const directory = x.path
-        ? x.directory.endsWith(x.path)
-          ? x.directory.slice(0, -x.path.length).replace(/\/$/, "")
-          : undefined
-        : x.directory
-      const footer =
-        directory && directory !== project.data.project.mainDir ? Locale.truncate(path.basename(directory), 20) : ""
+      const footer = scope() === "all" ? globalSessionFooter(x) : projectSessionFooter(x, project.data.project.mainDir)
 
       const isDeleting = toDelete() === x.id
       const status = sync.data.session_status?.[x.id]
@@ -269,9 +314,38 @@ export function DialogSessionList() {
     dialog.setSize("large")
   })
 
+  function switchScope(next: SessionListScope) {
+    if (scope() === next) return
+    setToDelete(undefined)
+    setScope(next)
+  }
+
+  async function refreshSessionLists() {
+    await sync.session.refresh()
+    await refetchProjectBrowse()
+    if (search()) await refetchProjectSearch()
+    if (scope() === "all") {
+      await refetchGlobalBrowse()
+      if (search()) await refetchGlobalSearch()
+    }
+  }
+
+  function selectSession(sessionID: string) {
+    const session = sessions().find((item) => item.id === sessionID)
+    if (scope() === "all" && session && session.projectID !== project.data.project.id) {
+      dialog.replace(() => <DialogCrossProjectSession session={session} />)
+      return
+    }
+    route.navigate({
+      type: "session",
+      sessionID,
+    })
+    dialog.clear()
+  }
+
   return (
     <DialogSelect
-      title="Sessions"
+      title={`Sessions · ${scope() === "all" ? "All Projects" : "Current Project"}`}
       options={options()}
       skipFilter={true}
       preserveSelection={true}
@@ -281,16 +355,13 @@ export function DialogSessionList() {
         setToDelete(undefined)
       }}
       onSelect={(option) => {
-        route.navigate({
-          type: "session",
-          sessionID: option.value,
-        })
-        dialog.clear()
+        selectSession(option.value)
       }}
       actions={[
         {
           command: "session.pin.toggle",
           title: "pin/unpin",
+          hidden: scope() === "all",
           onTrigger: (option: { value: string }) => {
             local.session.togglePin(option.value)
           },
@@ -336,8 +407,7 @@ export function DialogSessionList() {
               if (status && status !== "connected") {
                 await sync.session.refresh()
               }
-              await refetchBrowse()
-              if (search()) await refetch()
+              await refreshSessionLists()
               setToDelete(undefined)
               return
             }
@@ -352,7 +422,24 @@ export function DialogSessionList() {
           },
         },
       ]}
-      footerHints={quickSwitchFooterHints()}
+      footerHints={[
+        { title: "scope", label: "←/→" },
+        ...quickSwitchFooterHints(),
+      ]}
+      bindings={[
+        {
+          key: "left",
+          desc: "Show current project sessions",
+          group: "Dialog",
+          cmd: () => switchScope("project"),
+        },
+        {
+          key: "right",
+          desc: "Show all project sessions",
+          group: "Dialog",
+          cmd: () => switchScope("all"),
+        },
+      ]}
     />
   )
 }
@@ -361,4 +448,121 @@ function quickSwitchRange(first: string, last: string) {
   const prefix = first.slice(0, -1)
   if (first.endsWith("1") && last === `${prefix}9`) return `${prefix}1-9`
   return `${first} through ${last}`
+}
+
+function DialogCrossProjectSession(props: { session: SessionListItem }) {
+  const dialog = useDialog()
+  const route = useRoute()
+  const sdk = useSDK()
+  const sync = useSync()
+  const project = useProject()
+  const toast = useToast()
+
+  async function forkIntoCurrentDirectory() {
+    const directory = project.instance.directory() || sdk.directory
+    if (!directory) {
+      toast.show({
+        title: "Unable to fork session",
+        message: "Current directory is unknown.",
+        variant: "error",
+      })
+      return
+    }
+    try {
+      const forked = await sdk.client.session.fork({ sessionID: props.session.id }, { throwOnError: true })
+      const sessionID = forked.data?.id
+      if (!sessionID) throw new Error("No forked session returned")
+      await sdk.client.experimental.controlPlane.moveSession(
+        {
+          sessionID,
+          destination: { directory },
+          moveChanges: false,
+        },
+        { throwOnError: true },
+      )
+      await sdk.client.session
+        .promptAsync({
+          sessionID,
+          directory,
+          noReply: true,
+          parts: [
+            {
+              type: "text",
+              text: currentDirectoryReminderText(directory),
+              synthetic: true,
+            },
+          ],
+        })
+        .catch(() => undefined)
+      await sync.session.sync(sessionID).catch(() => undefined)
+      route.navigate({ type: "session", sessionID })
+      dialog.clear()
+    } catch (error) {
+      toast.show({
+        title: "Failed to fork session",
+        message: errorMessage(error),
+        variant: "error",
+      })
+    }
+  }
+
+  return (
+    <DialogSelect
+      title="Open Session"
+      options={[
+        {
+          title: "Open original project",
+          value: "original",
+          description: `Continue in ${sessionProjectLabel(props.session)}.`,
+        },
+        {
+          title: "Use current directory",
+          value: "current",
+          description: "Fork this session into the current directory and leave the original unchanged.",
+          footer: path.basename(project.instance.directory() || sdk.directory || ""),
+        },
+        {
+          title: "Cancel",
+          value: "cancel",
+        },
+      ]}
+      onSelect={(option) => {
+        if (option.value === "original") {
+          route.navigate({ type: "session", sessionID: props.session.id })
+          dialog.clear()
+          return
+        }
+        if (option.value === "current") {
+          void forkIntoCurrentDirectory()
+          return
+        }
+        dialog.replace(() => <DialogSessionList initialScope="all" />)
+      }}
+    />
+  )
+}
+
+function projectSessionFooter(session: SessionListItem, mainDir?: string) {
+  const directory = session.path
+    ? session.directory.endsWith(session.path)
+      ? session.directory.slice(0, -session.path.length).replace(/\/$/, "")
+      : undefined
+    : session.directory
+  return directory && directory !== mainDir ? Locale.truncate(path.basename(directory), 20) : ""
+}
+
+function globalSessionFooter(session: SessionListItem) {
+  const project = "project" in session ? session.project : null
+  const label = project?.name ?? (project?.worktree ? path.basename(project.worktree) : path.basename(session.directory))
+  const suffix = session.path ? `/${session.path}` : ""
+  return Locale.truncate(`${label}${suffix}`, 36)
+}
+
+function sessionProjectLabel(session: SessionListItem) {
+  const project = "project" in session ? session.project : null
+  return project?.name ?? project?.worktree ?? session.directory
+}
+
+function currentDirectoryReminderText(directory: string) {
+  return `<system-reminder>This session was forked into the current working directory "${directory}". The earlier conversation may mention files from the original project. Treat "${directory}" as the active project root for all new file reads, edits, tests, and shell commands.</system-reminder>`
 }
