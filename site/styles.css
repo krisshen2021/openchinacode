@@ -980,11 +980,18 @@ tr:hover td {
 
 /* ── Scroll reveal animation ───────────────────────────────── */
 .reveal {
-  opacity: 0;
-  transform: translateY(24px);
-  animation: reveal-in 0.7s var(--ease-out) forwards;
-  animation-timeline: view();
-  animation-range: entry 0% cover 30%;
+  opacity: 1;
+  transform: none;
+}
+
+@supports (animation-timeline: view()) {
+  .reveal {
+    opacity: 0;
+    transform: translateY(24px);
+    animation: reveal-in 0.7s var(--ease-out) forwards;
+    animation-timeline: view();
+    animation-range: entry 0% cover 30%;
+  }
 }
 
 @keyframes reveal-in {
