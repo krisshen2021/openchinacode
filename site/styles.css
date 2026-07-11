@@ -1001,6 +1001,11 @@ tr:hover td {
   overflow: hidden;
 }
 
+.cta-banner .btn svg {
+  width: 22px;
+  height: 22px;
+}
+
 .cta-banner::before {
   content: '';
   position: absolute;
