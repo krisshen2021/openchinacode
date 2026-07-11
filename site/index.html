@@ -92,13 +92,6 @@
                   <i data-lucide="copy"></i>
                 </button>
               </div>
-              <div class="terminal-cmd-line">
-                <span class="prompt">$</span>
-                <span class="cmd-text">openchinacode upgrade 0.1.3</span>
-                <button class="copy-icon" type="button" id="copy-upgrade-version" title="Copy command" data-i18n-title="hero.copy">
-                  <i data-lucide="copy"></i>
-                </button>
-              </div>
             </div>
           </div>
         </div>
@@ -344,7 +337,6 @@
 
     setupCopy("copy-install", "curl -fsSL https://openchinacode.muffin-labs.com/install | bash");
     setupCopy("copy-upgrade", "openchinacode upgrade");
-    setupCopy("copy-upgrade-version", "openchinacode upgrade 0.1.3");
 
     const installBtn = document.getElementById("install-btn");
     installBtn.addEventListener("click", async () => {
