@@ -664,12 +664,6 @@ h3 {
 .terminal-dot:nth-child(2) { background: #FFBD2E; }
 .terminal-dot:nth-child(3) { background: #27C93F; }
 
-.terminal-label {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--mist-dim);
-}
-
 .terminal-body {
   padding: 24px;
   font-family: var(--font-mono);
