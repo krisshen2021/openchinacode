@@ -108,6 +108,47 @@ describe("CompactionProfile", () => {
     expect(prompt).toContain("Extra context")
   })
 
+  test("parses active task extraction JSON and injects it into the summary prompt", () => {
+    const decision = CompactionProfile.normalize({
+      profiles: [
+        { type: "debug_trace", weight: 0.5 },
+        { type: "implementation_state", weight: 0.5 },
+      ],
+      active_task: {
+        present: true,
+        kind: "debug",
+        window_turns: 4,
+        reason: "recent turns are debugging a failing frontend build",
+      },
+      source: "llm",
+    })
+    const activeTask = CompactionProfile.parseActiveTaskOutput(
+      `{
+        "present": true,
+        "kind": "debug",
+        "objective": "Fix the frontend spacing regression",
+        "status": "build is failing after the CSS patch",
+        "files": ["frontend/src/App.tsx", "site/styles.css"],
+        "commands": ["npm run build -> failed"],
+        "failures": ["TypeError in frontend/src/App.tsx"],
+        "next_actions": ["inspect App.tsx spacing component"]
+      }`,
+      decision,
+    )
+    const prompt = CompactionProfile.buildPrompt({
+      context: [],
+      decision,
+      activeTask,
+    })
+
+    expect(activeTask?.source).toBe("llm")
+    expect(activeTask?.files).toEqual(["frontend/src/App.tsx", "site/styles.css"])
+    expect(prompt).toContain("<active-task-essential-json>")
+    expect(prompt).toContain("Fix the frontend spacing regression")
+    expect(prompt).toContain("frontend/src/App.tsx")
+    expect(prompt).toContain("Do not collapse it into only status")
+  })
+
   test("parses llm judge JSON and normalizes mixed profile weights", () => {
     const decision = CompactionProfile.parseJudgeOutput(`{
       "profiles": [

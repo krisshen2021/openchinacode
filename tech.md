@@ -264,6 +264,35 @@ OpenChinaCode 定制 slash command 的 TUI 入口在 `packages/tui/src/component
 
 默认浏览器是系统 Google Chrome。TUI 的 `/test-mcp on/headless/headed` 会先检查 Chrome 是否存在；底层 `openchinacode mcp playwright --browser=chrome` 也会做同样的硬预检。缺失时会立即给出安装提示，避免开发到一半才在 Playwright tool call 阶段失败。
 
+### `/sessions`
+
+Session picker 改造：
+
+```text
+/sessions
+/resume
+/continue
+```
+
+实现入口：
+
+- `packages/tui/src/component/dialog-session-list.tsx`
+- `packages/tui/src/app.tsx`
+- `packages/tui/src/context/sync.tsx`
+
+行为：
+
+- `session.list` command 的 slash name 是 `/sessions`，aliases 是 `/resume`、`/continue`。
+- 默认 scope 是 `project`，只列当前项目 session。
+- 左右方向键切换 scope：`project` / `all`。
+- `project` scope 使用 `sdk.client.session.list({ scope: "project" })`。
+- `all` scope 使用 `globalClient().experimental.session.list(...)`，展示所有项目 session。
+- 当前项目列表支持 pin/unpin；全局列表隐藏 pin/unpin。
+- 删除、重命名能力保留。
+- 选择跨项目 session 时进入 `DialogCrossProjectSession`：
+  - `Open original project`：直接进入原 session。
+  - `Use current directory`：fork session，并通过 control plane move 到当前目录，原 session 不变。
+
 Playwright MCP 默认产物目录：
 
 ```text
@@ -625,6 +654,7 @@ JsonJudge.runJsonJudge()
 | -------------------- | --------------------------------------- | --------------------------------------- | --------------------------------------------- |
 | `auto_maxtokens`     | `task_policy.judges.auto_maxtokens`     | `deepseek/deepseek-v4-flash`            | 模糊场景判断 `default` / `max` 输出预算       |
 | `compaction_profile` | `task_policy.judges.compaction_profile` | current model -> Kimi -> DeepSeek flash | 智能压缩前输出稳定 profile JSON               |
+| `compaction_active_task` | `task_policy.judges.compaction_active_task` | current model -> Kimi -> DeepSeek flash | 智能压缩前抽取当前活跃任务的细颗粒状态        |
 | `task_router`        | `task_policy.judges.task_router`        | `deepseek/deepseek-v4-flash`            | 普通 prompt 前判断是否自动插入 routed subtask |
 
 Task kinds：
@@ -800,7 +830,7 @@ TUI subagent 行应显示：
 - compaction 通过同一套 task policy 路由。
 - 默认 `compaction.* -> zhipuai-pay2go/glm-5.2#high`。
 - 如果 compaction agent 自己显式配置了 model，则优先使用 agent model。
-- compaction 使用三层策略：general summary、active task essential extraction、minimal raw recent tail。
+- compaction 使用三层策略：general summary、active task essential extraction、minimal raw recent tail。active task essential extraction 现在是独立 LLM JSON 抽取，不只是 summary prompt 里的文字提示。
 - 默认 `compaction.tail_turns` 为 `auto` 语义，即 minimal raw tail；如果配置为数字或使用 `/compact keep N`，会额外保留对应最近原始轮次。
 - 已完成 compaction summary 会作为后续压缩的锚点。
 - 输出预算层如果发现当前上下文留给输出的空间不足，会触发 compaction，而不是盲目降低到无效输出。
@@ -815,6 +845,16 @@ TUI subagent 行应显示：
 - `CompactionProfile.buildPrompt` 根据 JSON 拼接固定 Markdown section 模板。
 - judge 超时、模型不可用、JSON 无效或调用失败时，fallback 到 `CompactionProfile.infer` 的本地 heuristic。
 - heuristic 只作为兜底，不作为主策略。
+
+Active task extraction：
+
+- profile judge 后，如果 `active_task.present=true`，会再调用 `compaction_active_task` judge。
+- 默认候选同 profile judge：当前 compaction 路由模型，然后 Kimi highspeed，然后 DeepSeek flash。
+- 默认超时 90s，默认输出上限 16384 tokens，可通过 `task_policy.judges.compaction_active_task` 覆盖。
+- 输出 JSON 字段包括 `objective`、`status`、`focus`、`files`、`decisions`、`findings`、`changes`、`commands`、`failures`、`next_actions`、`risks`、`open_questions`。
+- 最终 summary prompt 会把这份 JSON 作为 `Active Task Essential State` 的权威输入，避免近期任务状态被压缩成一句话。
+- 如果该 judge 失败或 JSON 无效，会退回 profile-based fallback，不阻断 compaction。
+- TUI Smart Compaction 面板会显示 `active-task extraction: started/result`，日志中对应 `compaction active task extraction judge` 和 `compaction active task`。
 
 Profile 类型：
 

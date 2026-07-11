@@ -76,6 +76,7 @@ export type ExtraRouter = Schema.Schema.Type<typeof ExtraRouter>
 export const Judges = Schema.Struct({
   auto_maxtokens: Schema.optional(Judge),
   compaction_profile: Schema.optional(Judge),
+  compaction_active_task: Schema.optional(Judge),
   task_router: Schema.optional(Judge),
 }).annotate({ identifier: "TaskPolicyJudges" })
 export type Judges = Schema.Schema.Type<typeof Judges>

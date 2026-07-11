@@ -23,7 +23,7 @@ import { ProviderV2 } from "@opencode-ai/core/provider"
 import { ModelV2 } from "@opencode-ai/core/model"
 import { SessionCompactionEvent } from "@opencode-ai/schema/session-compaction-event"
 import { TaskPolicy } from "./task-policy"
-import { CompactionProfile, type Decision } from "./compaction-profile"
+import { CompactionProfile, type ActiveTaskEssential, type Decision } from "./compaction-profile"
 import { JsonJudge } from "./judge/json-judge"
 
 export const Event = SessionCompactionEvent
@@ -40,6 +40,9 @@ const MAX_PRESERVE_RECENT_TOKENS = 8_000
 // failures still fall back to deterministic local inference.
 const PROFILE_JUDGE_TIMEOUT_MS = 60_000
 const PROFILE_JUDGE_FALLBACKS = ["moonshotai-cn/kimi-k2.7-code-highspeed", "deepseek/deepseek-v4-flash"]
+const ACTIVE_TASK_EXTRACT_TIMEOUT_MS = 90_000
+const ACTIVE_TASK_EXTRACT_FALLBACKS = PROFILE_JUDGE_FALLBACKS
+const ACTIVE_TASK_EXTRACT_MAX_OUTPUT_TOKENS = 16_384
 type ProgressData = typeof Event.Progress.data.Type
 type ProgressStage = ProgressData["stage"]
 type ProgressModel = ProgressData["model"]
@@ -48,6 +51,13 @@ type ProgressProfile = ProgressData["profile"]
 type ProfileJudgeResult = {
   status: NonNullable<ProgressJudge>["status"]
   decision?: Decision
+  model?: NonNullable<ProgressModel>
+  elapsedMs?: number
+  error?: string
+}
+type ActiveTaskExtractResult = {
+  status: NonNullable<ProgressJudge>["status"]
+  activeTask?: ActiveTaskEssential
   model?: NonNullable<ProgressModel>
   elapsedMs?: number
   error?: string
@@ -407,6 +417,90 @@ const layer = Layer.effect(
       } satisfies ProfileJudgeResult
     })
 
+    const extractActiveTask = Effect.fn("SessionCompaction.activeTaskExtract")(function* (input: {
+      messages: readonly SessionV1.WithParts[]
+      previousSummary?: string
+      currentModel: Provider.Model
+      sessionID: SessionID
+      decision: Decision
+    }) {
+      const cfg = yield* config.get()
+      if (!input.decision.active_task.present) {
+        return { status: "skipped" } satisfies ActiveTaskExtractResult
+      }
+
+      const result = yield* JsonJudge.runJsonJudge<ActiveTaskEssential>({
+        name: "compaction active task extraction",
+        sessionID: input.sessionID,
+        provider,
+        config: cfg.task_policy?.judges?.compaction_active_task,
+        messages: CompactionProfile.activeTaskMessages({
+          messages: input.messages,
+          previousSummary: input.previousSummary,
+          decision: input.decision,
+        }),
+        parse: (text) => CompactionProfile.parseActiveTaskOutput(text, input.decision),
+        modelCandidates: ACTIVE_TASK_EXTRACT_FALLBACKS,
+        currentModel: input.currentModel,
+        includeCurrentModel: true,
+        smallModelProviderID: input.currentModel.providerID,
+        timeoutMs: ACTIVE_TASK_EXTRACT_TIMEOUT_MS,
+        maxOutputTokens: (model) =>
+          Math.min(ProviderTransform.maxOutputTokens(model, flags.outputTokenMax), ACTIVE_TASK_EXTRACT_MAX_OUTPUT_TOKENS),
+        onSelected: (model) =>
+          publishProgress({
+            sessionID: input.sessionID,
+            stage: "active_task_extract_started",
+            message: "Active task essential extraction started",
+            model: modelProgress(model),
+            judge: {
+              status: "skipped",
+              providerID: model.providerID,
+              modelID: model.id,
+            },
+          }),
+      })
+
+      const model = result.model ? modelProgress(result.model) : undefined
+      const progressJudge: ProgressJudge = {
+        status: result.status === "disabled" ? "skipped" : result.status,
+        ...(result.model
+          ? {
+              providerID: result.model.providerID,
+              modelID: result.model.id,
+            }
+          : {}),
+        ...(result.elapsedMs !== undefined ? { elapsedMs: result.elapsedMs } : {}),
+        ...(result.error
+          ? { error: result.status === "invalid" ? `invalid output: ${result.error}` : result.error }
+          : {}),
+      }
+      const activeTask = result.decision ?? CompactionProfile.fallbackActiveTask({ decision: input.decision })
+      yield* publishProgress({
+        sessionID: input.sessionID,
+        stage: "active_task_extract_result",
+        message:
+          result.status === "valid"
+            ? CompactionProfile.describeActiveTaskEssential(activeTask)
+            : result.status === "disabled"
+              ? "Active task extraction disabled; using profile fallback"
+              : result.status === "unavailable"
+                ? "Active task extraction unavailable; using profile fallback"
+                : result.status === "invalid"
+                  ? "Active task extraction returned invalid JSON; using profile fallback"
+                  : "Active task extraction failed; using profile fallback",
+        model,
+        judge: progressJudge,
+      })
+      return {
+        status: progressJudge.status,
+        activeTask,
+        model,
+        elapsedMs: result.elapsedMs,
+        error: result.error,
+      } satisfies ActiveTaskExtractResult
+    })
+
     // goes backwards through parts until there are PRUNE_PROTECT tokens worth of tool
     // calls, then erases output of older tool calls to free context space
     const prune = Effect.fn("SessionCompaction.prune")(function* (input: { sessionID: SessionID }) {
@@ -593,6 +687,7 @@ const layer = Layer.effect(
         { context: [], prompt: undefined },
       )
       let profile: Decision | undefined
+      let activeTask: ActiveTaskEssential | undefined
       if (compacting.prompt) {
         yield* publishProgress({
           sessionID: input.sessionID,
@@ -627,6 +722,14 @@ const layer = Layer.effect(
             ? `${readyProfile.active_task.kind}, window ${readyProfile.active_task.window_turns} turns - ${readyProfile.active_task.reason}`
             : "none detected",
         })
+        const extracted = yield* extractActiveTask({
+          messages: visibleHistory,
+          previousSummary,
+          currentModel: model,
+          sessionID: input.sessionID,
+          decision: readyProfile,
+        })
+        activeTask = extracted.activeTask
       }
       if (profile) {
         yield* Effect.logInfo("compaction profile", {
@@ -637,12 +740,24 @@ const layer = Layer.effect(
           source: profile.source,
         })
       }
+      if (activeTask) {
+        yield* Effect.logInfo("compaction active task", {
+          "session.id": input.sessionID,
+          source: activeTask.source,
+          kind: activeTask.kind,
+          objective: activeTask.objective,
+          status: activeTask.status,
+          files: activeTask.files.join("; "),
+          nextActions: activeTask.next_actions.join("; "),
+        })
+      }
       const nextPrompt =
         compacting.prompt ??
         CompactionProfile.buildPrompt({
           previousSummary,
           context: compacting.context,
           decision: profile ?? CompactionProfile.normalize(undefined),
+          activeTask,
         })
       const msgs = structuredClone(selected.head)
       yield* plugin.trigger("experimental.chat.messages.transform", {}, { messages: msgs })

@@ -73,6 +73,36 @@ OpenChinaCode 的默认 provider 目标是只保留 GLM、Kimi、DeepSeek 三家
 - 版本显示：`openchinacode: 0.0.0-openchinacode...`
 - TUI 中可直接看到 subagent 使用的模型路由信息。
 
+### 2.1 Session Picker
+
+OpenChinaCode 改造了 session 选择器，方便在长程项目开发中恢复上下文。
+
+可用命令：
+
+```text
+/sessions
+/resume
+/continue
+```
+
+打开后默认显示当前项目的 session。列表底部会提示：
+
+```text
+scope ←/→
+```
+
+使用左右方向键切换：
+
+- `Current Project`：只看当前项目 session，支持 pin/unpin。
+- `All Projects`：查看全局所有项目 session。
+
+在 `All Projects` 中选择其它项目的 session 时，会弹出选择：
+
+- `Open original project`：回到该 session 原本所属项目继续。
+- `Use current directory`：fork 一份到当前目录继续，原 session 不变。
+
+删除、重命名 session 的功能仍然保留。
+
 ### 3. 人民币费用显示
 
 OpenChinaCode 已将三家 provider 的价格固定到模型配置中，用于：
@@ -144,6 +174,8 @@ compaction.* -> zhipuai-pay2go/glm-5.2#high
 
 同时，compaction prompt 已加入 OpenChinaCode 的 profile 判断层。压缩发生时会先用 judge 模型根据当前上下文生成稳定 profile JSON，再拼出对应的 Markdown 分区模板，避免所有任务都被压成同一种摘要。
 
+如果 profile 判断发现最近存在活跃开发任务，还会追加一次独立的 active task essential extraction。它会输出结构化 JSON，重点抽取当前任务的 objective、status、files、decisions、findings、changes、commands、failures、next_actions 等，再强制喂给最终 summary prompt 的 `Active Task Essential State` 区块。这样长程开发中的“最近正在做什么、卡在哪里、下一步是什么”不会被压缩成一句状态。
+
 当前压缩采用三层策略：
 
 ```text
@@ -152,7 +184,7 @@ compaction.* -> zhipuai-pay2go/glm-5.2#high
 3. Minimal Raw Recent Tail
 ```
 
-默认 `/compact` 使用智能策略；`/compact keep N` 是手动 override，会额外保留最近 N 个原始用户轮次及其后续 assistant/tool 消息。TUI 的 Smart Compaction 面板会显示 `strategy`、`retention`、`active-task`、`selection` 等调试阶段。
+默认 `/compact` 使用智能策略；`/compact keep N` 是手动 override，会额外保留最近 N 个原始用户轮次及其后续 assistant/tool 消息。TUI 的 Smart Compaction 面板会显示 `strategy`、`retention`、`active-task`、`active-task extraction`、`selection` 等调试阶段。
 
 当前 profile 类型：
 
@@ -358,6 +390,26 @@ explicit task model
 | `/lsp off`    | 写入配置，关闭 LSP     |
 
 修改后通常需要重启 OpenChinaCode。
+
+### `/sessions`
+
+打开 session picker。别名：
+
+```text
+/resume
+/continue
+```
+
+功能：
+
+| 操作 | 作用 |
+| ---- | ---- |
+| `←` / `→` | 在当前项目 session 和全局 session 之间切换 |
+| 选择当前项目 session | 直接进入该 session |
+| 选择其它项目 session | 可选择打开原项目，或 fork 到当前目录 |
+| 删除 | 二次确认后删除 session |
+| 重命名 | 修改 session 标题 |
+| Pin / unpin | 仅当前项目列表可用 |
 
 ### `/test-mcp`
 
@@ -709,6 +761,11 @@ OpenChinaCode 的 task policy 已切换到新 schema，不再兼容旧的 `tasks
         "models": ["zhipuai-pay2go/glm-5.2", "moonshotai-cn/kimi-k2.7-code-highspeed", "deepseek/deepseek-v4-flash"],
         "timeout_ms": 60000,
       },
+      "compaction_active_task": {
+        "models": ["zhipuai-pay2go/glm-5.2", "moonshotai-cn/kimi-k2.7-code-highspeed", "deepseek/deepseek-v4-flash"],
+        "timeout_ms": 90000,
+        "max_output_tokens": 16384,
+      },
       "task_router": {
         "models": ["deepseek/deepseek-v4-flash"],
         "timeout_ms": 12000,
@@ -765,7 +822,7 @@ compaction
 - `enabled: false` 会关闭 OpenChinaCode task policy，回到更接近父模型继承的行为。
 - `extra_router.enabled: true` 会让普通 prompt 先经过 fast judge，适合时自动插入 routed subtask；也可以用 `/task-policy extra-on/off` 修改。
 - `extra_router.allow/deny` 控制哪些 task kind 允许被自动委派。默认拒绝 `general`、`summarize`、`compaction`。
-- `judges` 是 OpenChinaCode 共享 LLM judge 配置，当前用于 `auto_maxtokens`、`compaction_profile`、`task_router`。可以分别设置候选模型、超时和输出 token 上限。
+- `judges` 是 OpenChinaCode 共享 LLM judge 配置，当前用于 `auto_maxtokens`、`compaction_profile`、`compaction_active_task`、`task_router`。可以分别设置候选模型、超时和输出 token 上限。
 - 配置里指定的模型必须存在于当前 provider 列表，否则会跳过该条，继续尝试后续候选。
 - 修改后建议重启 OpenChinaCode，确保 TUI 和 session runtime 读取最新配置。
 

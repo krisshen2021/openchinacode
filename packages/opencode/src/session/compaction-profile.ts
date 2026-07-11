@@ -28,6 +28,24 @@ export type ActiveTask = {
   reason: string
 }
 
+export type ActiveTaskEssential = {
+  present: boolean
+  kind: ActiveTaskKind
+  objective: string
+  status: string
+  focus: string[]
+  files: string[]
+  decisions: string[]
+  findings: string[]
+  changes: string[]
+  commands: string[]
+  failures: string[]
+  next_actions: string[]
+  risks: string[]
+  open_questions: string[]
+  source: "llm" | "heuristic" | "fallback"
+}
+
 export type Decision = {
   profiles: Profile[]
   must_preserve: string[]
@@ -40,15 +58,19 @@ type BuildInput = {
   previousSummary?: string
   context: readonly string[]
   decision: Decision
+  activeTask?: ActiveTaskEssential
 }
 
 const TYPE_SET = new Set<string>(ProfileTypes)
 const TEXT_SCAN_LIMIT = 120_000
 const JUDGE_PREVIOUS_SUMMARY_CHARS = 4_000
 const JUDGE_RECENT_CONTEXT_CHARS = 20_000
+const ACTIVE_TASK_PREVIOUS_SUMMARY_CHARS = 6_000
+const ACTIVE_TASK_RECENT_CONTEXT_CHARS = 45_000
 const ACTIVE_TASK_MIN_TURNS = 1
 const ACTIVE_TASK_MAX_TURNS = 12
 const ACTIVE_TASK_DEFAULT_TURNS = 4
+const ACTIVE_TASK_LIST_LIMIT = 14
 
 const SECTION_BY_TYPE: Record<ProfileType, string[]> = {
   debug_trace: ["Debug Trace", "Known Failures"],
@@ -162,6 +184,62 @@ function normalizeActiveTask(input: Partial<ActiveTask> | undefined, profiles: P
       ? clampInt(input?.window_turns, ACTIVE_TASK_MIN_TURNS, ACTIVE_TASK_MAX_TURNS, ACTIVE_TASK_DEFAULT_TURNS)
       : 0,
     reason,
+  }
+}
+
+function cleanString(value: unknown, fallback = "", max = 700) {
+  if (typeof value !== "string") return fallback
+  const text = value.trim()
+  if (!text) return fallback
+  return text.length > max ? text.slice(0, max).trim() : text
+}
+
+function cleanStringList(value: unknown, limit = ACTIVE_TASK_LIST_LIMIT, max = 420) {
+  if (!Array.isArray(value)) return []
+  const result: string[] = []
+  const seen = new Set<string>()
+  for (const item of value) {
+    const text = cleanString(item, "", max)
+    if (!text || seen.has(text)) continue
+    seen.add(text)
+    result.push(text)
+    if (result.length >= limit) break
+  }
+  return result
+}
+
+export function normalizeActiveTaskEssential(
+  input: Partial<ActiveTaskEssential> | undefined,
+  decision: Decision,
+): ActiveTaskEssential | undefined {
+  const normalizedDecision = normalize(decision)
+  const present = typeof input?.present === "boolean" ? input.present : normalizedDecision.active_task.present
+  if (!present) return undefined
+  const kind = isActiveTaskKind(input?.kind) ? input.kind : normalizedDecision.active_task.kind
+  const source =
+    input?.source === "llm"
+      ? "llm"
+      : input?.source === "heuristic"
+        ? "heuristic"
+        : input?.source === "fallback"
+          ? "fallback"
+          : "fallback"
+  return {
+    present: true,
+    kind,
+    objective: cleanString(input?.objective, normalizedDecision.active_task.reason || "current active task"),
+    status: cleanString(input?.status, "active task state extracted from recent conversation"),
+    focus: cleanStringList(input?.focus),
+    files: cleanStringList(input?.files),
+    decisions: cleanStringList(input?.decisions),
+    findings: cleanStringList(input?.findings),
+    changes: cleanStringList(input?.changes),
+    commands: cleanStringList(input?.commands),
+    failures: cleanStringList(input?.failures),
+    next_actions: cleanStringList(input?.next_actions),
+    risks: cleanStringList(input?.risks),
+    open_questions: cleanStringList(input?.open_questions),
+    source,
   }
 }
 
@@ -336,6 +414,17 @@ export function parseJudgeOutput(text: string): Decision | undefined {
   }
 }
 
+export function parseActiveTaskOutput(text: string, decision: Decision): ActiveTaskEssential | undefined {
+  const json = extractJsonObject(text)
+  if (!json) return undefined
+  try {
+    const parsed = JSON.parse(json) as Partial<ActiveTaskEssential>
+    return normalizeActiveTaskEssential({ ...parsed, source: "llm" }, decision)
+  } catch {
+    return undefined
+  }
+}
+
 export function judgeMessages(input: { messages: readonly SessionV1.WithParts[]; previousSummary?: string }) {
   const previousSummary = tail(input.previousSummary ?? "", JUDGE_PREVIOUS_SUMMARY_CHARS)
   const recentConversation = tail(messageText(input.messages), JUDGE_RECENT_CONTEXT_CHARS)
@@ -370,6 +459,79 @@ export function judgeMessages(input: { messages: readonly SessionV1.WithParts[];
       }),
     },
   ]
+}
+
+export function activeTaskMessages(input: {
+  messages: readonly SessionV1.WithParts[]
+  previousSummary?: string
+  decision: Decision
+}) {
+  const decision = normalize(input.decision)
+  const previousSummary = tail(input.previousSummary ?? "", ACTIVE_TASK_PREVIOUS_SUMMARY_CHARS)
+  const recentConversation = tail(messageText(input.messages), ACTIVE_TASK_RECENT_CONTEXT_CHARS)
+  return [
+    {
+      role: "system" as const,
+      content: [
+        "You are OpenChinaCode's active task continuity extractor.",
+        "Extract the current active coding task state from the recent conversation for future development turns.",
+        "Do not summarize the whole conversation. Preserve granular recent-task facts that would be painful to rediscover.",
+        "Prefer exact file paths, symbols, commands, errors, test results, commits, decisions, open questions, and next actions.",
+        "If the recent conversation contains multiple active threads, keep the mixed objective and list each important thread.",
+        "Return one compact JSON object only. Do not include Markdown, commentary, analysis, or explanatory text.",
+        "Do not invent facts. Leave arrays empty when unknown.",
+        "Schema:",
+        '{"present":true,"kind":"debug|implement|refactor|review|research|plan|mixed","objective":"specific current objective","status":"current state and whether waiting/blocked/done","focus":["important focus item"],"files":["path or symbol"],"decisions":["decision or constraint"],"findings":["finding with evidence"],"changes":["change already made"],"commands":["command and result"],"failures":["error or failed check"],"next_actions":["concrete next action"],"risks":["risk to preserve"],"open_questions":["question awaiting user or future investigation"]}',
+        "Keep each array to the most important 4-12 items. Use concise strings, but preserve exact identifiers.",
+      ].join("\n"),
+    },
+    {
+      role: "user" as const,
+      content: JSON.stringify({
+        compaction_profile: {
+          profiles: decision.profiles,
+          must_preserve: decision.must_preserve,
+          active_task: decision.active_task,
+          risk: decision.risk,
+          source: decision.source,
+        },
+        previous_summary_excerpt: previousSummary,
+        recent_conversation_excerpt: recentConversation,
+      }),
+    },
+  ]
+}
+
+export function fallbackActiveTask(input: { decision: Decision }): ActiveTaskEssential | undefined {
+  const decision = normalize(input.decision)
+  if (!decision.active_task.present) return undefined
+  return normalizeActiveTaskEssential(
+    {
+      present: true,
+      kind: decision.active_task.kind,
+      objective: decision.active_task.reason,
+      status: "active task detected from compaction profile",
+      focus: decision.profiles.map((profile) => `${profile.type} ${Math.round(profile.weight * 100)}%`),
+      decisions: decision.must_preserve,
+      source: "fallback",
+    },
+    decision,
+  )
+}
+
+export function describeActiveTaskEssential(activeTask: ActiveTaskEssential | undefined) {
+  if (!activeTask) return "none"
+  const counts = [
+    `focus ${activeTask.focus.length}`,
+    `files ${activeTask.files.length}`,
+    `decisions ${activeTask.decisions.length}`,
+    `findings ${activeTask.findings.length}`,
+    `changes ${activeTask.changes.length}`,
+    `commands ${activeTask.commands.length}`,
+    `failures ${activeTask.failures.length}`,
+    `next ${activeTask.next_actions.length}`,
+  ].join(", ")
+  return `${activeTask.kind} - ${activeTask.objective || activeTask.status} (${counts})`
 }
 
 function mustPreserve(text: string) {
@@ -419,6 +581,7 @@ function template(decision: Decision) {
 
 export function buildPrompt(input: BuildInput) {
   const decision = normalize(input.decision)
+  const activeTask = normalizeActiveTaskEssential(input.activeTask, decision)
   const profileJson = JSON.stringify(
     {
       profiles: decision.profiles,
@@ -430,6 +593,7 @@ export function buildPrompt(input: BuildInput) {
     null,
     2,
   )
+  const activeTaskJson = activeTask ? JSON.stringify(activeTask, null, 2) : undefined
 
   return [
     input.previousSummary
@@ -438,6 +602,13 @@ export function buildPrompt(input: BuildInput) {
     "Use this three-layer compaction strategy: 1) general context summary, 2) active task essential extraction, 3) minimal raw recent tail handled by the runtime outside this summary.",
     "Use the stable compaction profile JSON below to decide what to preserve and how much detail each section needs.",
     `<compaction-profile-json>\n${profileJson}\n</compaction-profile-json>`,
+    activeTaskJson
+      ? [
+          "Use the active task essential JSON below as the authoritative source for the Active Task Essential State section.",
+          "Do not collapse it into only status. Preserve granular files, commands, failures, decisions, findings, changes, and next actions.",
+          `<active-task-essential-json>\n${activeTaskJson}\n</active-task-essential-json>`,
+        ].join("\n")
+      : "No separate active task extraction is available; use the compaction profile and conversation history.",
     "Profile priorities:\n" + profileLines(decision).join("\n"),
     decision.active_task.present
       ? `Active task: ${decision.active_task.kind}, recent window ${decision.active_task.window_turns} user turns, reason: ${decision.active_task.reason}`
@@ -447,7 +618,17 @@ export function buildPrompt(input: BuildInput) {
       : "Must preserve:\n- exact file paths, symbols, commands, error strings, URLs, identifiers, and next actions when known",
     "Output exactly the Markdown structure shown inside <template> and keep the section order unchanged. Do not include the <template> tags in your response.",
     `<template>\n${template(decision)}\n</template>`,
-    "Rules:\n- Keep every section, even when empty.\n- Use terse bullets, not prose paragraphs.\n- Preserve exact file paths, symbols, commands, error strings, URLs, and identifiers when known.\n- Do not mention the summary process, profiles, JSON, or that context was compacted.\n- Prefer actionable state over narrative chronology.",
+    [
+      "Rules:",
+      "- Keep every section, even when empty.",
+      "- Use concise bullets, not prose paragraphs.",
+      "- Preserve exact file paths, symbols, commands, error strings, URLs, and identifiers when known.",
+      "- Do not mention the summary process, profiles, JSON, or that context was compacted.",
+      "- Prefer actionable state over narrative chronology.",
+      activeTask
+        ? "- The Active Task Essential State section should be detailed enough for a future coding turn to continue without rereading raw history."
+        : "- Keep the Active Task Essential State section concise when no active task is detected.",
+    ].join("\n"),
     ...input.context,
   ].join("\n\n")
 }
@@ -457,6 +638,11 @@ export const CompactionProfile = {
   normalize,
   infer,
   parseJudgeOutput,
+  parseActiveTaskOutput,
   judgeMessages,
+  activeTaskMessages,
+  fallbackActiveTask,
+  normalizeActiveTaskEssential,
+  describeActiveTaskEssential,
   buildPrompt,
 }

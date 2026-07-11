@@ -220,6 +220,20 @@ function formatCompactionProgress(progress: CompactionProgressProperties): strin
     return `Compaction active task: ${progress.message}`
   }
 
+  if (progress.stage === "active_task_extract_started") {
+    return `Compaction active task extraction: started${model ? ` · ${model}` : ""}`
+  }
+
+  if (progress.stage === "active_task_extract_result" && progress.judge) {
+    const judgeModel =
+      progress.judge.providerID && progress.judge.modelID
+        ? `${progress.judge.providerID}/${progress.judge.modelID}`
+        : model
+    const elapsed = typeof progress.judge.elapsedMs === "number" ? ` (${Math.round(progress.judge.elapsedMs)}ms)` : ""
+    const error = progress.judge.error ? `: ${progress.judge.error}` : ""
+    return `Compaction active task extraction: ${judgeModel ?? "unavailable"} -> ${progress.judge.status}${elapsed}${error} · ${progress.message}`
+  }
+
   if (progress.stage === "selection") {
     return `Compaction selection: ${progress.message}`
   }

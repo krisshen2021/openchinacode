@@ -25,6 +25,8 @@ export const Progress = Event.define({
       "judge_result",
       "profile_ready",
       "active_task",
+      "active_task_extract_started",
+      "active_task_extract_result",
       "selection",
       "summary_started",
       "summary_finished",

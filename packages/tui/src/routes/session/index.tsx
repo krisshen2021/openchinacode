@@ -1399,6 +1399,19 @@ function formatCompactionDebugLine(item: CompactionProgressItem) {
     return `active-task: ${item.message}`
   }
 
+  if (item.stage === "active_task_extract_started") {
+    return `active-task extraction: started${model ? ` - ${model}` : ""}`
+  }
+
+  if (item.stage === "active_task_extract_result" && item.judge) {
+    const judgeModel =
+      item.judge.providerID && item.judge.modelID ? `${item.judge.providerID}/${item.judge.modelID}` : model
+    const elapsed = typeof item.judge.elapsedMs === "number" ? ` (${Math.round(item.judge.elapsedMs)}ms)` : ""
+    const error = item.judge.error ? ` - ${compactText(item.judge.error)}` : ""
+    const message = item.message ? ` - ${compactText(item.message)}` : ""
+    return `active-task extraction: ${judgeModel ?? "unavailable"} -> ${item.judge.status}${elapsed}${error}${message}`
+  }
+
   if (item.stage === "selection") {
     return `selection: ${item.message}`
   }
