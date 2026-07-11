@@ -297,8 +297,8 @@ explicit task model
 | `plan`         | `zhipuai-pay2go/glm-5.2#high`            | `zhipuai-pay2go/glm-5.2#high`            | `zhipuai-pay2go/glm-5.2#max`  |
 | `architecture` | `zhipuai-pay2go/glm-5.2#high`            | `zhipuai-pay2go/glm-5.2#high`            | `zhipuai-pay2go/glm-5.2#max`  |
 | `refactor`     | `zhipuai-pay2go/glm-5.2#high`            | `zhipuai-pay2go/glm-5.2#high`            | `zhipuai-pay2go/glm-5.2#max`  |
-| `review`       | `moonshotai-cn/kimi-k2.7-code-highspeed` | `moonshotai-cn/kimi-k2.7-code-highspeed` | `zhipuai-pay2go/glm-5.2#high` |
-| `implement`    | `moonshotai-cn/kimi-k2.7-code-highspeed` | `moonshotai-cn/kimi-k2.7-code-highspeed` | `zhipuai-pay2go/glm-5.2#high` |
+| `review`       | `moonshotai-cn/kimi-k2.7-code-highspeed` | `zhipuai-pay2go/glm-5.2#high`            | `zhipuai-pay2go/glm-5.2#max`  |
+| `implement`    | `moonshotai-cn/kimi-k2.7-code-highspeed` | `zhipuai-pay2go/glm-5.2#high`            | `zhipuai-pay2go/glm-5.2#max`  |
 | `explore`      | `moonshotai-cn/kimi-k2.7-code-highspeed` | `zhipuai-pay2go/glm-5.2#high`            | `zhipuai-pay2go/glm-5.2#max`  |
 | `visual_check` | `zhipuai-pay2go/glm-5v-turbo`            | `zhipuai-pay2go/glm-5v-turbo`            | `zhipuai-pay2go/glm-5v-turbo` |
 | `debug`        | `deepseek/deepseek-v4-pro`               | `deepseek/deepseek-v4-pro`               | `deepseek/deepseek-v4-pro`    |

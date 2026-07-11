@@ -347,15 +347,19 @@ function builtinRoute(assignment: Assignment): ConfigTaskPolicy.Route {
   }
 
   if (assignment.kind === "review") {
-    return assignment.complexity === "complex"
-      ? { model: "zhipuai-pay2go/glm-5.2", variant: "high" }
-      : { model: "moonshotai-cn/kimi-k2.7-code-highspeed" }
+    if (assignment.complexity === "quick") return { model: "moonshotai-cn/kimi-k2.7-code-highspeed" }
+    return {
+      model: "zhipuai-pay2go/glm-5.2",
+      variant: assignment.complexity === "complex" ? "max" : "high",
+    }
   }
 
   if (assignment.kind === "implement") {
-    return assignment.complexity === "complex"
-      ? { model: "zhipuai-pay2go/glm-5.2", variant: "high" }
-      : { model: "moonshotai-cn/kimi-k2.7-code-highspeed" }
+    if (assignment.complexity === "quick") return { model: "moonshotai-cn/kimi-k2.7-code-highspeed" }
+    return {
+      model: "zhipuai-pay2go/glm-5.2",
+      variant: assignment.complexity === "complex" ? "max" : "high",
+    }
   }
 
   if (assignment.kind === "explore") {

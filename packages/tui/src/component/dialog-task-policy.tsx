@@ -52,15 +52,15 @@ const routes = [
   {
     kind: "review",
     quick: "Kimi 2.7 highspeed",
-    medium: "Kimi 2.7 highspeed",
-    complex: "GLM 5.2 high",
+    medium: "GLM 5.2 high",
+    complex: "GLM 5.2 max",
     note: "Code review and audit tasks.",
   },
   {
     kind: "implement",
     quick: "Kimi 2.7 highspeed",
-    medium: "Kimi 2.7 highspeed",
-    complex: "GLM 5.2 high",
+    medium: "GLM 5.2 high",
+    complex: "GLM 5.2 max",
     note: "Code implementation tasks.",
   },
   {

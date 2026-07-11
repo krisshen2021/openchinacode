@@ -239,7 +239,29 @@ describe("task policy", () => {
     expect(result?.route.variant).toBe("max")
   })
 
-  test("routes implementation to Kimi highspeed", async () => {
+  test("routes quick implementation to Kimi highspeed", async () => {
+    const result = await Effect.runPromise(
+      TaskPolicy.select({
+        cfg: {},
+        provider: mockProvider({ tagged: false }),
+        agent,
+        inherited,
+        description: "quick implementation",
+        prompt: "change one label",
+        kindHint: "implement",
+        complexityHint: "quick",
+      }),
+    )
+
+    expect(result?.assignment.kind).toBe("implement")
+    expect(result?.assignment.complexity).toBe("quick")
+    expect(result?.route.model).toEqual({
+      providerID: ProviderV2.ID.make("moonshotai-cn"),
+      modelID: ModelV2.ID.make("kimi-k2.7-code-highspeed"),
+    })
+  })
+
+  test("routes medium implementation to GLM high", async () => {
     const result = await Effect.runPromise(
       TaskPolicy.select({
         cfg: {},
@@ -248,17 +270,21 @@ describe("task policy", () => {
         inherited,
         description: "implement feature",
         prompt: "add support for task assignment routes",
+        kindHint: "implement",
+        complexityHint: "medium",
       }),
     )
 
     expect(result?.assignment.kind).toBe("implement")
+    expect(result?.assignment.complexity).toBe("medium")
     expect(result?.route.model).toEqual({
-      providerID: ProviderV2.ID.make("moonshotai-cn"),
-      modelID: ModelV2.ID.make("kimi-k2.7-code-highspeed"),
+      providerID: ProviderV2.ID.make("zhipuai-pay2go"),
+      modelID: ModelV2.ID.make("glm-5.2"),
     })
+    expect(result?.route.variant).toBe("high")
   })
 
-  test("routes complex implementation to GLM high", async () => {
+  test("routes complex implementation to GLM max", async () => {
     const result = await Effect.runPromise(
       TaskPolicy.select({
         cfg: {},
@@ -276,10 +302,55 @@ describe("task policy", () => {
       providerID: ProviderV2.ID.make("zhipuai-pay2go"),
       modelID: ModelV2.ID.make("glm-5.2"),
     })
+    expect(result?.route.variant).toBe("max")
+  })
+
+  test("routes quick review to Kimi highspeed", async () => {
+    const result = await Effect.runPromise(
+      TaskPolicy.select({
+        cfg: {},
+        provider: mockProvider({ tagged: false }),
+        agent,
+        inherited,
+        description: "quick review",
+        prompt: "review this small change",
+        kindHint: "review",
+        complexityHint: "quick",
+      }),
+    )
+
+    expect(result?.assignment.kind).toBe("review")
+    expect(result?.assignment.complexity).toBe("quick")
+    expect(result?.route.model).toEqual({
+      providerID: ProviderV2.ID.make("moonshotai-cn"),
+      modelID: ModelV2.ID.make("kimi-k2.7-code-highspeed"),
+    })
+  })
+
+  test("routes medium review to GLM high", async () => {
+    const result = await Effect.runPromise(
+      TaskPolicy.select({
+        cfg: {},
+        provider: mockProvider({ tagged: false }),
+        agent,
+        inherited,
+        description: "module review",
+        prompt: "review this feature implementation",
+        kindHint: "review",
+        complexityHint: "medium",
+      }),
+    )
+
+    expect(result?.assignment.kind).toBe("review")
+    expect(result?.assignment.complexity).toBe("medium")
+    expect(result?.route.model).toEqual({
+      providerID: ProviderV2.ID.make("zhipuai-pay2go"),
+      modelID: ModelV2.ID.make("glm-5.2"),
+    })
     expect(result?.route.variant).toBe("high")
   })
 
-  test("routes complex review to GLM high", async () => {
+  test("routes complex review to GLM max", async () => {
     const result = await Effect.runPromise(
       TaskPolicy.select({
         cfg: {},
@@ -297,7 +368,7 @@ describe("task policy", () => {
       providerID: ProviderV2.ID.make("zhipuai-pay2go"),
       modelID: ModelV2.ID.make("glm-5.2"),
     })
-    expect(result?.route.variant).toBe("high")
+    expect(result?.route.variant).toBe("max")
   })
 
   test("routes quick exploration to Kimi highspeed", async () => {

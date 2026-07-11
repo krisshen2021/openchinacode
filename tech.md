@@ -757,8 +757,8 @@ explicit task model
 | `plan`         | `glm-5.2#high`             | `glm-5.2#high`             | `glm-5.2#max`     |
 | `architecture` | `glm-5.2#high`             | `glm-5.2#high`             | `glm-5.2#max`     |
 | `refactor`     | `glm-5.2#high`             | `glm-5.2#high`             | `glm-5.2#max`     |
-| `review`       | `kimi-k2.7-code-highspeed` | `kimi-k2.7-code-highspeed` | `glm-5.2#high`    |
-| `implement`    | `kimi-k2.7-code-highspeed` | `kimi-k2.7-code-highspeed` | `glm-5.2#high`    |
+| `review`       | `kimi-k2.7-code-highspeed` | `glm-5.2#high`             | `glm-5.2#max`     |
+| `implement`    | `kimi-k2.7-code-highspeed` | `glm-5.2#high`             | `glm-5.2#max`     |
 | `explore`      | `kimi-k2.7-code-highspeed` | `glm-5.2#high`             | `glm-5.2#max`     |
 | `visual_check` | `glm-5v-turbo`             | `glm-5v-turbo`             | `glm-5v-turbo`    |
 | `debug`        | `deepseek-v4-pro`          | `deepseek-v4-pro`          | `deepseek-v4-pro` |
