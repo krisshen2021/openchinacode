@@ -4,6 +4,7 @@ import {
   parseCompactSlashAction,
   parseDirectSlashCommand,
   parseLspSlashAction,
+  parseSoulSlashAction,
   parseTestMcpSlashAction,
 } from "../../src/component/prompt/slash"
 
@@ -64,5 +65,13 @@ describe("prompt slash commands", () => {
       model: "deepseek/deepseek-v4-flash",
     })
     expect(parseAutoMaxTokensSlashAction("model")).toEqual({ type: "help" })
+  })
+
+  test("parses soul actions", () => {
+    expect(parseSoulSlashAction("")).toEqual({ type: "dialog" })
+    expect(parseSoulSlashAction("rigorous")).toEqual({ type: "set", soul: "rigorous" })
+    expect(parseSoulSlashAction("friendly")).toEqual({ type: "set", soul: "friendly" })
+    expect(parseSoulSlashAction("custom")).toEqual({ type: "set", soul: "custom" })
+    expect(parseSoulSlashAction("unknown")).toEqual({ type: "help" })
   })
 })

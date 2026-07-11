@@ -480,6 +480,54 @@ describe("task policy", () => {
     }
   })
 
+  test("routes quick and medium debug tasks to DeepSeek high", async () => {
+    for (const complexityHint of ["quick", "medium"] as const) {
+      const result = await Effect.runPromise(
+        TaskPolicy.select({
+          cfg: {},
+          provider: mockProvider({ tagged: false }),
+          agent,
+          inherited,
+          description: `${complexityHint} debug`,
+          prompt: "debug the failing request path",
+          kindHint: "debug",
+          complexityHint,
+        }),
+      )
+
+      expect(result?.assignment.kind).toBe("debug")
+      expect(result?.assignment.complexity).toBe(complexityHint)
+      expect(result?.route.model).toEqual({
+        providerID: ProviderV2.ID.make("deepseek"),
+        modelID: ModelV2.ID.make("deepseek-v4-pro"),
+      })
+      expect(result?.route.variant).toBe("high")
+    }
+  })
+
+  test("routes complex test fixes to DeepSeek max", async () => {
+    const result = await Effect.runPromise(
+      TaskPolicy.select({
+        cfg: {},
+        provider: mockProvider({ tagged: false }),
+        agent,
+        inherited,
+        description: "complex test fix",
+        prompt: "fix a complex cross-module failing test suite",
+        kindHint: "test_fix",
+        complexityHint: "complex",
+      }),
+    )
+
+    expect(result?.assignment.kind).toBe("test_fix")
+    expect(result?.assignment.complexity).toBe("complex")
+    expect(result?.route.model).toEqual({
+      providerID: ProviderV2.ID.make("deepseek"),
+      modelID: ModelV2.ID.make("deepseek-v4-pro"),
+    })
+    expect(result?.route.variant).toBe("max")
+  })
+
   test("routes compaction to GLM high", async () => {
     const result = await Effect.runPromise(
       TaskPolicy.select({

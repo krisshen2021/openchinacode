@@ -79,16 +79,16 @@ const routes = [
   },
   {
     kind: "debug",
-    quick: "DeepSeek v4 pro",
-    medium: "DeepSeek v4 pro",
-    complex: "DeepSeek v4 pro",
+    quick: "DeepSeek v4 pro high",
+    medium: "DeepSeek v4 pro high",
+    complex: "DeepSeek v4 pro max",
     note: "Bug diagnosis.",
   },
   {
     kind: "test_fix",
-    quick: "DeepSeek v4 pro",
-    medium: "DeepSeek v4 pro",
-    complex: "DeepSeek v4 pro",
+    quick: "DeepSeek v4 pro high",
+    medium: "DeepSeek v4 pro high",
+    complex: "DeepSeek v4 pro max",
     note: "Fixing failing tests.",
   },
 ] as const
@@ -99,6 +99,8 @@ const models = [
   ["GLM 5V Turbo", "zhipuai-pay2go/glm-5v-turbo"],
   ["Kimi 2.7 highspeed", "moonshotai-cn/kimi-k2.7-code-highspeed"],
   ["DeepSeek v4 pro", "deepseek/deepseek-v4-pro"],
+  ["DeepSeek v4 pro high", "deepseek/deepseek-v4-pro#high"],
+  ["DeepSeek v4 pro max", "deepseek/deepseek-v4-pro#max"],
   ["DeepSeek v4 flash", "deepseek/deepseek-v4-flash"],
   ["parent model", "inherit the current parent model"],
 ] as const

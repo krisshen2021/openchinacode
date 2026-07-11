@@ -108,3 +108,19 @@ export function parseTaskPolicySlashAction(args: string): TaskPolicySlashAction 
   if (rest.length === 0) return { type: "dialog", focus: trimmed }
   return { type: "help" }
 }
+
+export type SoulSlashAction =
+  | { type: "dialog" }
+  | { type: "set"; soul: "rigorous" | "friendly" | "custom" }
+  | { type: "help" }
+
+export function parseSoulSlashAction(args: string): SoulSlashAction {
+  const trimmed = args.trim()
+  if (!trimmed) return { type: "dialog" }
+  const normalized = trimmed.toLowerCase()
+  if (["rigorous", "strict", "engineer"].includes(normalized)) return { type: "set", soul: "rigorous" }
+  if (["friendly", "warm", "positive"].includes(normalized)) return { type: "set", soul: "friendly" }
+  if (["custom", "edit"].includes(normalized)) return { type: "set", soul: "custom" }
+  if (["help", "-h", "--help"].includes(normalized)) return { type: "help" }
+  return { type: "help" }
+}

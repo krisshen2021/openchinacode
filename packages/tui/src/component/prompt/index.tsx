@@ -78,9 +78,11 @@ import {
   parseCompactSlashAction,
   parseDirectSlashCommand,
   parseLspSlashAction,
+  parseSoulSlashAction,
   parseTaskPolicySlashAction,
   parseTestMcpSlashAction,
 } from "./slash"
+import { DialogSoul } from "../dialog-soul"
 
 registerOpencodeSpinner()
 
@@ -866,6 +868,34 @@ export function Prompt(props: PromptProps) {
     }
   }
 
+  function showSoulDialog(initialAction?: "rigorous" | "friendly" | "custom") {
+    const promptText = store.prompt.input.trim()
+    const slash = parseDirectSlashCommand(promptText)
+    const isSlashDraft = promptText.startsWith("/") && !promptText.match(/\s/)
+    if (isSlashDraft || slash?.command === "soul") clearPrompt()
+    dialog.replace(() => <DialogSoul initialAction={initialAction} />)
+  }
+
+  function handleSoulSlash(args: string) {
+    const action = parseSoulSlashAction(args)
+    switch (action.type) {
+      case "dialog":
+        showSoulDialog()
+        return
+      case "set":
+        showSoulDialog(action.soul)
+        return
+      case "help":
+        toast.show({
+          title: "Soul command",
+          message: "Usage: /soul, /soul rigorous, /soul friendly, /soul custom",
+          variant: "info",
+          duration: 8000,
+        })
+        return
+    }
+  }
+
   function selectDialog<T>(title: string, options: readonly DialogSelectOption<T>[], current?: T) {
     return new Promise<T | null>((resolve) => {
       let settled = false
@@ -1514,6 +1544,14 @@ export function Prompt(props: PromptProps) {
         },
       },
       {
+        title: "Soul",
+        desc: "Usage: /soul [rigorous|friendly|custom] - choose OpenChinaCode personality",
+        name: "openchinacode.soul",
+        category: "OpenChinaCode",
+        slashName: "soul",
+        run: () => showSoulDialog(),
+      },
+      {
         title: "Task policy",
         desc: "Usage: /task-policy [focus|extra-status|extra-on|extra-off] - show routing or toggle extra task router",
         name: "openchinacode.task_policy",
@@ -1689,6 +1727,7 @@ export function Prompt(props: PromptProps) {
       "openchinacode.image_generate",
       "openchinacode.video_generate",
       "openchinacode.media_auth",
+      "openchinacode.soul",
       "openchinacode.task_policy",
       "openchinacode.task_classify",
       "session.interrupt",
@@ -2470,6 +2509,11 @@ export function Prompt(props: PromptProps) {
     if (parsed.command === "task-policy") {
       clearPrompt()
       handleTaskPolicySlash(parsed.args)
+      return true
+    }
+    if (parsed.command === "soul") {
+      clearPrompt()
+      handleSoulSlash(parsed.args)
       return true
     }
     if (parsed.args) return false

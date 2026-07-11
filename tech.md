@@ -38,7 +38,7 @@ openchinacode.json
 openchinacode.jsonc
 ```
 
-TUI slash command 写配置时也会优先写 `~/.config/openchinacode/openchinacode.jsonc`。
+多数 TUI slash command 写全局配置时会优先写 `~/.config/openchinacode/openchinacode.jsonc`。项目级策略类命令例外：`/permissions` 和 `/soul` 写当前项目的 `.openchinacode/openchinacode.jsonc`。
 
 ## Provider 与模型
 
@@ -161,9 +161,104 @@ DeepSeek：
 
 上下文接近溢出时，`llm/budget.ts` 会按当前模型上下文、prompt tokens、工具 schema 和安全 buffer 做 clamp。如果可用输出小于最低有效输出，会触发 compaction，而不是硬塞一个过大的 `max_tokens`。
 
+## Soul Prompt Architecture
+
+OpenChinaCode 的人格层不再做 provider-specific prompt 适配。Kimi/GLM/DeepSeek 都走同一条默认路径：
+
+```text
+SystemPrompt.provider(model, { soul })
+-> base prompt
+-> selected soul
+-> china-tools when provider/model belongs to OpenChina set
+```
+
+实现入口：
+
+- `packages/opencode/src/session/system.ts`
+- `packages/opencode/src/session/soul.ts`
+- `packages/opencode/src/session/llm.ts`
+- `packages/opencode/src/session/llm/request.ts`
+- `packages/opencode/src/session/prompt/soul-rigorous.txt`
+- `packages/opencode/src/session/prompt/soul-friendly.txt`
+
+配置 schema：
+
+- `packages/core/src/v1/config/config.ts`
+
+配置示例：
+
+```jsonc
+{
+  "soul": {
+    "active": "rigorous",
+  },
+}
+```
+
+可选 `active`：
+
+```text
+rigorous | friendly | custom
+```
+
+custom 默认读取：
+
+```text
+<project>/.openchinacode/souls/custom.md
+```
+
+`custom_path` 可以覆盖为绝对路径或相对项目根目录的路径。TUI `/soul custom` 会写：
+
+```jsonc
+{
+  "soul": {
+    "active": "custom",
+    "custom_path": ".openchinacode/souls/custom.md",
+  },
+}
+```
+
+如果当前 agent 自己配置了 `agent.prompt`，则按原 opencode 机制替换默认 system prompt，不叠加 soul 和默认 provider prompt。这是刻意保留的 agent override 行为。
+
+custom soul 只负责把本地文本注入 system prompt，不负责 provider safety 或 stream 恢复。排查 custom 后的异常截断时：
+
+- custom 文件完整性看 `<project>/.openchinacode/souls/custom.md`。
+- 配置是否生效看 `<project>/.openchinacode/openchinacode.jsonc` 和 instance reload 日志。
+- 如果 DB/message part 的文本中途断开，且 finish 为 `other` / `unknown`、usage/token 为空，应按 provider safety / stream abnormal 处理。
+- 如果 finish 为 `length`，再回到 max token 滑动策略和输出预算排查。
+
 ## Slash Commands
 
 OpenChinaCode 定制 slash command 的 TUI 入口在 `packages/tui/src/component/prompt/index.tsx`。Ctrl+P 中统一归类为 `OpenChinaCode`。
+
+### `/soul`
+
+本地 TUI command，不调用当前对话模型。写项目配置并刷新当前 instance。
+
+```text
+/soul
+/soul rigorous
+/soul friendly
+/soul custom
+```
+
+实现入口：
+
+- `packages/tui/src/component/dialog-soul.tsx`
+- `packages/tui/src/util/soul-config.ts`
+- `packages/tui/src/component/prompt/index.tsx`
+- `packages/tui/src/component/prompt/slash.ts`
+
+写入位置：
+
+```text
+<project>/.openchinacode/openchinacode.jsonc
+<project>/.openchinacode/souls/custom.md
+```
+
+`/soul` 打开选择列表；`/soul custom` 打开 `DialogPrompt` 输入框，Enter 后保存 custom.md 并设置 active=custom。保存后会调用 `instance.dispose()` + `sync.bootstrap({ fatal: false })`，使后续新 turn 读取新配置。
+
+`/soul custom` 的输入框只写文件和配置，不调用 LLM。若后续模型输出不完整，日志中 `finishReason=other|unknown` 且 usage 缺失一般说明服务端/SDK stream 异常；这不是 TUI 输入框截断，也不是 custom 文件被截断。
 
 ### `/auto-maxtokens`
 
@@ -761,8 +856,8 @@ explicit task model
 | `implement`    | `kimi-k2.7-code-highspeed` | `glm-5.2#high`             | `glm-5.2#max`     |
 | `explore`      | `kimi-k2.7-code-highspeed` | `glm-5.2#high`             | `glm-5.2#max`     |
 | `visual_check` | `glm-5v-turbo`             | `glm-5v-turbo`             | `glm-5v-turbo`    |
-| `debug`        | `deepseek-v4-pro`          | `deepseek-v4-pro`          | `deepseek-v4-pro` |
-| `test_fix`     | `deepseek-v4-pro`          | `deepseek-v4-pro`          | `deepseek-v4-pro` |
+| `debug`        | `deepseek-v4-pro#high`     | `deepseek-v4-pro#high`     | `deepseek-v4-pro#max` |
+| `test_fix`     | `deepseek-v4-pro#high`     | `deepseek-v4-pro#high`     | `deepseek-v4-pro#max` |
 | `summarize`    | `kimi-k2.7-code-highspeed` | `kimi-k2.7-code-highspeed` | `glm-5.2#high`    |
 | `compaction`   | `glm-5.2#high`             | `glm-5.2#high`             | `glm-5.2#high`    |
 

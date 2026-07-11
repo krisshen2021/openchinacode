@@ -44,6 +44,17 @@ const AutoMaxTokens = Schema.Union([
     "OpenChinaCode output-token budget strategy: off uses official defaults, heuristic uses local task signals, llm uses heuristic plus a configured low-cost judge model for ambiguous turns.",
 })
 
+const Soul = Schema.Union([
+  Schema.Literals(["rigorous", "friendly", "custom"]),
+  Schema.Struct({
+    active: Schema.optional(Schema.Literals(["rigorous", "friendly", "custom"])),
+    custom_path: Schema.optional(Schema.String),
+  }),
+]).annotate({
+  description:
+    "OpenChinaCode conversation personality. rigorous is the default engineering soul; friendly is warmer; custom reads custom_path, defaulting to .openchinacode/souls/custom.md.",
+})
+
 export const Info = Schema.Struct({
   $schema: Schema.optional(Schema.String).annotate({
     description: "JSON schema reference for configuration validation",
@@ -92,6 +103,7 @@ export const Info = Schema.Struct({
   small_model: Schema.optional(Schema.String).annotate({
     description: "Small model to use for tasks like title generation in the format of provider/model",
   }),
+  soul: Schema.optional(Soul),
   auto_maxtokens: Schema.optional(AutoMaxTokens),
   task_policy: Schema.optional(ConfigTaskPolicy.Info).annotate({
     description: "OpenChinaCode subagent task classification and task-to-model routing policy.",

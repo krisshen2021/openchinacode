@@ -371,7 +371,10 @@ function builtinRoute(assignment: Assignment): ConfigTaskPolicy.Route {
   }
 
   if (assignment.kind === "debug" || assignment.kind === "test_fix") {
-    return { model: "deepseek/deepseek-v4-pro" }
+    return {
+      model: "deepseek/deepseek-v4-pro",
+      variant: assignment.complexity === "complex" ? "max" : "high",
+    }
   }
 
   return { inherit: true }

@@ -73,7 +73,53 @@ OpenChinaCode 的默认 provider 目标是只保留 GLM、Kimi、DeepSeek 三家
 - 版本显示：`openchinacode: 0.0.0-openchinacode...`
 - TUI 中可直接看到 subagent 使用的模型路由信息。
 
-### 2.1 Session Picker
+### 2.1 Soul 人格选择
+
+OpenChinaCode 现在有明确的 soul 层，注入顺序是：
+
+```text
+base system prompt -> selected soul -> china-tools
+```
+
+默认是 `rigorous`，也就是严谨工程师风格。可选：
+
+| Soul       | 用途                                   |
+| ---------- | -------------------------------------- |
+| `rigorous` | 严谨、直接、风险感知强，默认工程师人格 |
+| `friendly` | 更积极亲和，但仍保持工程判断           |
+| `custom`   | 项目自定义人格                         |
+
+TUI 命令：
+
+```text
+/soul
+/soul rigorous
+/soul friendly
+/soul custom
+```
+
+`/soul` 会打开选择面板；`/soul custom` 会弹出输入框，保存到：
+
+```text
+<project>/.openchinacode/souls/custom.md
+```
+
+并写入项目配置：
+
+```jsonc
+{
+  "soul": {
+    "active": "custom",
+    "custom_path": ".openchinacode/souls/custom.md",
+  },
+}
+```
+
+切换后会刷新当前 instance，对后续新 turn 生效。注意：如果某个 agent 自己配置了 `agent.prompt`，它会按 opencode 原机制替换默认 system prompt，因此不会叠加 soul。
+
+`custom` 只是本地 system prompt 片段，不会绕过模型供应商的安全策略或服务端限制。如果自定义人格后出现回复半句截断，先看日志/DB 中该条 assistant message 的 finish 信息：正常 token 不足通常是 `length`；如果是 `other` / `unknown` 且 usage/token 为空，更像 provider safety 或 stream 异常，不是 custom 文件保存不完整。
+
+### 2.2 Session Picker
 
 OpenChinaCode 改造了 session 选择器，方便在长程项目开发中恢复上下文。
 
@@ -301,14 +347,48 @@ explicit task model
 | `implement`    | `moonshotai-cn/kimi-k2.7-code-highspeed` | `zhipuai-pay2go/glm-5.2#high`            | `zhipuai-pay2go/glm-5.2#max`  |
 | `explore`      | `moonshotai-cn/kimi-k2.7-code-highspeed` | `zhipuai-pay2go/glm-5.2#high`            | `zhipuai-pay2go/glm-5.2#max`  |
 | `visual_check` | `zhipuai-pay2go/glm-5v-turbo`            | `zhipuai-pay2go/glm-5v-turbo`            | `zhipuai-pay2go/glm-5v-turbo` |
-| `debug`        | `deepseek/deepseek-v4-pro`               | `deepseek/deepseek-v4-pro`               | `deepseek/deepseek-v4-pro`    |
-| `test_fix`     | `deepseek/deepseek-v4-pro`               | `deepseek/deepseek-v4-pro`               | `deepseek/deepseek-v4-pro`    |
+| `debug`        | `deepseek/deepseek-v4-pro#high`          | `deepseek/deepseek-v4-pro#high`          | `deepseek/deepseek-v4-pro#max` |
+| `test_fix`     | `deepseek/deepseek-v4-pro#high`          | `deepseek/deepseek-v4-pro#high`          | `deepseek/deepseek-v4-pro#max` |
 | `summarize`    | `moonshotai-cn/kimi-k2.7-code-highspeed` | `moonshotai-cn/kimi-k2.7-code-highspeed` | `zhipuai-pay2go/glm-5.2#high` |
 | `compaction`   | `zhipuai-pay2go/glm-5.2#high`            | `zhipuai-pay2go/glm-5.2#high`            | `zhipuai-pay2go/glm-5.2#high` |
 
 ## 定制 Slash Commands
 
 这些是 OpenChinaCode 定制开发过程中新增或强化的命令。
+
+### `/soul`
+
+选择 OpenChinaCode 的对话人格。这个命令是本地 TUI command，不调用当前对话模型。
+
+```text
+/soul
+/soul rigorous
+/soul friendly
+/soul custom
+```
+
+含义：
+
+| 命令             | 作用                                   |
+| ---------------- | -------------------------------------- |
+| `/soul`          | 打开 TUI 选择面板                      |
+| `/soul rigorous` | 切换为严谨工程师人格                   |
+| `/soul friendly` | 切换为积极亲和工程师人格               |
+| `/soul custom`   | 打开 custom 输入框，保存并启用自定义人格 |
+
+自定义内容保存在项目目录：
+
+```text
+.openchinacode/souls/custom.md
+```
+
+配置写入：
+
+```text
+.openchinacode/openchinacode.jsonc
+```
+
+排查提示：`/soul custom` 保存的是完整文本文件，当前 turn 之后的新请求才会读取。若回复被截断，请优先检查日志里的 `finishReason`。`length` 说明输出预算不足；`other` / `unknown` 且 usage 缺失，通常是服务商返回流异常或内容策略中断。
 
 ### `/auto-maxtokens`
 
@@ -875,6 +955,31 @@ compaction
 - 修改后建议重启 OpenChinaCode，确保 TUI 和 session runtime 读取最新配置。
 
 需要注意：`/task-policy` 当前显示的是内置默认策略表，不是合并用户配置后的 effective policy。实际运行时会尊重这里的用户配置，subagent footer 中显示的 `source` 会体现命中的来源，例如 `task_policy.routes`、`task_policy.agent` 或 `openchinacode.default`。
+
+### Soul 配置
+
+项目级配置：
+
+```jsonc
+{
+  "soul": {
+    "active": "rigorous",
+  },
+}
+```
+
+自定义：
+
+```jsonc
+{
+  "soul": {
+    "active": "custom",
+    "custom_path": ".openchinacode/souls/custom.md",
+  },
+}
+```
+
+`custom_path` 可以是绝对路径，也可以是相对项目根目录的路径。默认自定义文件是 `.openchinacode/souls/custom.md`。
 
 ## 常用测试命令
 

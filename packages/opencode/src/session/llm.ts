@@ -24,6 +24,7 @@ import { SessionID } from "@/session/schema"
 import { Auth } from "@/auth"
 import { EffectBridge } from "@/effect/bridge"
 import { RuntimeFlags } from "@/effect/runtime-flags"
+import { InstanceState } from "@/effect/instance-state"
 import * as Option from "effect/Option"
 import * as OtelTracer from "@effect/opentelemetry/Tracer"
 import { LLMAISDK } from "./llm/ai-sdk"
@@ -31,6 +32,7 @@ import { LLMNativeRuntime } from "./llm/native-runtime"
 import { LLMRequestPrep } from "./llm/request"
 import * as OutputBudget from "./llm/budget"
 import { AutoMaxTokensJudge } from "./judge/auto-maxtokens"
+import { SystemSoul } from "./soul"
 
 export const OUTPUT_TOKEN_MAX = ProviderTransform.OUTPUT_TOKEN_MAX
 
@@ -216,6 +218,21 @@ const live: Layer.Layer<
       )
 
       const isWorkflow = language instanceof GitLabWorkflowLanguageModel
+      const ctx = yield* InstanceState.context
+      const soulPrompt = input.agent.prompt
+        ? undefined
+        : yield* SystemSoul.resolve({
+            config: cfg.soul,
+            directory: ctx.directory,
+            worktree: ctx.worktree,
+          }).pipe(
+            Effect.catch((error) =>
+              Effect.logWarning("openchinacode soul prompt resolution failed", {
+                error: String(error),
+                "session.id": input.sessionID,
+              }).pipe(Effect.as(undefined)),
+            ),
+          )
       const prepared = yield* LLMRequestPrep.prepare({
         ...input,
         provider: item,
@@ -224,6 +241,7 @@ const live: Layer.Layer<
         flags,
         isWorkflow,
         autoMaxTokens: cfg.auto_maxtokens,
+        soulPrompt,
       })
       const outputDecision = ProviderTransform.maxOutputDecision({
         model: input.model,

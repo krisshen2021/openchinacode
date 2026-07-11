@@ -9,7 +9,6 @@ import PROMPT_BEAST from "./prompt/beast.txt"
 import PROMPT_CHINA_TOOLS from "./prompt/china-tools.txt"
 import PROMPT_GEMINI from "./prompt/gemini.txt"
 import PROMPT_GPT from "./prompt/gpt.txt"
-import PROMPT_KIMI from "./prompt/kimi.txt"
 
 import PROMPT_CODEX from "./prompt/codex.txt"
 import PROMPT_TRINITY from "./prompt/trinity.txt"
@@ -24,7 +23,7 @@ import { Reference } from "@opencode-ai/core/reference"
 import { MCP } from "@/mcp"
 import { PermissionV1 } from "@opencode-ai/core/v1/permission"
 
-export function provider(model: Provider.Model) {
+export function provider(model: Provider.Model, options: { soul?: string } = {}) {
   const apiID = model.api.id.toLowerCase()
   const providerID = model.providerID.toLowerCase()
   const isOpenChina =
@@ -37,20 +36,24 @@ export function provider(model: Provider.Model) {
     apiID.includes("kimi") ||
     apiID.includes("deepseek")
   const withOpenChinaTools = (prompts: string[]) => (isOpenChina ? [...prompts, PROMPT_CHINA_TOOLS] : prompts)
+  const withSoul = (prompts: string[]) => {
+    const soul = options.soul?.trim()
+    return soul ? [...prompts, soul] : prompts
+  }
+  const finalize = (prompts: string[]) => withOpenChinaTools(withSoul(prompts))
 
   if (model.api.id.includes("gpt-4") || model.api.id.includes("o1") || model.api.id.includes("o3"))
-    return withOpenChinaTools([PROMPT_BEAST])
+    return finalize([PROMPT_BEAST])
   if (model.api.id.includes("gpt")) {
     if (model.api.id.includes("codex")) {
-      return withOpenChinaTools([PROMPT_CODEX])
+      return finalize([PROMPT_CODEX])
     }
-    return withOpenChinaTools([PROMPT_GPT])
+    return finalize([PROMPT_GPT])
   }
-  if (model.api.id.includes("gemini-")) return withOpenChinaTools([PROMPT_GEMINI])
-  if (model.api.id.includes("claude")) return withOpenChinaTools([PROMPT_ANTHROPIC])
-  if (apiID.includes("trinity")) return withOpenChinaTools([PROMPT_TRINITY])
-  if (apiID.includes("kimi")) return withOpenChinaTools([PROMPT_KIMI])
-  return withOpenChinaTools([PROMPT_DEFAULT])
+  if (model.api.id.includes("gemini-")) return finalize([PROMPT_GEMINI])
+  if (model.api.id.includes("claude")) return finalize([PROMPT_ANTHROPIC])
+  if (apiID.includes("trinity")) return finalize([PROMPT_TRINITY])
+  return finalize([PROMPT_DEFAULT])
 }
 
 export interface Interface {

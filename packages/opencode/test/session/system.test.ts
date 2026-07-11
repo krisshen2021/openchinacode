@@ -1,4 +1,4 @@
-import { describe, expect } from "bun:test"
+import { describe, expect, test } from "bun:test"
 import { LayerNode } from "@opencode-ai/core/effect/layer-node"
 import { Effect, Layer } from "effect"
 import type { Agent } from "../../src/agent/agent"
@@ -8,6 +8,7 @@ import { Permission } from "../../src/permission"
 import { SystemPrompt } from "../../src/session/system"
 import { MCP } from "../../src/mcp"
 import { testEffect } from "../lib/effect"
+import type { Provider } from "../../src/provider/provider"
 
 const skills: Skill.Info[] = [
   {
@@ -83,6 +84,35 @@ const it = testEffect(
 )
 
 describe("session.system", () => {
+  test("uses the shared default prompt plus OpenChina tools for Kimi models", () => {
+    const model = {
+      providerID: "moonshotai-cn",
+      api: {
+        id: "kimi-k2.7-code-highspeed",
+      },
+    } as Provider.Model
+    const prompts = SystemPrompt.provider(model)
+
+    expect(prompts).toHaveLength(2)
+    expect(prompts[0]).toContain("You are opencode, an interactive CLI tool")
+    expect(prompts[1]).toContain("OpenChinaCode Tool Safety Contract")
+  })
+
+  test("inserts selected OpenChinaCode soul before China tool instructions", () => {
+    const model = {
+      providerID: "zhipuai-pay2go",
+      api: {
+        id: "glm-5.2",
+      },
+    } as Provider.Model
+    const prompts = SystemPrompt.provider(model, { soul: "<openchinacode_soul>test soul</openchinacode_soul>" })
+
+    expect(prompts).toHaveLength(3)
+    expect(prompts[0]).toContain("You are opencode, an interactive CLI tool")
+    expect(prompts[1]).toBe("<openchinacode_soul>test soul</openchinacode_soul>")
+    expect(prompts[2]).toContain("OpenChinaCode Tool Safety Contract")
+  })
+
   it.effect("skills output is sorted by name and stable across calls", () =>
     Effect.gen(function* () {
       const prompt = yield* SystemPrompt.Service
