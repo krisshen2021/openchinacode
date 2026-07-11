@@ -980,8 +980,14 @@ tr:hover td {
 
 /* ── Scroll reveal animation ───────────────────────────────── */
 .reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.7s var(--ease-out), transform 0.7s var(--ease-out);
+}
+
+.reveal.is-visible {
   opacity: 1;
-  transform: none;
+  transform: translateY(0);
 }
 
 @supports (animation-timeline: view()) {
@@ -991,6 +997,7 @@ tr:hover td {
     animation: reveal-in 0.7s var(--ease-out) forwards;
     animation-timeline: view();
     animation-range: entry 0% cover 30%;
+    transition: none;
   }
 }
 
