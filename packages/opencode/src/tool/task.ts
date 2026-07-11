@@ -42,6 +42,26 @@ const BACKGROUND_UPDATED = [
   "DO NOT sleep, poll for progress, ask the task for status, or duplicate this task's work — avoid working with the same files or topics it is using.",
   "Work on non-overlapping tasks, or briefly tell the user what you sent and end your response.",
 ].join("\n")
+const PLAN_MODE_READONLY_NOTICE =
+  "Current parent session is in Plan mode. This subtask is forced read-only; switch to Build mode to implement changes."
+
+function planModeReadonlyPrompt(prompt: string) {
+  return [
+    "<openchinacode-plan-mode-readonly>",
+    PLAN_MODE_READONLY_NOTICE,
+    "Do not edit files, write files, apply patches, update todos, or make system changes.",
+    "You may read, inspect, search, analyze, and produce a concrete implementation plan.",
+    "If the user asked for implementation, explain that implementation requires switching to Build mode.",
+    "</openchinacode-plan-mode-readonly>",
+    "",
+    prompt,
+  ].join("\n")
+}
+
+function withPlanModeReadonlyNotice(text: string) {
+  if (text.includes(PLAN_MODE_READONLY_NOTICE)) return text
+  return [PLAN_MODE_READONLY_NOTICE, "", text].join("\n")
+}
 
 const BaseParameterFields = {
   description: Schema.String.annotate({ description: "A short (3-5 words) description of the task" }),
@@ -140,8 +160,10 @@ export const TaskTool = Tool.define(
         ? yield* sessions.get(SessionID.make(params.task_id)).pipe(Effect.catchCause(() => Effect.succeed(undefined)))
         : undefined
       const parent = yield* sessions.get(ctx.sessionID)
+      const planReadonly = parent.agent === "plan" || ctx.agent === "plan"
       const childPermission = deriveSubagentSessionPermission({
         parentSessionPermission: parent.permission ?? [],
+        parentAgentName: planReadonly ? "plan" : parent.agent,
         subagent: next,
       })
       const childToolDenies = [
@@ -174,6 +196,29 @@ export const TaskTool = Tool.define(
             ),
           ],
         }))
+      if (session && planReadonly) {
+        const planReadonlyRules = childPermission.filter(
+          (rule) =>
+            rule.action === "deny" &&
+            rule.pattern === "*" &&
+            (rule.permission === "edit" || rule.permission === "todowrite"),
+        )
+        const inheritedRules = childPermission.filter((rule) => !planReadonlyRules.includes(rule))
+        const mergedPermission = [
+          ...(session.permission ?? []),
+          ...inheritedRules.filter(
+            (rule) =>
+              !session.permission?.some(
+                (existing) =>
+                  existing.permission === rule.permission &&
+                  existing.pattern === rule.pattern &&
+                  existing.action === rule.action,
+              ),
+          ),
+          ...planReadonlyRules,
+        ]
+        yield* sessions.setPermission({ sessionID: session.id, permission: mergedPermission })
+      }
 
       const msg = yield* MessageV2.get({ sessionID: ctx.sessionID, messageID: ctx.messageID }).pipe(
         Effect.provideService(Database.Service, database),
@@ -234,6 +279,7 @@ export const TaskTool = Tool.define(
               },
             }
           : {}),
+        ...(planReadonly ? { planReadonly: true } : {}),
         ...(runInBackground ? { background: true } : {}),
       }
 
@@ -259,7 +305,7 @@ export const TaskTool = Tool.define(
       if (!ops) return yield* Effect.fail(new Error("TaskTool requires promptOps in ctx.extra"))
 
       const runTask = Effect.fn("TaskTool.runTask")(function* () {
-        const parts = yield* ops.resolvePromptParts(params.prompt)
+        const parts = yield* ops.resolvePromptParts(planReadonly ? planModeReadonlyPrompt(params.prompt) : params.prompt)
         const result = yield* ops.prompt({
           messageID: MessageID.ascending(),
           sessionID: nextSession.id,
@@ -326,7 +372,7 @@ export const TaskTool = Tool.define(
             sessionID: nextSession.id,
             state: "running",
             summary: "Background task updated",
-            text: BACKGROUND_UPDATED,
+            text: planReadonly ? withPlanModeReadonlyNotice(BACKGROUND_UPDATED) : BACKGROUND_UPDATED,
           }),
         }
       }
@@ -358,7 +404,7 @@ export const TaskTool = Tool.define(
             sessionID: nextSession.id,
             state: "running",
             summary: "Background task started",
-            text: BACKGROUND_STARTED,
+            text: planReadonly ? withPlanModeReadonlyNotice(BACKGROUND_STARTED) : BACKGROUND_STARTED,
           }),
         }
       }
@@ -388,10 +434,15 @@ export const TaskTool = Tool.define(
             if (result?.metadata?.background === true) return backgroundResult()
             if (result?.status === "error") return yield* Effect.fail(new Error(result.error ?? "Task failed"))
             if (result?.status === "cancelled") return yield* Effect.fail(new Error("Task cancelled"))
+            const output = result?.output ?? ""
             return {
               title: params.description,
               metadata,
-              output: renderOutput({ sessionID: nextSession.id, state: "completed", text: result?.output ?? "" }),
+              output: renderOutput({
+                sessionID: nextSession.id,
+                state: "completed",
+                text: planReadonly ? withPlanModeReadonlyNotice(output) : output,
+              }),
             }
           }),
         (_, exit) =>

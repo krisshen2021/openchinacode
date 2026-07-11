@@ -43,4 +43,24 @@ describe("TaskRouterJudge", () => {
     expect(TaskRouterJudge.shouldDelegate(decision, { enabled: true, deny: ["debug"] })).toBe(false)
     expect(TaskRouterJudge.shouldDelegate(decision, { enabled: true, allow: ["review"] })).toBe(false)
   })
+
+  test("builds read-only delegated prompt for plan mode", () => {
+    const prompt = TaskRouterJudge.buildSubtaskPrompt({
+      planReadonly: true,
+      prompt: "改一下首页按钮样式",
+      decision: {
+        action: "delegate",
+        task_kind: "implement",
+        task_complexity: "medium",
+        subagent_type: "general",
+        confidence: 0.9,
+        description: "Button style update",
+        reason: "implementation request",
+      },
+    })
+
+    expect(prompt).toContain("Parent mode: Plan mode is active")
+    expect(prompt).toContain("do not edit files")
+    expect(prompt).toContain("switch to Build mode")
+  })
 })

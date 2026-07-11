@@ -478,6 +478,69 @@ describe("tool.task", () => {
     },
   )
 
+  it.instance("forces subagents read-only when parent session is in plan mode", () =>
+    Effect.gen(function* () {
+      const sessions = yield* Session.Service
+      const { chat, assistant } = yield* seed()
+      yield* sessions.setAgentModel({
+        sessionID: chat.id,
+        agent: "plan",
+        model: {
+          id: ref.modelID,
+          providerID: ref.providerID,
+          variant: "xhigh",
+        },
+        time: Date.now(),
+      })
+
+      const tool = yield* TaskTool
+      const def = yield* tool.init()
+      let seen: SessionPrompt.PromptInput | undefined
+      const promptOps = stubOps({ onPrompt: (input) => (seen = input), text: "read-only plan" })
+
+      const result = yield* def.execute(
+        {
+          description: "update button style",
+          prompt: "Change the homepage button style.",
+          subagent_type: "general",
+          task_kind: "implement",
+          task_complexity: "medium",
+        },
+        {
+          sessionID: chat.id,
+          messageID: assistant.id,
+          agent: "plan",
+          abort: new AbortController().signal,
+          extra: { promptOps },
+          messages: [],
+          metadata: () => Effect.void,
+          ask: () => Effect.void,
+        },
+      )
+
+      const child = yield* sessions.get(result.metadata.sessionId)
+      expect(child.permission?.slice(-2)).toEqual([
+        {
+          permission: "edit",
+          pattern: "*",
+          action: "deny",
+        },
+        {
+          permission: "todowrite",
+          pattern: "*",
+          action: "deny",
+        },
+      ])
+      expect(result.metadata.planReadonly).toBe(true)
+      expect(seen?.parts[0]?.type).toBe("text")
+      expect(seen?.parts[0]?.type === "text" ? seen.parts[0].text : "").toContain(
+        "Current parent session is in Plan mode",
+      )
+      expect(result.output).toContain("This subtask is forced read-only")
+      expect(result.output).toContain("read-only plan")
+    }),
+  )
+
   it.instance(
     "execute shapes child permissions for task, todowrite, and primary tools",
     () =>

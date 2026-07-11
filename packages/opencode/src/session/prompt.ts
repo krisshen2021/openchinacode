@@ -719,6 +719,7 @@ const layer = Layer.effect(
 
       const ag = input.agent ? yield* agents.get(input.agent) : yield* agents.defaultInfo()
       if (ag.mode === "subagent") return
+      const planReadonly = ag.name === "plan"
 
       const modelRef = input.model ?? ag.model ?? (yield* currentModel(input.sessionID))
       const current = yield* getModel(modelRef.providerID, modelRef.modelID, input.sessionID)
@@ -774,6 +775,7 @@ const layer = Layer.effect(
           decision,
           prompt: promptText,
           recentContext,
+          planReadonly,
         })
         yield* Effect.logInfo("extra task router delegated", {
           "session.id": input.sessionID,
@@ -795,6 +797,9 @@ const layer = Layer.effect(
             `decision: ${decision.task_kind}.${decision.task_complexity}`,
             `subagent: ${subagent.name}`,
             `confidence: ${decision.confidence}`,
+            ...(planReadonly
+              ? ["notice: Plan mode is active. Routed subtask is read-only; switch to Build mode to implement."]
+              : []),
             `reason: ${decision.reason}`,
             "</openchinacode-extra-task-router>",
           ].join("\n"),
@@ -805,6 +810,7 @@ const layer = Layer.effect(
             task_complexity: decision.task_complexity,
             subagent: subagent.name,
             confidence: decision.confidence,
+            ...(planReadonly ? { planReadonly: true } : {}),
           },
         }
         const subtaskPart: SessionV1.SubtaskPart = {

@@ -156,18 +156,33 @@ export function shouldDelegate(decision: Decision, config: ConfigTaskPolicy.Extr
   return true
 }
 
-export function buildSubtaskPrompt(input: { decision: Decision; prompt: string; recentContext?: string }) {
+export function buildSubtaskPrompt(input: {
+  decision: Decision
+  prompt: string
+  recentContext?: string
+  planReadonly?: boolean
+}) {
   return [
     "OpenChinaCode extra task router delegated this task before the primary model response.",
     `Task: ${input.decision.task_kind}.${input.decision.task_complexity}`,
     `Reason: ${input.decision.reason}`,
+    ...(input.planReadonly
+      ? [
+          "",
+          "Parent mode: Plan mode is active.",
+          "Read-only boundary: do not edit files, write files, apply patches, update todos, or make system changes.",
+          "Return analysis and a concrete implementation plan only. Remind the user to switch to Build mode to implement changes.",
+        ]
+      : []),
     "",
     "User request:",
     input.prompt,
     ...(input.recentContext ? ["", "Relevant recent parent-session context:", input.recentContext] : []),
     ...(input.decision.subtask_prompt ? ["", "Judge task focus:", input.decision.subtask_prompt] : []),
     "",
-    "Do the delegated work directly. Use tools when useful. Return concrete findings, edits, verification, or a clear plan depending on the task.",
+    input.planReadonly
+      ? "Use read/search tools when useful. Return findings, risks, concrete file-level recommendations, and verification steps without making changes."
+      : "Do the delegated work directly. Use tools when useful. Return concrete findings, edits, verification, or a clear plan depending on the task.",
   ].join("\n")
 }
 

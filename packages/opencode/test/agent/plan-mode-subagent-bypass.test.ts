@@ -26,7 +26,7 @@ function testAgent(input: {
 // exercises the actual helper that task.ts uses to build the subagent's
 // session permission, so any regression in that helper trips this test.
 
-it.instance("subagent permissions take precedence over parent agent restrictions", () =>
+it.instance("plan-mode parent forces subagents read-only", () =>
   Effect.gen(function* () {
     const planAgent = yield* Agent.use.get("plan")
     const generalAgent = yield* Agent.use.get("general")
@@ -42,11 +42,32 @@ it.instance("subagent permissions take precedence over parent agent restrictions
 
     const subagentSessionPermission = deriveSubagentSessionPermission({
       parentSessionPermission,
+      parentAgentName: planAgent!.name,
       subagent: generalAgent!,
     })
 
-    // Mirror the runtime evaluation in session/prompt.ts (~line 410, 639):
+    // Mirror the runtime evaluation in session/prompt.ts:
     //   ruleset: Permission.merge(agent.permission, session.permission ?? [])
+    const effective = Permission.merge(generalAgent!.permission, subagentSessionPermission)
+
+    expect(Permission.evaluate("edit", "/some/file.ts", effective).action).toBe("deny")
+    expect(Permission.evaluate("todowrite", "*", effective).action).toBe("deny")
+    expect(Permission.disabled(["edit", "write", "apply_patch"], effective)).toEqual(
+      new Set(["edit", "write", "apply_patch"]),
+    )
+  }),
+)
+
+it.instance("subagent permissions still take precedence outside plan mode", () =>
+  Effect.gen(function* () {
+    const generalAgent = yield* Agent.use.get("general")
+    expect(generalAgent).toBeDefined()
+
+    const subagentSessionPermission = deriveSubagentSessionPermission({
+      parentSessionPermission: [],
+      parentAgentName: "build",
+      subagent: generalAgent!,
+    })
     const effective = Permission.merge(generalAgent!.permission, subagentSessionPermission)
 
     expect(Permission.evaluate("edit", "/some/file.ts", effective).action).not.toBe("deny")
@@ -71,7 +92,7 @@ it.instance("subagent's own read-only restriction remains effective", () =>
 )
 
 it.instance(
-  "custom subagent can explicitly enable edits denied to its parent agent",
+  "custom subagent edit allows cannot override plan-mode parent",
   () =>
     Effect.gen(function* () {
       const planAgent = yield* Agent.use.get("plan")
@@ -82,13 +103,16 @@ it.instance(
       const parentSessionPermission: PermissionV1.Ruleset = []
       const subagentSessionPermission = deriveSubagentSessionPermission({
         parentSessionPermission,
+        parentAgentName: planAgent!.name,
         subagent: my!,
       })
       const effective = Permission.merge(my!.permission, subagentSessionPermission)
 
       expect(Permission.evaluate("edit", "/some/file.ts", planAgent!.permission).action).toBe("deny")
-      expect(Permission.evaluate("edit", "/some/file.ts", effective).action).toBe("allow")
-      expect(Permission.disabled(["edit", "write", "apply_patch"], effective)).toEqual(new Set())
+      expect(Permission.evaluate("edit", "/some/file.ts", effective).action).toBe("deny")
+      expect(Permission.disabled(["edit", "write", "apply_patch"], effective)).toEqual(
+        new Set(["edit", "write", "apply_patch"]),
+      )
     }),
   {
     config: {
