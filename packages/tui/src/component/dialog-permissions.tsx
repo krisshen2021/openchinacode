@@ -1,5 +1,5 @@
 import { TextAttributes } from "@opentui/core"
-import { createMemo, For, Show } from "solid-js"
+import { createMemo, Show } from "solid-js"
 import { useTheme } from "../context/theme"
 import { useDialog } from "../ui/dialog"
 import { DialogSelect, type DialogSelectOption } from "../ui/dialog-select"
@@ -47,7 +47,6 @@ export function DialogPermissions() {
         value: preset,
         category: "Project",
         description: info.description,
-        details: info.details,
       }
     }),
   )
@@ -112,29 +111,8 @@ export function DialogPermissions() {
             })
           })
         }}
-        footer={
-          <box flexDirection="column" gap={0}>
-            <text fg={theme.textMuted}>
-              Writes project config at .openchinacode/openchinacode.jsonc and applies a runtime override immediately.
-            </text>
-            <text fg={theme.textMuted}>
-              Popup-specific Project/Global allow buttons add only the current request pattern.
-            </text>
-          </box>
-        }
+        footer={<text fg={theme.textMuted}>Writes .openchinacode/openchinacode.jsonc and applies immediately.</text>}
       />
-      <box gap={0} paddingTop={1}>
-        <text fg={theme.textMuted} attributes={TextAttributes.BOLD}>
-          Rule order
-        </text>
-        <For each={["agent defaults/config", "runtime project policy", "current-session Allow always"]}>
-          {(item, index) => (
-            <text fg={theme.textMuted}>
-              {index() + 1}. {item}
-            </text>
-          )}
-        </For>
-      </box>
     </box>
   )
 }
