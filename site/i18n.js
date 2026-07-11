@@ -33,6 +33,8 @@ const I18N = {
     "hero.readManual": "Read manual",
     "hero.release": "Latest release",
     "hero.copy": "Copy command",
+    "hero.block.install": "install",
+    "hero.block.upgrade": "upgrade",
 
     /* ── Capability strip ── */
     "cap.routing.title": "Task routing",
@@ -43,11 +45,6 @@ const I18N = {
     "cap.budgets.desc": "Model-aware max tokens with overflow-safe triggers.",
     "cap.vision.title": "Enhance Vision",
     "cap.vision.desc": "Paste any image and any model can see it — vision for all.",
-
-    /* ── Terminal labels ── */
-    "term.provider": "provider",
-    "term.route": "route",
-    "term.compact": "compact",
 
     /* ── Stats ── */
     "stats.providers": "Provider families",
@@ -310,6 +307,8 @@ const I18N = {
     "hero.readManual": "阅读手册",
     "hero.release": "最新版本",
     "hero.copy": "复制命令",
+    "hero.block.install": "安装",
+    "hero.block.upgrade": "升级",
 
     /* ── Capability strip ── */
     "cap.routing.title": "任务路由",
@@ -320,11 +319,6 @@ const I18N = {
     "cap.budgets.desc": "模型感知的最大 token 预算，带溢出安全触发器。",
     "cap.vision.title": "增强视觉",
     "cap.vision.desc": "补全自然识图能力，复制粘贴图片让任意模型识图。",
-
-    /* ── Terminal labels ── */
-    "term.provider": "提供商",
-    "term.route": "路由",
-    "term.compact": "压缩",
 
     /* ── Stats ── */
     "stats.providers": "提供商系列",

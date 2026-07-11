@@ -686,6 +686,35 @@ h3 {
 .terminal-body .text-azure { color: var(--azure); }
 .terminal-body .text-mist { color: var(--mist); }
 
+/* Terminal command blocks */
+.terminal-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.terminal-block + .terminal-block {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+
+.terminal-block-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--mist-dim);
+  line-height: 1;
+}
+
+.terminal-block .terminal-cmd-line {
+  margin-bottom: 0;
+}
+
+.terminal-block .terminal-cmd-line + .terminal-cmd-line {
+  margin-top: 2px;
+}
+
 /* Terminal command line with inline copy icon */
 .terminal-cmd-line {
   display: flex;
