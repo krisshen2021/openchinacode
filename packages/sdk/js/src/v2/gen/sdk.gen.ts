@@ -128,6 +128,8 @@ import type {
   PermissionRespondErrors,
   PermissionRespondResponses,
   PermissionRuleset,
+  PermissionRuntimeErrors,
+  PermissionRuntimeResponses,
   PermissionV2Reply,
   PermissionV2Source,
   ProjectCommands,
@@ -1353,9 +1355,9 @@ export class Global extends HeyApiClient {
   }
 
   /**
-   * Upgrade opencode
+   * Upgrade OpenChinaCode
    *
-   * Upgrade opencode to the specified version or latest if not specified.
+   * Upgrade OpenChinaCode to the specified version or latest if not specified.
    */
   public upgrade<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -3144,6 +3146,43 @@ export class Permission extends HeyApiClient {
     )
     return (options?.client ?? this.client).post<PermissionReplyResponses, PermissionReplyErrors, ThrowOnError>({
       url: "/permission/{requestID}/reply",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Set runtime permission rules
+   *
+   * Apply permission rules to the current OpenChinaCode instance without rewriting config.
+   */
+  public runtime<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+      permissionRuleset?: PermissionRuleset
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { key: "permissionRuleset", map: "body" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<PermissionRuntimeResponses, PermissionRuntimeErrors, ThrowOnError>({
+      url: "/permission/runtime",
       ...options,
       ...params,
       headers: {

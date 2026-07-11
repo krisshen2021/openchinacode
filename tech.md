@@ -219,6 +219,48 @@ OpenChinaCode 定制 slash command 的 TUI 入口在 `packages/tui/src/component
 
 `/lsp on/off` 修改 `lsp` 配置后通常需要重启 OpenChinaCode。
 
+### `/permissions`
+
+本地 TUI command，不调用当前对话模型。打开项目权限策略面板。
+
+```text
+/permissions
+```
+
+实现入口：
+
+- `packages/tui/src/component/dialog-permissions.tsx`
+- `packages/tui/src/routes/session/permission.tsx`
+- `packages/tui/src/util/permission-config.ts`
+- `packages/opencode/src/permission/index.ts`
+- `packages/opencode/src/server/routes/instance/httpapi/groups/permission.ts`
+- `packages/opencode/src/server/routes/instance/httpapi/handlers/permission.ts`
+
+配置写入位置：
+
+```text
+project: <worktree>/.openchinacode/openchinacode.jsonc
+global:  ~/.config/openchinacode/openchinacode.jsonc
+```
+
+`/permissions` 写项目级策略，并同步调用 `POST /permission/runtime`，让当前 instance 立即应用 runtime rules。runtime rules 的优先级：
+
+```text
+agent defaults/config -> runtime project policy -> current-session Allow always
+```
+
+项目策略：
+
+| 策略                        | permission config                                                                                                    |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `Project Trust All`         | `"allow"`                                                                                                            |
+| `Project Safe`              | read/glob/grep/list/task/lsp/todowrite/question/webfetch allow；edit/bash/external_directory/websearch/doom_loop ask |
+| `Project Ask Everything`    | `"ask"`                                                                                                              |
+| `Project Readonly`          | read/search/lsp/question allow；edit/todowrite/doom_loop deny；task/bash/external_directory ask                      |
+| `Reset Project Permissions` | 删除 `permission` 字段                                                                                               |
+
+权限弹窗新增 `Project` / `Global` 按钮。它们不会应用整套策略，只把当前请求的 `permission + always patterns` 写入对应配置，并同时下发 runtime allow rules；随后发送现有 `always` reply 解除当前 pending permission。
+
 ### `/test-mcp`
 
 本地 TUI command，不调用当前对话模型。面向新用户的一键 Playwright MCP 配置入口，写入全局配置。
@@ -650,12 +692,12 @@ JsonJudge.runJsonJudge()
 
 当前业务 judge：
 
-| Judge                | 配置路径                                | 默认模型候选                            | 用途                                          |
-| -------------------- | --------------------------------------- | --------------------------------------- | --------------------------------------------- |
-| `auto_maxtokens`     | `task_policy.judges.auto_maxtokens`     | `deepseek/deepseek-v4-flash`            | 模糊场景判断 `default` / `max` 输出预算       |
-| `compaction_profile` | `task_policy.judges.compaction_profile` | current model -> Kimi -> DeepSeek flash | 智能压缩前输出稳定 profile JSON               |
+| Judge                    | 配置路径                                    | 默认模型候选                            | 用途                                          |
+| ------------------------ | ------------------------------------------- | --------------------------------------- | --------------------------------------------- |
+| `auto_maxtokens`         | `task_policy.judges.auto_maxtokens`         | `deepseek/deepseek-v4-flash`            | 模糊场景判断 `default` / `max` 输出预算       |
+| `compaction_profile`     | `task_policy.judges.compaction_profile`     | current model -> Kimi -> DeepSeek flash | 智能压缩前输出稳定 profile JSON               |
 | `compaction_active_task` | `task_policy.judges.compaction_active_task` | current model -> Kimi -> DeepSeek flash | 智能压缩前抽取当前活跃任务的细颗粒状态        |
-| `task_router`        | `task_policy.judges.task_router`        | `deepseek/deepseek-v4-flash`            | 普通 prompt 前判断是否自动插入 routed subtask |
+| `task_router`            | `task_policy.judges.task_router`            | `deepseek/deepseek-v4-flash`            | 普通 prompt 前判断是否自动插入 routed subtask |
 
 Task kinds：
 

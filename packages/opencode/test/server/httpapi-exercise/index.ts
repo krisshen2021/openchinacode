@@ -85,7 +85,7 @@ const scenarios: Scenario[] = [
     .seeded(() =>
       Effect.promise(() =>
         Bun.write(
-          path.join(exerciseConfigDirectory, "opencode.jsonc"),
+          path.join(exerciseConfigDirectory, "openchinacode.jsonc"),
           JSON.stringify({ username: "httpapi-global" }, null, 2),
         ),
       ),
@@ -98,7 +98,7 @@ const scenarios: Scenario[] = [
           object(body)
           check(body.username === "httpapi-global", "global config update should return patched config")
           const text = yield* Effect.promise(() =>
-            Bun.file(path.join(exerciseConfigDirectory, "opencode.jsonc")).text(),
+            Bun.file(path.join(exerciseConfigDirectory, "openchinacode.jsonc")).text(),
           )
           check(text.includes('"username": "httpapi-global"'), "global config update should write isolated config file")
         }),
@@ -280,6 +280,15 @@ const scenarios: Scenario[] = [
     }))
     .status(400),
   http.protected.get("/permission", "permission.list").json(200, array),
+  http.protected
+    .post("/permission/runtime", "permission.runtime")
+    .mutating()
+    .at((ctx) => ({
+      path: "/permission/runtime",
+      headers: ctx.headers(),
+      body: [{ permission: "bash", pattern: "git *", action: "allow" }],
+    }))
+    .json(200, boolean, "status"),
   http.protected
     .post("/permission/{requestID}/reply", "permission.reply.invalid")
     .at((ctx) => ({

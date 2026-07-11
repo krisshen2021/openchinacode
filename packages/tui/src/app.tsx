@@ -48,6 +48,7 @@ import { DialogThemeList } from "./component/dialog-theme-list"
 import { DialogHelp } from "./ui/dialog-help"
 import { DialogAgent } from "./component/dialog-agent"
 import { DialogSessionList } from "./component/dialog-session-list"
+import { DialogPermissions } from "./component/dialog-permissions"
 import { DialogWorkspaceList } from "./component/dialog-workspace-list"
 import { DialogConsoleOrg } from "./component/dialog-console-org"
 import { ThemeProvider, useTheme } from "./context/theme"
@@ -951,6 +952,15 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         run: () => {
           local.permission.toggle()
           dialog.clear()
+        },
+      },
+      {
+        name: "openchinacode.permissions",
+        title: "Manage permissions",
+        category: "OpenChinaCode",
+        slashName: "permissions",
+        run: () => {
+          dialog.replace(() => <DialogPermissions />)
         },
       },
     ].map((command) => ({

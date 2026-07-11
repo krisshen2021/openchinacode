@@ -36,6 +36,11 @@ export const permissionHandlers = HttpApiBuilder.group(InstanceHttpApi, "permiss
       return true
     })
 
-    return handlers.handle("list", list).handle("reply", reply)
+    const runtime = Effect.fn("PermissionHttpApi.runtime")(function* (ctx: { payload: PermissionV1.Ruleset }) {
+      yield* svc.runtime(ctx.payload)
+      return true
+    })
+
+    return handlers.handle("list", list).handle("reply", reply).handle("runtime", runtime)
   }),
 )

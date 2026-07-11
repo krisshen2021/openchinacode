@@ -1,6 +1,6 @@
 export * as Jsonc from "./jsonc"
 
-import { applyEdits, modify } from "jsonc-parser"
+import { applyEdits, modify, parse as parseJsonc } from "jsonc-parser"
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
@@ -18,4 +18,8 @@ export function patch(input: string, value: unknown, path: string[] = []): strin
   }
 
   return Object.entries(value).reduce((result, [key, child]) => patch(result, child, [...path, key]), input)
+}
+
+export function parse(input: string): unknown {
+  return parseJsonc(input)
 }

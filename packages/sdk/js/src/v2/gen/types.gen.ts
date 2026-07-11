@@ -401,6 +401,20 @@ export type SubtaskPart = {
   prompt: string
   description: string
   agent: string
+  task_kind?:
+    | "general"
+    | "plan"
+    | "architecture"
+    | "refactor"
+    | "review"
+    | "implement"
+    | "explore"
+    | "visual_check"
+    | "debug"
+    | "test_fix"
+    | "summarize"
+    | "compaction"
+  task_complexity?: "quick" | "medium" | "complex"
   model?: {
     providerID: string
     modelID: string
@@ -1700,6 +1714,107 @@ export type ServerConfig = {
   cors?: Array<string>
 }
 
+export type TaskPolicyRoute = {
+  model?: string
+  variant?: string
+  inherit?: boolean
+}
+
+export type TaskPolicyExtraRouter = {
+  enabled?: boolean
+  /**
+   * Minimum confidence required to auto-delegate a subtask. Defaults to 0.7.
+   */
+  confidence_threshold?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  allow?: Array<
+    | "general"
+    | "plan"
+    | "architecture"
+    | "refactor"
+    | "review"
+    | "implement"
+    | "explore"
+    | "visual_check"
+    | "debug"
+    | "test_fix"
+    | "summarize"
+    | "compaction"
+  >
+  deny?: Array<
+    | "general"
+    | "plan"
+    | "architecture"
+    | "refactor"
+    | "review"
+    | "implement"
+    | "explore"
+    | "visual_check"
+    | "debug"
+    | "test_fix"
+    | "summarize"
+    | "compaction"
+  >
+}
+
+export type TaskPolicyJudge = {
+  enabled?: boolean
+  models?: Array<string>
+  timeout_ms?: number
+  max_output_tokens?: number
+}
+
+export type TaskPolicyJudges = {
+  auto_maxtokens?: TaskPolicyJudge
+  compaction_profile?: TaskPolicyJudge
+  compaction_active_task?: TaskPolicyJudge
+  task_router?: TaskPolicyJudge
+}
+
+export type TaskPolicyConfig = {
+  enabled?: boolean
+  routes?: {
+    [key: string]: TaskPolicyRoute
+  }
+  agents?: {
+    [key: string]: {
+      [key: string]: TaskPolicyRoute
+    }
+  }
+  extra_router?: TaskPolicyExtraRouter
+  judges?: TaskPolicyJudges
+}
+
+export type IntegrationTestService = {
+  /**
+   * Command used to start a long-running frontend/backend service for integration testing.
+   */
+  command: string
+  cwd?: string
+  host?: string
+  port?: number
+  ready_text?: string
+  env?: {
+    [key: string]: string
+  }
+  wait_timeout_ms?: number
+}
+
+export type IntegrationTestPlaywrightMcp = {
+  enabled?: boolean
+  headless?: boolean
+  timeout?: number
+}
+
+export type IntegrationTestConfig = {
+  base_url?: string
+  health_url?: string
+  frontend?: IntegrationTestService
+  backend?: IntegrationTestService
+  playwright_config?: string
+  report_dir?: string
+  mcp?: IntegrationTestPlaywrightMcp
+}
+
 export type PermissionActionConfig = "ask" | "allow" | "deny"
 
 export type PermissionObjectConfig = {
@@ -1841,6 +1956,20 @@ export type ProviderConfig = {
       }
       experimental?: boolean
       status?: "alpha" | "beta" | "deprecated" | "active"
+      task_classes?: Array<
+        | "general"
+        | "plan"
+        | "architecture"
+        | "refactor"
+        | "review"
+        | "implement"
+        | "explore"
+        | "visual_check"
+        | "debug"
+        | "test_fix"
+        | "summarize"
+        | "compaction"
+      >
       provider?: {
         npm?: string
         api?: string
@@ -1973,6 +2102,18 @@ export type Config = {
   enabled_providers?: Array<string>
   model?: string
   small_model?: string
+  auto_maxtokens?:
+    | boolean
+    | "off"
+    | "heuristic"
+    | "llm"
+    | {
+        mode?: "off" | "heuristic" | "llm"
+        model?: string
+        timeout_ms?: number
+      }
+  task_policy?: TaskPolicyConfig
+  integration_test?: IntegrationTestConfig
   default_agent?: string
   username?: string
   mode?: {
@@ -2055,6 +2196,9 @@ export type Config = {
   compaction?: {
     auto?: boolean
     prune?: boolean
+    /**
+     * Number of recent user turns, including their following assistant/tool responses, to keep verbatim during compaction, or "auto" for OpenChinaCode active-task-aware retention (default: auto)
+     */
     tail_turns?: number | "auto"
     preserve_recent_tokens?: number
     reserved?: number
@@ -2146,6 +2290,20 @@ export type Model = {
     [key: string]: string
   }
   release_date: string
+  task_classes?: Array<
+    | "general"
+    | "plan"
+    | "architecture"
+    | "refactor"
+    | "review"
+    | "implement"
+    | "explore"
+    | "visual_check"
+    | "debug"
+    | "test_fix"
+    | "summarize"
+    | "compaction"
+  >
   variants?: {
     [key: string]: {
       [key: string]: unknown
@@ -2629,6 +2787,20 @@ export type SubtaskPartInput = {
   prompt: string
   description: string
   agent: string
+  task_kind?:
+    | "general"
+    | "plan"
+    | "architecture"
+    | "refactor"
+    | "review"
+    | "implement"
+    | "explore"
+    | "visual_check"
+    | "debug"
+    | "test_fix"
+    | "summarize"
+    | "compaction"
+  task_complexity?: "quick" | "medium" | "complex"
   model?: {
     providerID: string
     modelID: string
@@ -2974,6 +3146,7 @@ export type V2Event =
   | QuestionReplied2
   | QuestionRejected2
   | SessionCompacted
+  | SessionCompactionProgress
   | VcsBranchUpdated
   | WorkspaceReady
   | WorkspaceFailed
@@ -6005,6 +6178,60 @@ export type SessionCompacted = {
   location?: LocationRef
   data: {
     sessionID: string
+  }
+}
+
+export type SessionCompactionProgress = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  type: "session.compaction.progress"
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  data: {
+    sessionID: string
+    stage:
+      | "started"
+      | "route"
+      | "strategy"
+      | "retention"
+      | "judge_started"
+      | "judge_result"
+      | "profile_ready"
+      | "active_task"
+      | "active_task_extract_started"
+      | "active_task_extract_result"
+      | "selection"
+      | "summary_started"
+      | "summary_finished"
+      | "summary_failed"
+    message: string
+    model?: {
+      providerID: string
+      modelID: string
+      variant?: string
+    }
+    judge?: {
+      status: "valid" | "invalid" | "failed" | "unavailable" | "skipped"
+      providerID?: string
+      modelID?: string
+      elapsedMs?: number
+      error?: string
+    }
+    profile?: {
+      source: "llm" | "heuristic" | "fallback"
+      risk: "low" | "medium" | "high"
+      profiles: Array<{
+        type: string
+        weight: number
+      }>
+      mustPreserve: Array<string>
+    }
   }
 }
 
@@ -9383,6 +9610,34 @@ export type PermissionReplyResponses = {
 }
 
 export type PermissionReplyResponse = PermissionReplyResponses[keyof PermissionReplyResponses]
+
+export type PermissionRuntimeData = {
+  body?: PermissionRuleset
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/permission/runtime"
+}
+
+export type PermissionRuntimeErrors = {
+  /**
+   * BadRequest | InvalidRequestError
+   */
+  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+}
+
+export type PermissionRuntimeError = PermissionRuntimeErrors[keyof PermissionRuntimeErrors]
+
+export type PermissionRuntimeResponses = {
+  /**
+   * Runtime permission rules updated successfully
+   */
+  200: boolean
+}
+
+export type PermissionRuntimeResponse = PermissionRuntimeResponses[keyof PermissionRuntimeResponses]
 
 export type ProviderListData = {
   body?: never

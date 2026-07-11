@@ -16,6 +16,15 @@ import { getScrollAcceleration } from "../../util/scroll"
 import { useTuiConfig } from "../../config"
 import { OPENCODE_BASE_MODE, useBindings, useCommandShortcut } from "../../keymap"
 import { usePathFormatter } from "../../context/path-format"
+import { useToast } from "../../ui/toast"
+import { errorMessage } from "../../util/error"
+import {
+  applyRuntimePermissionRules,
+  globalPermissionConfigFile,
+  permissionRulesForAllow,
+  projectPermissionConfigFile,
+  writePersistentPermissionAllow,
+} from "../../util/permission-config"
 
 type PermissionStage = "permission" | "always" | "reject"
 
@@ -116,6 +125,7 @@ export function PermissionPrompt(props: { request: PermissionRequest; directory?
     stage: "permission" as PermissionStage,
   })
   const pathFormatter = usePathFormatter()
+  const toast = useToast()
 
   const session = createMemo(() => sync.data.session.find((s) => s.id === props.request.sessionID))
 
@@ -133,6 +143,49 @@ export function PermissionPrompt(props: { request: PermissionRequest; directory?
 
   const { theme } = useTheme()
 
+  async function allowPersistently(scope: "project" | "global") {
+    const patterns = props.request.always.length > 0 ? props.request.always : props.request.patterns
+    const directory = props.directory || project.instance.directory() || undefined
+    const file =
+      scope === "global"
+        ? await globalPermissionConfigFile()
+        : await projectPermissionConfigFile({
+            worktree: project.instance.path().worktree,
+            directory,
+          })
+    if (!file) {
+      toast.show({
+        title: "Permission config unavailable",
+        message: "OpenChinaCode cannot find a config target for this permission rule.",
+        variant: "error",
+        duration: 7000,
+      })
+      return
+    }
+
+    const result = await writePersistentPermissionAllow(file, props.request.permission, patterns)
+    const rules = permissionRulesForAllow(props.request.permission, patterns)
+    await applyRuntimePermissionRules({
+      baseUrl: sdk.url,
+      fetch: sdk.fetch,
+      directory,
+      workspace: project.workspace.current(),
+      rules,
+    })
+    await sdk.client.permission.reply({
+      reply: "always",
+      requestID: props.request.id,
+      directory: props.directory,
+      workspace: project.workspace.current(),
+    })
+    toast.show({
+      title: scope === "global" ? "Global permission saved" : "Project permission saved",
+      message: `${result.changed ? "Updated" : "Already set"}: ${result.file}`,
+      variant: "success",
+      duration: 7000,
+    })
+  }
+
   return (
     <Switch>
       <Match when={store.stage === "always"}>
@@ -141,11 +194,15 @@ export function PermissionPrompt(props: { request: PermissionRequest; directory?
           body={
             <Switch>
               <Match when={props.request.always.length === 1 && props.request.always[0] === "*"}>
-                <TextBody title={"This will allow " + props.request.permission + " until OpenCode is restarted."} />
+                <TextBody
+                  title={"This will allow " + props.request.permission + " until OpenChinaCode is restarted."}
+                />
               </Match>
               <Match when={true}>
                 <box paddingLeft={1} gap={1}>
-                  <text fg={theme.textMuted}>This will allow the following patterns until OpenCode is restarted</text>
+                  <text fg={theme.textMuted}>
+                    This will allow the following patterns until OpenChinaCode is restarted
+                  </text>
                   <box>
                     <For each={props.request.always}>
                       {(pattern) => (
@@ -402,7 +459,13 @@ export function PermissionPrompt(props: { request: PermissionRequest; directory?
               title="Permission required"
               header={header()}
               body={current.body}
-              options={{ once: "Allow once", always: "Allow always", reject: "Reject" }}
+              options={{
+                once: "Allow once",
+                always: "Session",
+                project: "Project",
+                global: "Global",
+                reject: "Reject",
+              }}
               escapeKey="reject"
               fullscreen
               onSelect={(option) => {
@@ -420,6 +483,17 @@ export function PermissionPrompt(props: { request: PermissionRequest; directory?
                     requestID: props.request.id,
                     directory: props.directory,
                     workspace: project.workspace.current(),
+                  })
+                  return
+                }
+                if (option === "project" || option === "global") {
+                  void allowPersistently(option).catch((error) => {
+                    toast.show({
+                      title: "Failed to save permission",
+                      message: errorMessage(error),
+                      variant: "error",
+                      duration: 8000,
+                    })
                   })
                   return
                 }

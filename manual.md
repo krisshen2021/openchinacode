@@ -391,6 +391,44 @@ explicit task model
 
 修改后通常需要重启 OpenChinaCode。
 
+### `/permissions`
+
+打开项目权限策略面板。
+
+```text
+/permissions
+```
+
+面板会写入当前项目：
+
+```text
+<project>/.openchinacode/openchinacode.jsonc
+```
+
+可选策略：
+
+| 策略                        | 作用                                                                    |
+| --------------------------- | ----------------------------------------------------------------------- |
+| `Project Trust All`         | 当前项目允许所有工具权限，适合完全可信的本地项目                        |
+| `Project Safe`              | 允许读取、搜索、subagent、LSP；编辑、shell、外部目录、web search 仍询问 |
+| `Project Ask Everything`    | 当前项目所有工具都询问                                                  |
+| `Project Readonly`          | 允许检查，禁止编辑和 todo 写入                                          |
+| `Reset Project Permissions` | 删除项目 `permission` 配置，回到全局/默认策略                           |
+
+策略应用后会立即下发 runtime override，当前运行中的 OpenChinaCode 实例也会生效。
+
+权限弹窗中也新增了：
+
+| 选项         | 作用                                                                           |
+| ------------ | ------------------------------------------------------------------------------ |
+| `Allow once` | 只允许当前这一次请求                                                           |
+| `Session`    | 允许当前 pattern 到本次 OpenChinaCode 进程结束                                 |
+| `Project`    | 把当前 permission + pattern 写入项目配置                                       |
+| `Global`     | 把当前 permission + pattern 写入 `~/.config/openchinacode/openchinacode.jsonc` |
+| `Reject`     | 拒绝当前请求                                                                   |
+
+注意：`/permissions` 是项目策略管理；弹窗里的 `Project` / `Global` 只保存当前请求对应的具体 pattern。
+
 ### `/sessions`
 
 打开 session picker。别名：
@@ -402,14 +440,14 @@ explicit task model
 
 功能：
 
-| 操作 | 作用 |
-| ---- | ---- |
-| `←` / `→` | 在当前项目 session 和全局 session 之间切换 |
-| 选择当前项目 session | 直接进入该 session |
-| 选择其它项目 session | 可选择打开原项目，或 fork 到当前目录 |
-| 删除 | 二次确认后删除 session |
-| 重命名 | 修改 session 标题 |
-| Pin / unpin | 仅当前项目列表可用 |
+| 操作                 | 作用                                       |
+| -------------------- | ------------------------------------------ |
+| `←` / `→`            | 在当前项目 session 和全局 session 之间切换 |
+| 选择当前项目 session | 直接进入该 session                         |
+| 选择其它项目 session | 可选择打开原项目，或 fork 到当前目录       |
+| 删除                 | 二次确认后删除 session                     |
+| 重命名               | 修改 session 标题                          |
+| Pin / unpin          | 仅当前项目列表可用                         |
 
 ### `/test-mcp`
 

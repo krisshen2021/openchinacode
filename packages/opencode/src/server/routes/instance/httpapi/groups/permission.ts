@@ -13,7 +13,6 @@ const ReplyPayload = Schema.Struct({
   reply: PermissionV1.Reply,
   message: Schema.optional(Schema.String),
 })
-
 export const PermissionApi = HttpApi.make("permission")
   .add(
     HttpApiGroup.make("permission")
@@ -39,6 +38,18 @@ export const PermissionApi = HttpApi.make("permission")
             identifier: "permission.reply",
             summary: "Respond to permission request",
             description: "Approve or deny a permission request from the AI assistant.",
+          }),
+        ),
+        HttpApiEndpoint.post("runtime", `${root}/runtime`, {
+          query: WorkspaceRoutingQuery,
+          payload: PermissionV1.Ruleset,
+          success: described(Schema.Boolean, "Runtime permission rules updated successfully"),
+          error: HttpApiError.BadRequest,
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "permission.runtime",
+            summary: "Set runtime permission rules",
+            description: "Apply permission rules to the current OpenChinaCode instance without rewriting config.",
           }),
         ),
       )
