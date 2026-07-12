@@ -186,6 +186,7 @@ export const StepFinish = Schema.Struct({
   reason: FinishReason,
   usage: Schema.optional(Usage),
   providerMetadata: Schema.optional(ProviderMetadata),
+  diagnostic: Schema.optional(Schema.Record(Schema.String, Schema.Unknown)),
 }).annotate({ identifier: "LLM.Event.StepFinish" })
 export type StepFinish = Schema.Schema.Type<typeof StepFinish>
 
@@ -194,6 +195,7 @@ export const Finish = Schema.Struct({
   reason: FinishReason,
   usage: Schema.optional(Usage),
   providerMetadata: Schema.optional(ProviderMetadata),
+  diagnostic: Schema.optional(Schema.Record(Schema.String, Schema.Unknown)),
 }).annotate({ identifier: "LLM.Event.Finish" })
 export type Finish = Schema.Schema.Type<typeof Finish>
 

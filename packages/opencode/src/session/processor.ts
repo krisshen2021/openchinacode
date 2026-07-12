@@ -76,6 +76,21 @@ interface ProcessorContext extends Input {
 
 type StreamEvent = LLMEvent
 
+function finishDiagnosticMetadata(event: Extract<StreamEvent, { type: "step-finish" }>) {
+  const diagnostic = isRecord(event.diagnostic) ? event.diagnostic : undefined
+  const abnormal =
+    event.reason === "unknown" || event.reason === "error" || diagnostic?.abnormal === true
+  if (!abnormal && !diagnostic) return undefined
+  return {
+    providerFinish: {
+      reason: event.reason,
+      usageMissing: event.usage === undefined,
+      ...(diagnostic ? diagnostic : {}),
+      ...(event.providerMetadata ? { providerMetadata: event.providerMetadata } : {}),
+    },
+  }
+}
+
 export class Service extends Context.Service<Service, Interface>()("@opencode/SessionProcessor") {}
 
 const layer = Layer.effect(
@@ -447,6 +462,7 @@ const layer = Layer.effect(
               id: PartID.ascending(),
               reason: value.reason,
               snapshot: completedSnapshot,
+              metadata: finishDiagnosticMetadata(value),
               messageID: ctx.assistantMessage.id,
               sessionID: ctx.assistantMessage.sessionID,
               type: "step-finish",

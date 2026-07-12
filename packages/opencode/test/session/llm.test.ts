@@ -289,6 +289,11 @@ describe("session.llm.ai-sdk adapter", () => {
           cacheWriteInputTokens: 2,
         },
         providerMetadata: { openai: { step: true } },
+        diagnostic: {
+          unifiedFinishReason: "other",
+          rawFinishReason: "other",
+          abnormal: true,
+        },
       },
       {
         type: "finish",
@@ -299,6 +304,11 @@ describe("session.llm.ai-sdk adapter", () => {
           totalTokens: 17,
           reasoningTokens: 2,
           cacheReadInputTokens: 4,
+        },
+        diagnostic: {
+          unifiedFinishReason: "other",
+          rawFinishReason: "other",
+          abnormal: true,
         },
       },
     ])

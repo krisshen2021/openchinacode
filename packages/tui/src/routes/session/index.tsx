@@ -1363,6 +1363,44 @@ function compactText(text: string, max = 180) {
   return `${text.slice(0, max - 1)}...`
 }
 
+function dict(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined
+}
+
+function textValue(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined
+}
+
+function providerFinishWarning(parts: Part[]) {
+  for (const part of [...parts].reverse()) {
+    if (part.type !== "step-finish") continue
+    const metadata = dict((part as { metadata?: unknown }).metadata)
+    const finish = dict(metadata?.providerFinish)
+    if (!finish) continue
+
+    const reason = textValue(finish.reason)
+    const unified = textValue(finish.unifiedFinishReason)
+    const raw = textValue(finish.rawFinishReason)
+    const abnormal =
+      finish.abnormal === true ||
+      reason === "unknown" ||
+      reason === "error" ||
+      unified === "other" ||
+      unified === "unknown"
+    if (!abnormal) continue
+
+    const fields = [`finish=${unified ?? reason ?? "unknown"}`]
+    if (raw && raw !== unified) fields.push(`raw=${raw}`)
+    if (finish.usageMissing === true) fields.push("usage missing")
+
+    const message = textValue(finish.message) ?? "Provider did not provide a concrete error reason."
+    return `Provider stream ended abnormally (${fields.join(", ")}): ${message}`
+  }
+  return undefined
+}
+
 function formatCompactionDebugLine(item: CompactionProgressItem) {
   const model = formatCompactionDebugModel(item.model)
   if (item.stage === "route" && model) {
@@ -1581,6 +1619,7 @@ function AssistantMessage(props: { message: AssistantMessage; parts: Part[]; las
   const final = createMemo(() => {
     return props.message.finish && !["tool-calls", "unknown"].includes(props.message.finish)
   })
+  const finishWarning = createMemo(() => providerFinishWarning(props.parts))
 
   const duration = createMemo(() => {
     if (!final()) return 0
@@ -1633,6 +1672,23 @@ function AssistantMessage(props: { message: AssistantMessage; parts: Part[]; las
             </Show>
           </text>
         </box>
+      </Show>
+      <Show when={finishWarning()}>
+        {(warning) => (
+          <box
+            ref={(el: BoxRenderable) => alwaysSeparate.add(el)}
+            border={["left"]}
+            paddingTop={1}
+            paddingBottom={1}
+            paddingLeft={2}
+            marginTop={1}
+            backgroundColor={theme.backgroundPanel}
+            customBorderChars={SplitBorder.customBorderChars}
+            borderColor={theme.warning}
+          >
+            <text fg={theme.textMuted}>{warning()}</text>
+          </box>
+        )}
       </Show>
       <Show when={props.message.error && props.message.error.name !== "MessageAbortedError"}>
         <box

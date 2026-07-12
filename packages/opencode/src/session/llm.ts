@@ -6,7 +6,7 @@ import { SessionV1 } from "@opencode-ai/core/v1/session"
 import { serviceUse } from "@opencode-ai/core/effect/service-use"
 import { Context, Effect, Layer } from "effect"
 import * as Stream from "effect/Stream"
-import { streamText, wrapLanguageModel, type ModelMessage, type Tool } from "ai"
+import { APICallError, streamText, wrapLanguageModel, type ModelMessage, type Tool } from "ai"
 import type { LLMEvent } from "@opencode-ai/llm"
 import { LLMClient } from "@opencode-ai/llm/route"
 import type { LLMClientService } from "@opencode-ai/llm/route"
@@ -94,6 +94,42 @@ function telemetryUsage(value: unknown): TelemetryUsage | undefined {
   return Object.fromEntries(Object.entries(usage).filter((entry) => typeof entry[1] === "number")) as TelemetryUsage
 }
 
+function truncateLogText(value: string | undefined, max = 4_000) {
+  if (!value) return undefined
+  return value.length > max ? `${value.slice(0, max)}...[truncated ${value.length - max} chars]` : value
+}
+
+function headerValue(headers: Record<string, string> | undefined, names: string[]) {
+  if (!headers) return undefined
+  const normalized = new Map(Object.entries(headers).map(([key, value]) => [key.toLowerCase(), value]))
+  for (const name of names) {
+    const value = normalized.get(name.toLowerCase())
+    if (value) return value
+  }
+  return undefined
+}
+
+function apiCallErrorDetails(error: unknown): Record<string, unknown> {
+  if (!APICallError.isInstance(error)) return { error }
+  return {
+    errorName: error.name,
+    errorMessage: error.message,
+    statusCode: error.statusCode,
+    isRetryable: error.isRetryable,
+    url: error.url,
+    requestID: headerValue(error.responseHeaders, [
+      "x-request-id",
+      "x-volc-request-id",
+      "x-tt-logid",
+      "x-tt-trace-id",
+      "x-b3-traceid",
+    ]),
+    responseHeaders: error.responseHeaders,
+    responseBody: truncateLogText(error.responseBody),
+    data: error.data,
+  }
+}
+
 function createStreamTelemetry(
   input: StreamRequest,
   maxOutputTokens: number | undefined,
@@ -160,6 +196,11 @@ function createStreamTelemetry(
           event: type,
           elapsedMs,
           finishReason: typeof item.finishReason === "string" ? item.finishReason : undefined,
+          rawFinishReason: typeof item.rawFinishReason === "string" ? item.rawFinishReason : undefined,
+          providerMetadataKeys:
+            item.providerMetadata && typeof item.providerMetadata === "object"
+              ? Object.keys(item.providerMetadata as Record<string, unknown>)
+              : undefined,
           firstReasoningMs,
           firstTextMs,
           firstToolMs,
@@ -521,7 +562,7 @@ const live: Layer.Layer<
                 small: (input.small ?? false).toString(),
                 agent: input.agent.name,
                 mode: input.agent.mode,
-                error,
+                ...apiCallErrorDetails(error),
               }),
             )
           },

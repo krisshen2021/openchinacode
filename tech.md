@@ -227,6 +227,31 @@ custom soul 只负责把本地文本注入 system prompt，不负责 provider sa
 - 如果 DB/message part 的文本中途断开，且 finish 为 `other` / `unknown`、usage/token 为空，应按 provider safety / stream abnormal 处理。
 - 如果 finish 为 `length`，再回到 max token 滑动策略和输出预算排查。
 
+## Provider Finish Diagnostics
+
+OpenChinaCode 会尽量保留 provider 在 stream 结束时给出的诊断信息，但不假设每家 provider 都会返回具体原因。
+
+实现入口：
+
+- `packages/opencode/src/session/llm/ai-sdk.ts`
+- `packages/opencode/src/session/llm.ts`
+- `packages/opencode/src/session/processor.ts`
+- `packages/schema/src/v1/session.ts`
+- `packages/tui/src/routes/session/index.tsx`
+
+处理规则：
+
+- AI SDK adapter 读取 `finishReason` 和 `rawFinishReason`，将异常 finish 写入 `LLMEvent.stepFinish().diagnostic`。
+- `finishReason=other` 因不在现有 `FinishReason` union 中，仍映射为 session 层的 `unknown`，但 `diagnostic.unifiedFinishReason` 会保留原始统一值 `other`。
+- processor 将诊断写到 `step-finish.metadata.providerFinish`，包含 `reason`、`unifiedFinishReason`、`rawFinishReason`、`usageMissing`、`message` 和可用的 `providerMetadata`。
+- TUI 读取 `step-finish.metadata.providerFinish`，在回复下方显示非致命 warning，不把 partial output 转成 fatal error。
+- API call error 仍走 message error 路径；`llm.ts` 会结构化记录 `statusCode`、`isRetryable`、`requestID`、response headers/body 和 provider `data`。
+
+限制：
+
+- 如果 provider 没有发送 error event、finish chunk、raw finish reason 或 metadata，客户端无法凭空恢复具体原因，只能显示 provider 未提供 concrete reason。
+- 该机制不自动重试，避免重复 tool call 或重复写文件。
+
 ## Slash Commands
 
 OpenChinaCode 定制 slash command 的 TUI 入口在 `packages/tui/src/component/prompt/index.tsx`。Ctrl+P 中统一归类为 `OpenChinaCode`。
@@ -259,6 +284,8 @@ OpenChinaCode 定制 slash command 的 TUI 入口在 `packages/tui/src/component
 `/soul` 打开选择列表；`/soul custom` 打开 `DialogPrompt` 输入框，Enter 后保存 custom.md 并设置 active=custom。保存后会调用 `instance.dispose()` + `sync.bootstrap({ fatal: false })`，使后续新 turn 读取新配置。
 
 `/soul custom` 的输入框只写文件和配置，不调用 LLM。若后续模型输出不完整，日志中 `finishReason=other|unknown` 且 usage 缺失一般说明服务端/SDK stream 异常；这不是 TUI 输入框截断，也不是 custom 文件被截断。
+
+异常 finish 会写入 `step-finish.metadata.providerFinish`，TUI 会显示 provider warning。调试时优先看 `rawFinishReason` 和 `providerMetadata`；如果没有这些字段，就是 provider/SDK 没有提供更细原因。
 
 ### `/auto-maxtokens`
 

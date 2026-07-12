@@ -22,6 +22,29 @@ function finishReason(value: string | undefined): FinishReason {
   return Schema.is(FinishReason)(value) ? value : "unknown"
 }
 
+function stringField(value: unknown) {
+  return typeof value === "string" && value.length ? value : undefined
+}
+
+function finishDiagnostic(event: { finishReason?: string; rawFinishReason?: unknown }) {
+  const unified = stringField(event.finishReason)
+  const raw = stringField(event.rawFinishReason)
+  const abnormal = unified === "other" || unified === "unknown" || unified === undefined
+  const rawDifferent = raw !== undefined && raw !== unified
+  if (!abnormal && !rawDifferent) return undefined
+  return {
+    ...(unified ? { unifiedFinishReason: unified } : {}),
+    ...(raw ? { rawFinishReason: raw } : {}),
+    abnormal,
+    message:
+      abnormal && raw
+        ? `Provider ended stream with raw finish reason: ${raw}`
+        : abnormal
+          ? "Provider ended stream without a standard finish reason."
+          : `Provider supplied raw finish reason: ${raw}`,
+  }
+}
+
 function providerMetadata(value: unknown): ProviderMetadata | undefined {
   if (value == null) return undefined
   return Schema.is(ProviderMetadata)(value) ? value : undefined
@@ -104,6 +127,7 @@ export function toLLMEvents(
             reason: finishReason(event.finishReason),
             usage: usage(event.usage),
             providerMetadata: metadata,
+            diagnostic: finishDiagnostic(event),
           }),
         ]
       })
@@ -115,6 +139,7 @@ export function toLLMEvents(
             reason: finishReason(event.finishReason),
             usage: usage(event.totalUsage),
             providerMetadata: "providerMetadata" in event ? providerMetadata(event.providerMetadata) : undefined,
+            diagnostic: finishDiagnostic(event),
           }),
         ]
         // Reset so the adapter can be reused for a follow-up stream without leaking

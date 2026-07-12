@@ -119,6 +119,8 @@ TUI 命令：
 
 `custom` 只是本地 system prompt 片段，不会绕过模型供应商的安全策略或服务端限制。如果自定义人格后出现回复半句截断，先看日志/DB 中该条 assistant message 的 finish 信息：正常 token 不足通常是 `length`；如果是 `other` / `unknown` 且 usage/token 为空，更像 provider safety 或 stream 异常，不是 custom 文件保存不完整。
 
+OpenChinaCode 会保存 provider finish 诊断信息：当 AI SDK 返回 `other` / `unknown`、raw finish reason、或缺失 usage 时，TUI 会在该回复下方显示非致命 warning，DB 的 `step-finish.metadata.providerFinish` 会保留 `unifiedFinishReason`、`rawFinishReason`、`usageMissing` 和可用的 `providerMetadata`。如果服务商没有返回具体原因，warning 会明确提示 provider 未提供可解析的错误原因。
+
 ### 2.2 Session Picker
 
 OpenChinaCode 改造了 session 选择器，方便在长程项目开发中恢复上下文。
@@ -389,6 +391,8 @@ explicit task model
 ```
 
 排查提示：`/soul custom` 保存的是完整文本文件，当前 turn 之后的新请求才会读取。若回复被截断，请优先检查日志里的 `finishReason`。`length` 说明输出预算不足；`other` / `unknown` 且 usage 缺失，通常是服务商返回流异常或内容策略中断。
+
+如果是 `other` / `unknown`，OpenChinaCode 会尽量展示 provider 诊断：TUI warning、日志中的 `rawFinishReason` / `providerMetadataKeys`，以及 `step-finish.metadata.providerFinish`。没有 raw reason 时，说明 SDK/provider 没有把更具体的原因返回给客户端。
 
 ### `/auto-maxtokens`
 
