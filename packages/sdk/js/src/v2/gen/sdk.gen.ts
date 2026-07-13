@@ -22,6 +22,8 @@ import type {
   ConfigGetResponses,
   ConfigProvidersErrors,
   ConfigProvidersResponses,
+  ConfigTaskPolicyRuntimeErrors,
+  ConfigTaskPolicyRuntimeResponses,
   ConfigUpdateErrors,
   ConfigUpdateResponses,
   EventSubscribeResponses,
@@ -1416,6 +1418,51 @@ export class Event extends HeyApiClient {
   }
 }
 
+export class TaskPolicy extends HeyApiClient {
+  /**
+   * Update task policy runtime overrides
+   *
+   * Hot-apply OpenChinaCode task policy runtime overrides for the current instance without disposing it.
+   */
+  public runtime<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+      enabled?: boolean
+      extra_router_enabled?: boolean
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "enabled" },
+            { in: "body", key: "extra_router_enabled" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).patch<
+      ConfigTaskPolicyRuntimeResponses,
+      ConfigTaskPolicyRuntimeErrors,
+      ThrowOnError
+    >({
+      url: "/config/task-policy/runtime",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+}
+
 export class Config2 extends HeyApiClient {
   /**
    * Get configuration
@@ -1512,6 +1559,11 @@ export class Config2 extends HeyApiClient {
       ...options,
       ...params,
     })
+  }
+
+  private _taskPolicy?: TaskPolicy
+  get taskPolicy(): TaskPolicy {
+    return (this._taskPolicy ??= new TaskPolicy({ client: this.client }))
   }
 }
 

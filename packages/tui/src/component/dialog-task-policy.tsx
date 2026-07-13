@@ -208,11 +208,21 @@ export function DialogTaskPolicy(props: { focus?: string }) {
 
         <box gap={0} paddingTop={1}>
           <text fg={theme.textMuted} attributes={TextAttributes.BOLD}>
+            Runtime controls
+          </text>
+          <text fg={theme.textMuted} wrapMode="word">
+            Use /task-policy off to hot-disable task policy routing when you want only the current main model to handle
+            the next tasks. Use /task-policy on to re-enable. Use /task-policy status to inspect both switches.
+          </text>
+        </box>
+
+        <box gap={0} paddingTop={1}>
+          <text fg={theme.textMuted} attributes={TextAttributes.BOLD}>
             Extra router
           </text>
           <text fg={theme.textMuted} wrapMode="word">
             Disabled by default. Use /task-policy extra-on to run a fast judge before ordinary prompts and auto-insert a
-            routed subtask when useful. Use /task-policy extra-off to disable and /task-policy extra-status to check.
+            routed subtask when useful. Use /task-policy extra-off to disable. All switches hot-apply to new turns.
           </text>
         </box>
       </scrollbox>

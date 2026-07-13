@@ -32,6 +32,7 @@ import { ConfigManaged } from "./managed"
 import { ConfigParse } from "./parse"
 import { ConfigPaths } from "./paths"
 import { ConfigPlugin } from "./plugin"
+import { ConfigRuntime } from "./runtime"
 import { ConfigVariable } from "./variable"
 import { Npm } from "@opencode-ai/core/npm"
 import { withTransientReadRetry } from "@/util/effect-http-client"
@@ -181,6 +182,7 @@ const layer = Layer.effect(
     const env = yield* Env.Service
     const npmSvc = yield* Npm.Service
     const http = yield* HttpClient.HttpClient
+    const runtime = yield* ConfigRuntime.Service
 
     const readConfigFile = (filepath: string) => fs.readFileStringSafe(filepath).pipe(Effect.orDie)
 
@@ -603,7 +605,8 @@ const layer = Layer.effect(
     )
 
     const get = Effect.fn("Config.get")(function* () {
-      return yield* InstanceState.use(state, (s) => s.config)
+      const config = yield* InstanceState.use(state, (s) => s.config)
+      return ConfigRuntime.applyTaskPolicyOverride(config, yield* runtime.get())
     })
 
     const directories = Effect.fn("Config.directories")(function* () {
@@ -674,7 +677,7 @@ const layer = Layer.effect(
 export const node = LayerNode.make({
   service: Service,
   layer: layer,
-  deps: [FSUtil.node, Auth.node, Account.node, Env.node, Npm.node, httpClient],
+  deps: [FSUtil.node, Auth.node, Account.node, Env.node, Npm.node, ConfigRuntime.node, httpClient],
 })
 
 export * as Config from "./config"

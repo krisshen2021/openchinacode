@@ -574,6 +574,9 @@ export type StepFinishPart = {
   type: "step-finish"
   reason: string
   snapshot?: string
+  metadata?: {
+    [key: string]: unknown
+  }
   cost: number
   tokens: {
     total?: number
@@ -2102,6 +2105,14 @@ export type Config = {
   enabled_providers?: Array<string>
   model?: string
   small_model?: string
+  soul?:
+    | "rigorous"
+    | "friendly"
+    | "custom"
+    | {
+        active?: "rigorous" | "friendly" | "custom"
+        custom_path?: string
+      }
   auto_maxtokens?:
     | boolean
     | "off"
@@ -7806,6 +7817,44 @@ export type ConfigProvidersResponses = {
 }
 
 export type ConfigProvidersResponse = ConfigProvidersResponses[keyof ConfigProvidersResponses]
+
+export type ConfigTaskPolicyRuntimeData = {
+  body?: {
+    enabled?: boolean
+    extra_router_enabled?: boolean
+  }
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/config/task-policy/runtime"
+}
+
+export type ConfigTaskPolicyRuntimeErrors = {
+  /**
+   * BadRequest | InvalidRequestError
+   */
+  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+}
+
+export type ConfigTaskPolicyRuntimeError = ConfigTaskPolicyRuntimeErrors[keyof ConfigTaskPolicyRuntimeErrors]
+
+export type ConfigTaskPolicyRuntimeResponses = {
+  /**
+   * Effective task policy runtime config
+   */
+  200: {
+    task_policy: {
+      enabled?: boolean
+      extra_router?: {
+        enabled?: boolean
+      }
+    }
+  }
+}
+
+export type ConfigTaskPolicyRuntimeResponse = ConfigTaskPolicyRuntimeResponses[keyof ConfigTaskPolicyRuntimeResponses]
 
 export type ExperimentalCapabilitiesGetData = {
   body?: never

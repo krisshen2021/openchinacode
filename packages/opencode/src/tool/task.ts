@@ -133,6 +133,13 @@ export const TaskTool = Tool.define(
       ctx: Tool.Context,
     ) {
       const cfg = yield* config.get()
+      if (cfg.task_policy?.enabled === false) {
+        return yield* Effect.fail(
+          new Error(
+            "OpenChinaCode task policy is disabled. Do not create a subagent; answer or work directly with the current main model.",
+          ),
+        )
+      }
       const runInBackground = params.background === true
       if (runInBackground && !flags.experimentalBackgroundSubagents) {
         return yield* Effect.fail(

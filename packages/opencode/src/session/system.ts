@@ -23,7 +23,7 @@ import { Reference } from "@opencode-ai/core/reference"
 import { MCP } from "@/mcp"
 import { PermissionV1 } from "@opencode-ai/core/v1/permission"
 
-export function provider(model: Provider.Model, options: { soul?: string } = {}) {
+export function provider(model: Provider.Model, options: { soul?: string; taskPolicyEnabled?: boolean } = {}) {
   const apiID = model.api.id.toLowerCase()
   const providerID = model.providerID.toLowerCase()
   const isOpenChina =
@@ -35,7 +35,8 @@ export function provider(model: Provider.Model, options: { soul?: string } = {})
     apiID.includes("glm-") ||
     apiID.includes("kimi") ||
     apiID.includes("deepseek")
-  const withOpenChinaTools = (prompts: string[]) => (isOpenChina ? [...prompts, PROMPT_CHINA_TOOLS] : prompts)
+  const withOpenChinaTools = (prompts: string[]) =>
+    isOpenChina && options.taskPolicyEnabled !== false ? [...prompts, PROMPT_CHINA_TOOLS] : prompts
   const withSoul = (prompts: string[]) => {
     const soul = options.soul?.trim()
     return soul ? [...prompts, soul] : prompts

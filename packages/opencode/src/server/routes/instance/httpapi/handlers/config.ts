@@ -1,4 +1,5 @@
 import { Config } from "@/config/config"
+import { ConfigRuntime } from "@/config/runtime"
 import { Provider } from "@/provider/provider"
 import * as InstanceState from "@/effect/instance-state"
 import { Effect } from "effect"
@@ -10,6 +11,7 @@ export const configHandlers = HttpApiBuilder.group(InstanceHttpApi, "config", (h
   Effect.gen(function* () {
     const providerSvc = yield* Provider.Service
     const configSvc = yield* Config.Service
+    const runtimeSvc = yield* ConfigRuntime.Service
 
     const get = Effect.fn("ConfigHttpApi.get")(function* () {
       return yield* configSvc.get()
@@ -29,6 +31,18 @@ export const configHandlers = HttpApiBuilder.group(InstanceHttpApi, "config", (h
       }
     })
 
-    return handlers.handle("get", get).handle("update", update).handle("providers", providers)
+    const taskPolicyRuntime = Effect.fn("ConfigHttpApi.taskPolicyRuntime")(function* (ctx) {
+      yield* runtimeSvc.patchTaskPolicy(ctx.payload)
+      const cfg = yield* configSvc.get()
+      return {
+        task_policy: cfg.task_policy ?? {},
+      }
+    })
+
+    return handlers
+      .handle("get", get)
+      .handle("update", update)
+      .handle("providers", providers)
+      .handle("taskPolicyRuntime", taskPolicyRuntime)
   }),
 )

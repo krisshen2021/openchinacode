@@ -73,6 +73,12 @@ const PROMPT_TASK_POLICY = [
   "",
   "Policy priority: explicit task model, subagent model, task_policy agent route, task_policy global route, model task_classes tag, OpenChinaCode default, parent model fallback.",
   "",
+  "Runtime controls:",
+  "- /task-policy status: show task policy and extra router state",
+  "- /task-policy off: hot-disable task policy routing so the current main model handles work directly",
+  "- /task-policy on: hot-enable task policy routing again",
+  "- /task-policy extra-on/off: hot-toggle fast judge auto-delegation for ordinary prompts",
+  "",
   "User focus: $ARGUMENTS",
 ].join("\n")
 
@@ -169,7 +175,7 @@ const layer = Layer.effect(
       }
       commands[Default.TASK_POLICY] = {
         name: Default.TASK_POLICY,
-        description: "Usage: /task-policy [focus] - explain OpenChinaCode task routing and config overrides",
+        description: "Usage: /task-policy [focus|status|on|off|extra-status|extra-on|extra-off] - show or hot-toggle OpenChinaCode task routing",
         source: "command",
         get template() {
           return PROMPT_TASK_POLICY

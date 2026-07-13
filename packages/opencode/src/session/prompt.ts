@@ -1431,6 +1431,7 @@ const layer = Layer.effect(
             const lastUserMsg = msgs.findLast((m) => m.info.role === "user")
             const bypassAgentCheck = lastUserMsg?.parts.some((p) => p.type === "agent") ?? false
             const promptOps = yield* ops()
+            const cfg = yield* config.get()
 
             const tools = yield* SessionTools.resolve({
               agent,
@@ -1440,6 +1441,7 @@ const layer = Layer.effect(
               bypassAgentCheck,
               messages: msgs,
               promptOps,
+              taskPolicyEnabled: cfg.task_policy?.enabled !== false,
             }).pipe(
               Effect.provideService(Plugin.Service, plugin),
               Effect.provideService(Permission.Service, permission),

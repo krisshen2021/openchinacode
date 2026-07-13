@@ -35,6 +35,7 @@ type PrepareInput = {
   readonly isWorkflow: boolean
   readonly autoMaxTokens?: ProviderTransform.AutoMaxTokensConfig
   readonly soulPrompt?: string
+  readonly taskPolicyEnabled?: boolean
 }
 
 export type Prepared = {
@@ -59,7 +60,12 @@ export const prepare = Effect.fn("LLMRequestPrep.prepare")(function* (input: Pre
   const isOpenaiOauth = input.provider.id === "openai" && input.auth?.type === "oauth"
   const system = [
     [
-      ...(input.agent.prompt ? [input.agent.prompt] : SystemPrompt.provider(input.model, { soul: input.soulPrompt })),
+      ...(input.agent.prompt
+        ? [input.agent.prompt]
+        : SystemPrompt.provider(input.model, {
+            soul: input.soulPrompt,
+            taskPolicyEnabled: input.taskPolicyEnabled,
+          })),
       ...input.system,
       ...(input.user.system ? [input.user.system] : []),
     ]

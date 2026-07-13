@@ -90,6 +90,9 @@ export function parseAutoMaxTokensSlashAction(args: string): AutoMaxTokensSlashA
 
 export type TaskPolicySlashAction =
   | { type: "dialog"; focus?: string }
+  | { type: "status" }
+  | { type: "on" }
+  | { type: "off" }
   | { type: "extra-status" }
   | { type: "extra-on" }
   | { type: "extra-off" }
@@ -101,7 +104,10 @@ export function parseTaskPolicySlashAction(args: string): TaskPolicySlashAction 
 
   const [command = "", ...rest] = trimmed.split(/\s+/)
   const normalized = command.toLowerCase()
-  if (["extra-status", "extra", "status"].includes(normalized)) return { type: "extra-status" }
+  if (["status"].includes(normalized)) return { type: "status" }
+  if (["on", "enable", "enabled", "true", "1"].includes(normalized)) return { type: "on" }
+  if (["off", "disable", "disabled", "false", "0"].includes(normalized)) return { type: "off" }
+  if (["extra-status", "extra"].includes(normalized)) return { type: "extra-status" }
   if (["extra-on", "extra-enable", "extra-enabled"].includes(normalized)) return { type: "extra-on" }
   if (["extra-off", "extra-disable", "extra-disabled"].includes(normalized)) return { type: "extra-off" }
   if (["help", "-h", "--help"].includes(normalized)) return { type: "help" }

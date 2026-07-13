@@ -353,6 +353,17 @@ async function writeGlobalTaskPolicyExtraRouterConfig(enabled: boolean) {
   }
 }
 
+async function writeGlobalTaskPolicyEnabledConfig(enabled: boolean) {
+  const current = await readGlobalConfigFile()
+  const before = current.text.trim() ? current.text : JSON.stringify({ $schema: CONFIG_SCHEMA }, null, 2)
+  const after = Jsonc.patch(before, { task_policy: { enabled } })
+  if (after !== current.text) await writeFile(current.file, after)
+  return {
+    file: current.file,
+    changed: after !== current.text,
+  }
+}
+
 function hasEditorRangeSelection(selection: EditorSelection["ranges"][number]) {
   return (
     selection.selection.start.line !== selection.selection.end.line ||
@@ -795,10 +806,28 @@ export function Prompt(props: PromptProps) {
     return isRecord(value) ? value : {}
   }
 
+  function currentTaskPolicyEnabled() {
+    const policy = currentTaskPolicyConfig()
+    return policy.enabled !== false
+  }
+
   function currentTaskPolicyExtraRouterEnabled() {
     const policy = currentTaskPolicyConfig()
     const extra = isRecord(policy.extra_router) ? policy.extra_router : {}
     return extra.enabled === true
+  }
+
+  async function patchTaskPolicyRuntimeConfig(patch: { enabled?: boolean; extra_router_enabled?: boolean }) {
+    await sdk.client.config.taskPolicy.runtime(patch, { throwOnError: true })
+  }
+
+  function showTaskPolicyStatus() {
+    toast.show({
+      title: "Task policy",
+      message: `Task policy is ${currentTaskPolicyEnabled() ? "on" : "off"}. Extra router is ${currentTaskPolicyExtraRouterEnabled() ? "on" : "off"}. Usage: /task-policy on, /task-policy off, /task-policy extra-on, /task-policy extra-off`,
+      variant: "info",
+      duration: 9000,
+    })
   }
 
   function showTaskPolicyExtraRouterStatus() {
@@ -810,9 +839,39 @@ export function Prompt(props: PromptProps) {
     })
   }
 
+  async function setTaskPolicyEnabled(enabled: boolean) {
+    try {
+      const result = await writeGlobalTaskPolicyEnabledConfig(enabled)
+      await patchTaskPolicyRuntimeConfig({ enabled })
+      const current = currentTaskPolicyConfig()
+      sync.set(
+        "config",
+        "task_policy" as any,
+        {
+          ...current,
+          enabled,
+        } as any,
+      )
+      toast.show({
+        title: enabled ? "Task policy enabled" : "Task policy disabled",
+        message: `${result.changed ? "Updated config" : "Config already set"} and hot-applied: ${result.file}.`,
+        variant: "success",
+        duration: 8000,
+      })
+    } catch (error) {
+      toast.show({
+        title: "Failed to update task policy",
+        message: errorMessage(error),
+        variant: "error",
+        duration: 7000,
+      })
+    }
+  }
+
   async function setTaskPolicyExtraRouterEnabled(enabled: boolean) {
     try {
       const result = await writeGlobalTaskPolicyExtraRouterConfig(enabled)
+      await patchTaskPolicyRuntimeConfig({ extra_router_enabled: enabled })
       const current = currentTaskPolicyConfig()
       const currentExtra = isRecord(current.extra_router) ? current.extra_router : {}
       sync.set(
@@ -828,7 +887,7 @@ export function Prompt(props: PromptProps) {
       )
       toast.show({
         title: enabled ? "Task policy extra router enabled" : "Task policy extra router disabled",
-        message: `${result.changed ? "Updated config" : "Config already set"}: ${result.file}. Restart OpenChinaCode to apply it to new turns.`,
+        message: `${result.changed ? "Updated config" : "Config already set"} and hot-applied: ${result.file}.`,
         variant: "success",
         duration: 8000,
       })
@@ -848,6 +907,15 @@ export function Prompt(props: PromptProps) {
       case "dialog":
         showTaskPolicyDialog(action.focus)
         return
+      case "status":
+        showTaskPolicyStatus()
+        return
+      case "on":
+        void setTaskPolicyEnabled(true)
+        return
+      case "off":
+        void setTaskPolicyEnabled(false)
+        return
       case "extra-status":
         showTaskPolicyExtraRouterStatus()
         return
@@ -860,7 +928,7 @@ export function Prompt(props: PromptProps) {
       case "help":
         toast.show({
           title: "Task policy command",
-          message: "Usage: /task-policy [focus|extra-status|extra-on|extra-off]",
+          message: "Usage: /task-policy [focus|status|on|off|extra-status|extra-on|extra-off]",
           variant: "info",
           duration: 8000,
         })
@@ -1553,7 +1621,7 @@ export function Prompt(props: PromptProps) {
       },
       {
         title: "Task policy",
-        desc: "Usage: /task-policy [focus|extra-status|extra-on|extra-off] - show routing or toggle extra task router",
+        desc: "Usage: /task-policy [focus|status|on|off|extra-status|extra-on|extra-off] - show routing or hot-toggle task policy",
         name: "openchinacode.task_policy",
         category: "OpenChinaCode",
         slashName: "task-policy",

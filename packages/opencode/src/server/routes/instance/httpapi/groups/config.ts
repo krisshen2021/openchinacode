@@ -1,4 +1,5 @@
 import { Config } from "@/config/config"
+import { ConfigRuntime } from "@/config/runtime"
 import { ConfigV1 } from "@opencode-ai/core/v1/config/config"
 import { Provider } from "@/provider/provider"
 import { HttpApi, HttpApiEndpoint, HttpApiError, HttpApiGroup, OpenApi } from "effect/unstable/httpapi"
@@ -43,6 +44,19 @@ export const ConfigApi = HttpApi.make("config")
             identifier: "config.providers",
             summary: "List config providers",
             description: "Get a list of all configured AI providers and their default models.",
+          }),
+        ),
+        HttpApiEndpoint.patch("taskPolicyRuntime", `${root}/task-policy/runtime`, {
+          query: WorkspaceRoutingQuery,
+          payload: ConfigRuntime.TaskPolicyRuntimePatch,
+          success: described(ConfigRuntime.TaskPolicyRuntimeResult, "Effective task policy runtime config"),
+          error: HttpApiError.BadRequest,
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "config.task_policy.runtime",
+            summary: "Update task policy runtime overrides",
+            description:
+              "Hot-apply OpenChinaCode task policy runtime overrides for the current instance without disposing it.",
           }),
         ),
       )

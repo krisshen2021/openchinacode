@@ -283,6 +283,7 @@ const live: Layer.Layer<
         isWorkflow,
         autoMaxTokens: cfg.auto_maxtokens,
         soulPrompt,
+        taskPolicyEnabled: cfg.task_policy?.enabled !== false,
       })
       const outputDecision = ProviderTransform.maxOutputDecision({
         model: input.model,

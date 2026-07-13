@@ -166,10 +166,10 @@ DeepSeek：
 OpenChinaCode 的人格层不再做 provider-specific prompt 适配。Kimi/GLM/DeepSeek 都走同一条默认路径：
 
 ```text
-SystemPrompt.provider(model, { soul })
+SystemPrompt.provider(model, { soul, taskPolicyEnabled })
 -> base prompt
 -> selected soul
--> china-tools when provider/model belongs to OpenChina set
+-> china-tools when provider/model belongs to OpenChina set and task policy is on
 ```
 
 实现入口：
@@ -607,6 +607,9 @@ TUI 工具调用摘要：
 /task-policy
 /task-policy review
 /task-policy compaction
+/task-policy status
+/task-policy on
+/task-policy off
 /task-policy extra-status
 /task-policy extra-on
 /task-policy extra-off
@@ -617,20 +620,28 @@ TUI 工具调用摘要：
 - `packages/tui/src/component/dialog-task-policy.tsx`
 - `packages/tui/src/component/prompt/index.tsx`
 - `packages/tui/src/component/prompt/slash.ts`
+- `packages/opencode/src/config/runtime.ts`
+- `packages/opencode/src/server/routes/instance/httpapi/groups/config.ts`
+- `packages/opencode/src/server/routes/instance/httpapi/handlers/config.ts`
 
 注意：当前面板展示的是内置默认策略表，不是用户配置覆盖后的 effective policy。运行时会尊重用户配置，subagent footer 的 `source` 会显示来源。
 
-`extra-on/off/status` 是本地 TUI command，写入全局配置：
+`status/on/off/extra-on/off/status` 是本地 TUI command。`on/off` 控制整个 task policy 和 `task` subagent 入口；`extra-on/off` 只控制普通 prompt 前的 fast judge auto-delegation。
+
+Slash command 会先写入全局配置用于持久化：
 
 ```jsonc
 {
   "task_policy": {
+    "enabled": true,
     "extra_router": {
       "enabled": true,
     },
   },
 }
 ```
+
+然后调用 `PATCH /config/task-policy/runtime` 写入当前 instance 的 runtime override，让新 turn 立即生效，不需要重启。不要用普通 `config.update` 做这个热切换；它会标记 instance disposal，更适合配置编辑后的重开生效。
 
 运行管线：
 
@@ -664,6 +675,11 @@ TUI 状态 part 约定：
 
 保护条件：
 
+- `task_policy.enabled === false` 时：
+  - `TaskPolicy.select` 返回 `undefined`。
+  - `SessionTools.resolve` 不向主模型暴露 `task` tool。
+  - `SystemPrompt.provider` 不注入 `china-tools.txt`，避免模型被提示去委派。
+  - `TaskTool` 执行层兜底拒绝创建 subagent。
 - `task_policy.extra_router.enabled !== true` 时不运行。
 - `noReply`、显式 `subtask`、显式 `agent`、file attachment、slash-like prompt、subagent 自己的 prompt 都跳过。
 - 目标是补足普通 build/plan/debug/refactor 请求不会主动调用 `task` tool 的短板，不干扰粘贴图片视觉预处理和媒体生成命令。
@@ -994,7 +1010,7 @@ TUI subagent 行应显示：
 
 ## Build 模式
 
-默认情况下，build 模式不做额外代码级自动实施路由。用户在 build 模式里确认“可以开始”“继续执行”时，primary build agent 会按正常对话执行；是否调用 `task` 由模型根据 `china-tools.txt` 的 task routing contract 自行决定。
+默认情况下，build 模式不做额外代码级自动实施路由。用户在 build 模式里确认“可以开始”“继续执行”时，primary build agent 会按正常对话执行；是否调用 `task` 由模型根据 `china-tools.txt` 的 task routing contract 自行决定。当 `/task-policy off` 或 `task_policy.enabled === false` 时，不注入 `china-tools.txt`，也不暴露 `task` tool，因此 build turn 会只由当前主模型处理。
 
 如果启用 `task_policy.extra_router.enabled`，普通 build/plan prompt 会先经过 `TaskRouterJudge`。当 judge 判断应委派时，runtime 会直接插入 `subtask` part，而不是只提示主模型“应该调用 task”。这条路径用于让 implement/refactor/debug/test_fix 等不常主动触发 tool call 的任务也能进入 task policy。
 

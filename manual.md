@@ -78,7 +78,7 @@ OpenChinaCode 的默认 provider 目标是只保留 GLM、Kimi、DeepSeek 三家
 OpenChinaCode 现在有明确的 soul 层，注入顺序是：
 
 ```text
-base system prompt -> selected soul -> china-tools
+base system prompt -> selected soul -> china-tools when task policy is on
 ```
 
 默认是 `rigorous`，也就是严谨工程师风格。可选：
@@ -739,6 +739,9 @@ TUI 工具调用行会显示安全摘要，不展示完整路径、URL 或 base6
 /task-policy
 /task-policy review
 /task-policy compaction
+/task-policy status
+/task-policy on
+/task-policy off
 /task-policy extra-status
 /task-policy extra-on
 /task-policy extra-off
@@ -748,6 +751,9 @@ TUI 工具调用行会显示安全摘要，不展示完整路径、URL 或 base6
 
 ```text
 /task-policy [focus]
+/task-policy status
+/task-policy on
+/task-policy off
 /task-policy extra-status
 /task-policy extra-on
 /task-policy extra-off
@@ -765,11 +771,16 @@ Extra router：
 
 | 命令                        | 作用                                                                 |
 | --------------------------- | -------------------------------------------------------------------- |
+| `/task-policy status`       | 查看 task policy 总开关和 extra router 状态                          |
+| `/task-policy on`           | 热启用 task policy。subagent / compaction / visual_check 等继续路由  |
+| `/task-policy off`          | 热禁用 task policy 和 task subagent 入口。需要只使用当前主模型时使用 |
 | `/task-policy extra-status` | 查看普通 prompt 额外任务路由是否开启                                 |
 | `/task-policy extra-on`     | 开启 fast judge。普通 prompt 会先判断是否需要自动插入 routed subtask |
 | `/task-policy extra-off`    | 关闭 fast judge，回到只有显式 task/subtask 才触发路由的模式          |
 
-默认是关闭。开启后，普通请求如果被判断为适合委派，例如复杂重构、代码审查、debug、测试修复、架构规划，会自动插入一个 `subtask` part，并带上 `task_kind` / `task_complexity`，再由 task policy 选择 GLM/Kimi/DeepSeek 路由。已有粘贴图片视觉预处理、显式 subtask、agent 调用、附件输入不会再次触发 extra router。
+`/task-policy on/off` 控制整个 task policy，适合在某些任务里强制只用当前主模型。关闭后，新 turn 不会注入 OpenChinaCode 的 subagent 委派提示，也不会向主模型暴露 `task` subagent tool；如果旧 turn 已经拿到 tool schema，TaskTool 也会兜底拒绝继续创建 subagent。这个开关会写入全局配置，并热应用到当前运行实例的新 turn。
+
+Extra router 默认关闭。开启后，普通请求如果被判断为适合委派，例如复杂重构、代码审查、debug、测试修复、架构规划，会自动插入一个 `subtask` part，并带上 `task_kind` / `task_complexity`，再由 task policy 选择 GLM/Kimi/DeepSeek 路由。已有粘贴图片视觉预处理、显式 subtask、agent 调用、附件输入不会再次触发 extra router。`extra-on/off` 同样会写入全局配置，并热应用到当前运行实例的新 turn。
 
 开启后，用户输入会先立即上屏；判断期间 TUI 会显示 `Task policy judging...` 动画提示，判断完成后提示消失，并切换为真实 subtask 行或普通模型回复。
 
@@ -951,12 +962,12 @@ compaction
 - `agents` 是按 subagent 名称覆盖，只影响指定 agent。
 - `kind.complexity` 比 `kind` 更精确，会优先匹配。
 - `inherit: true` 表示继承父模型。
-- `enabled: false` 会关闭 OpenChinaCode task policy，回到更接近父模型继承的行为。
+- `enabled: false` 会关闭 OpenChinaCode task policy 和 task subagent 入口，回到只由当前主模型处理的行为；也可以用 `/task-policy off/on` 热切换。
 - `extra_router.enabled: true` 会让普通 prompt 先经过 fast judge，适合时自动插入 routed subtask；也可以用 `/task-policy extra-on/off` 修改。
 - `extra_router.allow/deny` 控制哪些 task kind 允许被自动委派。默认拒绝 `general`、`summarize`、`compaction`。
 - `judges` 是 OpenChinaCode 共享 LLM judge 配置，当前用于 `auto_maxtokens`、`compaction_profile`、`compaction_active_task`、`task_router`。可以分别设置候选模型、超时和输出 token 上限。
 - 配置里指定的模型必须存在于当前 provider 列表，否则会跳过该条，继续尝试后续候选。
-- 修改后建议重启 OpenChinaCode，确保 TUI 和 session runtime 读取最新配置。
+- 直接手改配置文件后建议重启 OpenChinaCode；通过 `/task-policy on/off/extra-on/extra-off` 修改会写入全局配置并热应用到当前运行实例的新 turn。
 
 需要注意：`/task-policy` 当前显示的是内置默认策略表，不是合并用户配置后的 effective policy。实际运行时会尊重这里的用户配置，subagent footer 中显示的 `source` 会体现命中的来源，例如 `task_policy.routes`、`task_policy.agent` 或 `openchinacode.default`。
 
