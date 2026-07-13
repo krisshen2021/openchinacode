@@ -737,9 +737,7 @@ TUI 工具调用行会显示安全摘要，不展示完整路径、URL 或 base6
 
 ```text
 /task-policy
-/task-policy review
 /task-policy compaction
-/task-policy status
 /task-policy on
 /task-policy off
 /task-policy extra-status
@@ -751,7 +749,6 @@ TUI 工具调用行会显示安全摘要，不展示完整路径、URL 或 base6
 
 ```text
 /task-policy [focus]
-/task-policy status
 /task-policy on
 /task-policy off
 /task-policy extra-status
@@ -762,7 +759,7 @@ TUI 工具调用行会显示安全摘要，不展示完整路径、URL 或 base6
 示例：
 
 ```text
-/task-policy review
+/task-policy compaction
 ```
 
 会打开同一张固定策略表，并标记 focus。表中包含 `compaction` 的 quick / medium / complex 路由，以及模型 ID legend 和覆盖优先级。
@@ -771,7 +768,6 @@ Extra router：
 
 | 命令                        | 作用                                                                 |
 | --------------------------- | -------------------------------------------------------------------- |
-| `/task-policy status`       | 查看 task policy 总开关和 extra router 状态                          |
 | `/task-policy on`           | 热启用 task policy。subagent / compaction / visual_check 等继续路由  |
 | `/task-policy off`          | 热禁用 task policy 和 task subagent 入口。需要只使用当前主模型时使用 |
 | `/task-policy extra-status` | 查看普通 prompt 额外任务路由是否开启                                 |
