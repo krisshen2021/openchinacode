@@ -108,6 +108,7 @@ const I18N = {
     "updates.4": "Native image & video generation via Volcengine Ark",
     "updates.5": "Paste-image visual preprocessing with GLM-5V for all models",
     "updates.6": "Dual-layer routing — base routes plus optional extra dispatch",
+    "updates.7": "Soul persona selection — rigorous, friendly, or custom per project",
 
     /* ── CTA ── */
     "cta.title": "Need the exact commands and config files?",
@@ -180,7 +181,8 @@ const I18N = {
     "commands.maxtokens.effect": "Controls sliding output-token budgeting. Heuristic is the recommended daily mode; LLM mode uses a low-cost judge for ambiguous turns.",
     "commands.compact.effect": "Runs smart compaction. <code>keep N</code> also preserves the latest N raw user turns and follow-up assistant/tool messages.",
     "commands.lsp.effect": "Enables language-server diagnostics so the model can see and fix type, syntax, and reference errors.",
-    "commands.taskpolicy.effect": "Opens the local TUI task-route table. <code>extra-on</code>/<code>extra-off</code> toggles the extra task router; <code>extra-status</code> shows current state. Does not call the model or inject the table into conversation.",
+    "commands.taskpolicy.effect": "Opens the local TUI task-route table. <code>on</code>/<code>off</code> hot-toggles the entire task policy and task subagent entry; <code>extra-on</code>/<code>extra-off</code> toggles the extra task router; <code>extra-status</code> shows current state. Does not call the model or inject the table into conversation.",
+    "commands.soul.effect": "Selects the conversation persona. <code>custom</code> saves to <code>.openchinacode/souls/custom.md</code> and writes <code>soul.active</code> + <code>soul.custom_path</code> to project config. Refreshes the instance for new turns. Does not call the model.",
     "commands.taskclassify.effect": "Asks the current model to explain task kind, complexity, route, and classification signals.",
     "commands.testmcp.effect": "Writes Playwright MCP config and hot-connects or disconnects it from inside the TUI.",
     "commands.browsercheck.effect": "Prompts the agent to run browser-level checks, preferably through Playwright MCP.",
@@ -384,6 +386,7 @@ const I18N = {
     "updates.4": "原生图片与视频生成，接入火山方舟",
     "updates.5": "粘贴图片视觉预处理，GLM-5V 赋能所有模型",
     "updates.6": "双层路由 — 基础路由加可选 extra 智能分发",
+    "updates.7": "Soul 人格选择 — 按项目选择严谨、友好或自定义人格",
 
     /* ── CTA ── */
     "cta.title": "需要确切的命令和配置文件？",
@@ -456,7 +459,8 @@ const I18N = {
     "commands.maxtokens.effect": "控制滑动输出 token 预算。启发式是推荐的日常模式；LLM 模式使用低成本评判处理模糊轮次。",
     "commands.compact.effect": "运行智能压缩。<code>keep N</code> 还保留最近 N 个原始用户轮次及后续助手/工具消息。",
     "commands.lsp.effect": "启用语言服务器诊断，使模型可以看到并修复类型、语法和引用错误。",
-    "commands.taskpolicy.effect": "打开本地 TUI 任务路由表。<code>extra-on</code>/<code>extra-off</code> 开关 extra 任务路由；<code>extra-status</code> 查看当前状态。不调用模型，不注入对话。",
+    "commands.taskpolicy.effect": "打开本地 TUI 任务路由表。<code>on</code>/<code>off</code> 热切换整个 task policy 和 task subagent 入口；<code>extra-on</code>/<code>extra-off</code> 开关 extra 任务路由；<code>extra-status</code> 查看当前状态。不调用模型，不注入对话。",
+    "commands.soul.effect": "选择对话人格。<code>custom</code> 保存到 <code>.openchinacode/souls/custom.md</code>，并写入 <code>soul.active</code> + <code>soul.custom_path</code> 到项目配置。刷新实例，对新 turn 生效。不调用模型。",
     "commands.taskclassify.effect": "请求当前模型解释任务类型、复杂度、路由和分类信号。",
     "commands.testmcp.effect": "写入 Playwright MCP 配置，并在 TUI 内热连接或断开。",
     "commands.browsercheck.effect": "提示智能体运行浏览器级别检查，优先通过 Playwright MCP。",

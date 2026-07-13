@@ -212,8 +212,13 @@ openchinacode</div>
                   </tr>
                   <tr>
                     <td><code>/task-policy</code></td>
-                    <td><code>/task-policy</code><br><code>/task-policy compaction</code><br><code>/task-policy extra-on</code><br><code>/task-policy extra-off</code><br><code>/task-policy extra-status</code></td>
-                    <td data-i18n-html="commands.taskpolicy.effect">Opens the local TUI task-route table. <code>extra-on</code>/<code>extra-off</code> toggles the extra task router; <code>extra-status</code> shows current state. Does not call the model or inject the table into conversation.</td>
+                    <td><code>/task-policy</code><br><code>/task-policy compaction</code><br><code>/task-policy on</code><br><code>/task-policy off</code><br><code>/task-policy extra-on</code><br><code>/task-policy extra-off</code><br><code>/task-policy extra-status</code></td>
+                    <td data-i18n-html="commands.taskpolicy.effect">Opens the local TUI task-route table. <code>on</code>/<code>off</code> hot-toggles the entire task policy and task subagent entry; <code>extra-on</code>/<code>extra-off</code> toggles the extra task router; <code>extra-status</code> shows current state. Does not call the model or inject the table into conversation.</td>
+                  </tr>
+                  <tr>
+                    <td><code>/soul</code></td>
+                    <td><code>/soul</code><br><code>/soul rigorous</code><br><code>/soul friendly</code><br><code>/soul custom</code></td>
+                    <td data-i18n-html="commands.soul.effect">Selects the conversation persona. <code>custom</code> saves to <code>.openchinacode/souls/custom.md</code> and writes <code>soul.active</code> + <code>soul.custom_path</code> to project config. Refreshes the instance for new turns. Does not call the model.</td>
                   </tr>
                   <tr>
                     <td><code>/permissions</code></td>
