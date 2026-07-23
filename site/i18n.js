@@ -113,6 +113,7 @@ const I18N = {
 
     /* ── OCR hero ── */
     "ocr.eyebrow": "NATIVE OCR & DOCUMENT PARSING",
+    "ocr.hero.headline": "Unlimited OCR",
     "ocr.hero.title": "Parse PDFs, docs, and images<br>into Markdown without leaving the terminal.",
     "ocr.hero.desc": "Powered by Baidu Unlimited-OCR. Paste a document or image, get structured Markdown and JSON back. No local GPU required.",
     "ocr.hero.cta": "Read the manual",
@@ -415,6 +416,7 @@ const I18N = {
 
     /* ── OCR hero ── */
     "ocr.eyebrow": "原生 OCR 与文档解析",
+    "ocr.hero.headline": "Unlimited OCR",
     "ocr.hero.title": "在终端里把 PDF、文档和图片<br>解析为 Markdown。",
     "ocr.hero.desc": "由百度 Unlimited-OCR 驱动。粘贴文档或图片，即可获得结构化的 Markdown 和 JSON。无需本地 GPU。",
     "ocr.hero.cta": "阅读手册",
