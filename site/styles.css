@@ -1035,14 +1035,24 @@ tr:hover td {
 
 /* ── OCR highlight ────────────────────────────────────────── */
 .ocr-highlight {
-  position: relative;
-  padding: 36px;
   border-radius: var(--radius-lg);
   background:
     linear-gradient(135deg, var(--azure-soft), var(--cinnabar-soft)),
     var(--surface);
   border: 1px solid var(--border-bright);
   overflow: hidden;
+}
+
+.ocr-video {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+
+.ocr-body {
+  padding: 28px 36px 32px;
 }
 
 .ocr-highlight::before {
