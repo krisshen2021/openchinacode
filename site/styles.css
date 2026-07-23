@@ -1073,6 +1073,14 @@ tr:hover td {
   max-width: 680px;
 }
 
+.ocr-highlight .eyebrow {
+  background: rgba(8, 14, 12, 0.6);
+  border-color: color-mix(in srgb, var(--azure) 30%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: var(--azure);
+}
+
 .ocr-highlight::before {
   content: '';
   position: absolute;
