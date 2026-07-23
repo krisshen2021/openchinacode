@@ -1071,6 +1071,21 @@ tr:hover td {
   bottom: 0;
   padding: 36px;
   max-width: 680px;
+  z-index: 2;
+}
+
+.ocr-headline {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 32px 36px 0;
+  text-align: center;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
 }
 
 .ocr-title-row {
@@ -1086,6 +1101,7 @@ tr:hover td {
   line-height: 1.2;
   font-weight: 700;
   letter-spacing: -0.03em;
+  color: var(--moonlight);
 }
 
 .ocr-nowlive {
