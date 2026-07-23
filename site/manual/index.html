@@ -65,6 +65,7 @@
               <li><a href="#sessions" data-section="sessions"><i data-lucide="panels-left-right"></i><span data-i18n="toc.sessions">Sessions</span></a></li>
               <li><a href="#testing" data-section="testing"><i data-lucide="app-window"></i><span data-i18n="toc.testing">LSP &amp; Testing</span></a></li>
               <li><a href="#media" data-section="media"><i data-lucide="image"></i><span data-i18n="toc.media">Media Generation</span></a></li>
+              <li><a href="#ocr" data-section="ocr"><i data-lucide="file-search"></i><span data-i18n="toc.ocr">OCR &amp; Documents</span></a></li>
               <li><a href="#debugging" data-section="debugging"><i data-lucide="bug"></i><span data-i18n="toc.debugging">Debugging</span></a></li>
             </ul>
           </nav>
@@ -259,6 +260,16 @@ openchinacode</div>
                     <td><code>/video-generate</code></td>
                     <td><code>/video-generate</code><br><code>/video-generate a 5s product promo</code></td>
                     <td data-i18n="commands.videogen.effect">Opens the ByteDance Seedance 2.0 Mini video generation wizard with optional inline prompt.</td>
+                  </tr>
+                  <tr>
+                    <td><code>/ocr-auth</code></td>
+                    <td><code>/ocr-auth</code><br><code>/ocr-auth &lt;API_KEY&gt; &lt;SECRET_KEY&gt;</code></td>
+                    <td data-i18n-html="commands.ocrauth.effect">Saves Baidu Unlimited-OCR API Key and Secret Key for <code>ocr_extract</code>. Stored in <code>~/.local/share/openchinacode/auth.json</code> under provider <code>baidu-unlimited-ocr</code>. Env fallback: <code>BAIDU_OCR_API_KEY</code> + <code>BAIDU_OCR_SECRET_KEY</code>.</td>
+                  </tr>
+                  <tr>
+                    <td><code>/ocr</code></td>
+                    <td><code>/ocr</code><br><code>/ocr /path/to/document.pdf</code></td>
+                    <td data-i18n-html="commands.ocr.effect">Opens the Baidu Unlimited-OCR document parsing wizard. Supports PDF, OFD, DOC, DOCX, TXT, WPS, PPT, PPTX, and image formats. Results saved to <code>/tmp/openchinacode/ocr</code> as Markdown + JSON + metadata.</td>
                   </tr>
                 </tbody>
               </table>
@@ -470,6 +481,32 @@ openchinacode</div>
                 <span class="tag tag-gold" data-i18n="media.nl.tag">Trigger</span>
                 <h3 data-i18n="media.nl.title">Natural language or slash command</h3>
                 <p data-i18n-html="media.nl.manual.desc">Describe what you want in plain language, or run <code>/image-generate</code> / <code>/video-generate</code> with an optional prompt. When key parameters are missing, the agent asks follow-up questions instead of guessing. Generated files are downloaded immediately to <code>/tmp/openchinacode/media/images</code> and <code>/tmp/openchinacode/media/videos</code> with matching metadata JSON.</p>
+              </div>
+            </div>
+          </section>
+
+          <!-- OCR & Documents -->
+          <section class="manual-section reveal" id="ocr">
+            <div class="manual-section-header">
+              <i data-lucide="file-search"></i>
+              <h2 data-i18n="ocr.section.title">Native OCR &amp; Document Parsing</h2>
+            </div>
+            <p data-i18n="ocr.section.desc">OpenChinaCode integrates Baidu Unlimited-OCR for cloud-native document parsing. Submit PDFs, Office docs, or images and get structured Markdown and JSON back — no local GPU or inference environment required.</p>
+            <div class="manual-cards">
+              <div class="card" style="--accent: var(--azure);">
+                <span class="tag tag-azure" data-i18n="ocr.auth.tag">Auth</span>
+                <h3 data-i18n="ocr.auth.title">Baidu Unlimited-OCR credentials</h3>
+                <p data-i18n-html="ocr.auth.desc">Run <code>/ocr-auth</code> in the TUI, or set <code>BAIDU_OCR_API_KEY</code> and <code>BAIDU_OCR_SECRET_KEY</code> environment variables. Keys are stored in <code>~/.local/share/openchinacode/auth.json</code> under provider <code>baidu-unlimited-ocr</code>.</p>
+              </div>
+              <div class="card" style="--accent: var(--jade);">
+                <span class="tag tag-jade" data-i18n="ocr.formats.tag">Formats</span>
+                <h3 data-i18n="ocr.formats.title">Supported file types</h3>
+                <p data-i18n-html="ocr.formats.desc">Documents: <code>pdf</code>, <code>ofd</code>, <code>doc</code>, <code>docx</code>, <code>txt</code>, <code>wps</code>, <code>ppt</code>, <code>pptx</code>. Images: <code>jpg</code>, <code>jpeg</code>, <code>png</code>, <code>bmp</code>, <code>tif</code>, <code>tiff</code>. Output saved to <code>/tmp/openchinacode/ocr</code> as Markdown + JSON + metadata.</p>
+              </div>
+              <div class="card" style="--accent: var(--cinnabar);">
+                <span class="tag tag-cinnabar" data-i18n="ocr.nl.tag">Trigger</span>
+                <h3 data-i18n="ocr.nl.title">Paste or slash command</h3>
+                <p data-i18n-html="ocr.nl.desc">Run <code>/ocr</code> with optional file paths, or <code>Ctrl+V</code> paste a document into the TUI. Document files always route to OCR; images only route to OCR when you explicitly ask to extract text, parse tables, or convert to Markdown. Regular screenshots and UI images still go to the visual model.</p>
               </div>
             </div>
           </section>

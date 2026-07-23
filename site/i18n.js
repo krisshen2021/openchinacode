@@ -109,6 +109,26 @@ const I18N = {
     "updates.5": "Paste-image visual preprocessing with GLM-5V for all models",
     "updates.6": "Dual-layer routing — base routes plus optional extra dispatch",
     "updates.7": "Soul persona selection — rigorous, friendly, or custom per project",
+    "updates.8": "Baidu Unlimited-OCR — native document parsing for PDF, DOC, PPT, and images",
+
+    /* ── OCR hero ── */
+    "ocr.eyebrow": "NATIVE OCR & DOCUMENT PARSING",
+    "ocr.hero.title": "Parse PDFs, docs, and images<br>into Markdown without leaving the terminal.",
+    "ocr.hero.desc": "Powered by Baidu Unlimited-OCR. Paste a document or image, get structured Markdown and JSON back. No local GPU required.",
+    "ocr.hero.cta": "Read the manual",
+
+    /* ── OCR manual section ── */
+    "ocr.section.title": "Native OCR & Document Parsing",
+    "ocr.section.desc": "OpenChinaCode integrates Baidu Unlimited-OCR for cloud-native document parsing. Submit PDFs, Office docs, or images and get structured Markdown and JSON back — no local GPU or inference environment required.",
+    "ocr.auth.tag": "Auth",
+    "ocr.auth.title": "Baidu Unlimited-OCR credentials",
+    "ocr.auth.desc": "Run <code>/ocr-auth</code> in the TUI, or set <code>BAIDU_OCR_API_KEY</code> and <code>BAIDU_OCR_SECRET_KEY</code> environment variables. Keys are stored in <code>~/.local/share/openchinacode/auth.json</code> under provider <code>baidu-unlimited-ocr</code>.",
+    "ocr.formats.tag": "Formats",
+    "ocr.formats.title": "Supported file types",
+    "ocr.formats.desc": "Documents: <code>pdf</code>, <code>ofd</code>, <code>doc</code>, <code>docx</code>, <code>txt</code>, <code>wps</code>, <code>ppt</code>, <code>pptx</code>. Images: <code>jpg</code>, <code>jpeg</code>, <code>png</code>, <code>bmp</code>, <code>tif</code>, <code>tiff</code>. Output saved to <code>/tmp/openchinacode/ocr</code> as Markdown + JSON + metadata.",
+    "ocr.nl.tag": "Trigger",
+    "ocr.nl.title": "Paste or slash command",
+    "ocr.nl.desc": "Run <code>/ocr</code> with optional file paths, or <code>Ctrl+V</code> paste a document into the TUI. Document files always route to OCR; images only route to OCR when you explicitly ask to extract text, parse tables, or convert to Markdown. Regular screenshots and UI images still go to the visual model.",
 
     /* ── CTA ── */
     "cta.title": "Need the exact commands and config files?",
@@ -190,6 +210,8 @@ const I18N = {
     "commands.mediaauth.effect": "Saves the Volcengine Ark API key for native image and video generation.",
     "commands.imagegen.effect": "Opens the ByteDance Seedream 5.0 Pro image generation wizard with optional inline prompt.",
     "commands.videogen.effect": "Opens the ByteDance Seedance 2.0 Mini video generation wizard with optional inline prompt.",
+    "commands.ocrauth.effect": "Saves Baidu Unlimited-OCR API Key and Secret Key for <code>ocr_extract</code>. Stored in <code>~/.local/share/openchinacode/auth.json</code> under provider <code>baidu-unlimited-ocr</code>. Env fallback: <code>BAIDU_OCR_API_KEY</code> + <code>BAIDU_OCR_SECRET_KEY</code>.",
+    "commands.ocr.effect": "Opens the Baidu Unlimited-OCR document parsing wizard. Supports PDF, OFD, DOC, DOCX, TXT, WPS, PPT, PPTX, and image formats. Results saved to <code>/tmp/openchinacode/ocr</code> as Markdown + JSON + metadata.",
     "commands.sessions.effect": "Opens the session picker. Use arrow keys to switch between current-project and all-project sessions.",
     "commands.permissions.effect": "Opens the project permission policy panel. Choose Trust All, Safe, Ask Everything, Readonly, or Reset. Writes to <code>./.openchinacode/openchinacode.jsonc</code> and applies a runtime override immediately.",
 
@@ -267,6 +289,7 @@ const I18N = {
 
     /* ── Media Generation ── */
     "toc.media": "Media Generation",
+    "toc.ocr": "OCR & Documents",
     "media.manual.title": "Native Media Generation",
     "media.manual.desc": "OpenChinaCode can generate images and videos through Volcengine Ark, powered by ByteDance Seedream 5.0 Pro and Seedance 2.0 Mini.",
     "media.auth.tag": "Auth",
@@ -387,6 +410,26 @@ const I18N = {
     "updates.5": "粘贴图片视觉预处理，GLM-5V 赋能所有模型",
     "updates.6": "双层路由 — 基础路由加可选 extra 智能分发",
     "updates.7": "Soul 人格选择 — 按项目选择严谨、友好或自定义人格",
+    "updates.8": "百度 Unlimited-OCR — 原生文档解析，支持 PDF、DOC、PPT 及图片",
+
+    /* ── OCR hero ── */
+    "ocr.eyebrow": "原生 OCR 与文档解析",
+    "ocr.hero.title": "在终端里把 PDF、文档和图片<br>解析为 Markdown。",
+    "ocr.hero.desc": "由百度 Unlimited-OCR 驱动。粘贴文档或图片，即可获得结构化的 Markdown 和 JSON。无需本地 GPU。",
+    "ocr.hero.cta": "阅读手册",
+
+    /* ── OCR manual section ── */
+    "ocr.section.title": "原生 OCR 与文档解析",
+    "ocr.section.desc": "OpenChinaCode 集成百度 Unlimited-OCR，提供云端原生文档解析。提交 PDF、Office 文档或图片，即可获得结构化的 Markdown 和 JSON — 无需本地 GPU 或推理环境。",
+    "ocr.auth.tag": "认证",
+    "ocr.auth.title": "百度 Unlimited-OCR 凭证",
+    "ocr.auth.desc": "在 TUI 中运行 <code>/ocr-auth</code>，或设置 <code>BAIDU_OCR_API_KEY</code> 和 <code>BAIDU_OCR_SECRET_KEY</code> 环境变量。密钥存储在 <code>~/.local/share/openchinacode/auth.json</code> 中，provider 为 <code>baidu-unlimited-ocr</code>。",
+    "ocr.formats.tag": "格式",
+    "ocr.formats.title": "支持的文件类型",
+    "ocr.formats.desc": "文档：<code>pdf</code>、<code>ofd</code>、<code>doc</code>、<code>docx</code>、<code>txt</code>、<code>wps</code>、<code>ppt</code>、<code>pptx</code>。图片：<code>jpg</code>、<code>jpeg</code>、<code>png</code>、<code>bmp</code>、<code>tif</code>、<code>tiff</code>。输出保存到 <code>/tmp/openchinacode/ocr</code>，包含 Markdown + JSON + 元数据。",
+    "ocr.nl.tag": "触发",
+    "ocr.nl.title": "粘贴或斜杠命令",
+    "ocr.nl.desc": "运行 <code>/ocr</code> 并传入文件路径，或在 TUI 中 <code>Ctrl+V</code> 粘贴文档。文档文件始终走 OCR；图片仅在你明确要求提取文字、解析表格或转 Markdown 时才走 OCR。普通截图和 UI 图片仍走视觉模型。",
 
     /* ── CTA ── */
     "cta.title": "需要确切的命令和配置文件？",
@@ -468,6 +511,8 @@ const I18N = {
     "commands.mediaauth.effect": "保存火山方舟 API key，供原生图片和视频生成使用。",
     "commands.imagegen.effect": "打开字节跳动 Seedream 5.0 Pro 生图向导，支持内联提示词。",
     "commands.videogen.effect": "打开字节跳动 Seedance 2.0 Mini 生视频向导，支持内联提示词。",
+    "commands.ocrauth.effect": "保存百度 Unlimited-OCR API Key 和 Secret Key，供 <code>ocr_extract</code> 使用。存储于 <code>~/.local/share/openchinacode/auth.json</code>，provider 为 <code>baidu-unlimited-ocr</code>。环境变量兜底：<code>BAIDU_OCR_API_KEY</code> + <code>BAIDU_OCR_SECRET_KEY</code>。",
+    "commands.ocr.effect": "打开百度 Unlimited-OCR 文档解析向导。支持 PDF、OFD、DOC、DOCX、TXT、WPS、PPT、PPTX 及图片格式。结果保存到 <code>/tmp/openchinacode/ocr</code>，包含 Markdown + JSON + 元数据。",
     "commands.sessions.effect": "打开 session 选择器。使用方向键在当前项目和全部项目 session 之间切换。",
     "commands.permissions.effect": "打开项目权限策略面板。可选 Trust All、Safe、Ask Everything、Readonly 或 Reset。写入 <code>./.openchinacode/openchinacode.jsonc</code> 并立即下发 runtime override 生效。",
 
@@ -545,6 +590,7 @@ const I18N = {
 
     /* ── Media Generation ── */
     "toc.media": "媒体生成",
+    "toc.ocr": "OCR 与文档",
     "media.manual.title": "原生媒体生成",
     "media.manual.desc": "OpenChinaCode 可通过火山方舟生成图片和视频，由字节跳动 Seedream 5.0 Pro 和 Seedance 2.0 Mini 驱动。",
     "media.auth.tag": "认证",

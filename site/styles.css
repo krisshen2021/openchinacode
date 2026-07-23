@@ -403,6 +403,18 @@ svg {
 .btn-jade:hover {
   border-color: var(--jade);
   background: rgba(6, 214, 160, 0.2);
+}
+
+.btn-azure {
+  border-color: rgba(72, 202, 228, 0.3);
+  background: var(--azure-soft);
+  color: var(--azure);
+  font-weight: 700;
+}
+
+.btn-azure:hover {
+  border-color: var(--azure);
+  background: rgba(72, 202, 228, 0.2);
   box-shadow: var(--shadow-glow-jade);
 }
 
@@ -1019,6 +1031,47 @@ tr:hover td {
 
 @keyframes angle-rotate {
   to { --gradient-angle: 360deg; }
+}
+
+/* ── OCR highlight ────────────────────────────────────────── */
+.ocr-highlight {
+  position: relative;
+  padding: 36px;
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(135deg, var(--azure-soft), var(--cinnabar-soft)),
+    var(--surface);
+  border: 1px solid var(--border-bright);
+  overflow: hidden;
+}
+
+.ocr-highlight::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, var(--azure), transparent 50%, var(--cinnabar));
+  opacity: 0.05;
+  --gradient-angle: 0deg;
+  animation: angle-rotate 8s linear infinite;
+  pointer-events: none;
+}
+
+.ocr-formats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.ocr-formats span {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  background: rgba(72, 202, 228, 0.08);
+  color: var(--azure);
+  border: 1px solid color-mix(in srgb, var(--azure) 25%, transparent);
 }
 
 /* ── Media highlight (NEW) ────────────────────────────────── */
