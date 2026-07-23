@@ -58,10 +58,10 @@ const I18N = {
     "providers.lead": "OpenChinaCode keeps the terminal-first opencode workflow, then narrows the default model surface to GLM, Kimi, and DeepSeek with model-aware request transforms, task routing, compaction, testing, and RMB cost display.",
     "providers.glm.tag": "PLAN",
     "providers.glm.title": "GLM-led reasoning",
-    "providers.glm.desc": "Architecture, complex planning, heavy refactors, and compaction routes favor GLM-5.2 variants for deep reasoning.",
+    "providers.glm.desc": "Architecture, complex planning, and heavy refactors favor GLM-5.2 variants for deep reasoning.",
     "providers.kimi.tag": "BUILD",
     "providers.kimi.title": "Kimi for speed",
-    "providers.kimi.desc": "Quick review, implement, explore, and summarize subagents use fast Kimi K2.7 routes when the task fits.",
+    "providers.kimi.desc": "Quick review, implement, explore, summarize, and compaction subagents use fast Kimi K3 routes when the task fits.",
     "providers.deepseek.tag": "DEBUG",
     "providers.deepseek.title": "DeepSeek for loops",
     "providers.deepseek.desc": "Debug and test-fix loops are tuned for DeepSeek, with sliding max-token behavior.",
@@ -219,7 +219,7 @@ const I18N = {
 
     /* ── Compaction ── */
     "compaction.title": "Smart Compaction",
-    "compaction.desc": "OpenChinaCode compaction is routed through task policy and defaults to <code>zhipuai-pay2go/glm-5.2#high</code>. It uses three layers: general summary, active-task extraction, and minimal raw recent tail.",
+    "compaction.desc": "OpenChinaCode compaction is routed through task policy and defaults to <code>moonshotai-cn/kimi-k3#high</code>. It uses three layers: general summary, active-task extraction, and minimal raw recent tail.",
     "compaction.strategy.tag": "Strategy",
     "compaction.strategy.title": "Profile-aware summary",
     "compaction.strategy.desc": "A judge model first emits a stable JSON profile, then OpenChinaCode builds a fixed Markdown compaction prompt from that profile.",
@@ -336,10 +336,10 @@ const I18N = {
     "providers.lead": "OpenChinaCode 保留了 opencode 终端优先的工作流，然后将默认模型范围收窄至 GLM、Kimi 和 DeepSeek，配合模型感知的请求转换、任务路由、压缩、测试和人民币成本显示。",
     "providers.glm.tag": "规划",
     "providers.glm.title": "GLM 主导推理",
-    "providers.glm.desc": "架构、复杂规划、大型重构和压缩路由倾向于使用 GLM-5.2 变体进行深度推理。",
+    "providers.glm.desc": "架构、复杂规划和大型重构倾向于使用 GLM-5.2 变体进行深度推理。",
     "providers.kimi.tag": "构建",
     "providers.kimi.title": "Kimi 追求速度",
-    "providers.kimi.desc": "快速审查、实现、探索和摘要子智能体在任务匹配时使用快速的 Kimi K2.7 路由。",
+    "providers.kimi.desc": "快速审查、实现、探索、摘要和压缩子智能体在任务匹配时使用快速的 Kimi K3 路由。",
     "providers.deepseek.tag": "调试",
     "providers.deepseek.title": "DeepSeek 用于循环",
     "providers.deepseek.desc": "调试和测试修复循环针对 DeepSeek 进行调优，具有滑动最大 token 行为。",
@@ -497,7 +497,7 @@ const I18N = {
 
     /* ── Compaction ── */
     "compaction.title": "智能压缩",
-    "compaction.desc": "OpenChinaCode 压缩通过任务策略路由，默认使用 <code>zhipuai-pay2go/glm-5.2#high</code>。它使用三层：通用摘要、活跃任务提取和最小原始近期尾部。",
+    "compaction.desc": "OpenChinaCode 压缩通过任务策略路由，默认使用 <code>moonshotai-cn/kimi-k3#high</code>。它使用三层：通用摘要、活跃任务提取和最小原始近期尾部。",
     "compaction.strategy.tag": "策略",
     "compaction.strategy.title": "档案感知摘要",
     "compaction.strategy.desc": "评判模型首先输出稳定的 JSON 档案，然后 OpenChinaCode 根据该档案构建固定的 Markdown 压缩提示词。",

@@ -287,14 +287,14 @@ openchinacode</div>
                   <tr><td><code>plan</code></td><td class="route-glm">GLM-5.2 high</td><td class="route-glm">GLM-5.2 high</td><td class="route-glm">GLM-5.2 max</td></tr>
                   <tr><td><code>architecture</code></td><td class="route-glm">GLM-5.2 high</td><td class="route-glm">GLM-5.2 high</td><td class="route-glm">GLM-5.2 max</td></tr>
                   <tr><td><code>refactor</code></td><td class="route-glm">GLM-5.2 high</td><td class="route-glm">GLM-5.2 high</td><td class="route-glm">GLM-5.2 max</td></tr>
-                  <tr><td><code>review</code></td><td class="route-kimi">Kimi K2.7 highspeed</td><td class="route-glm">GLM-5.2 high</td><td class="route-glm">GLM-5.2 max</td></tr>
-                  <tr><td><code>implement</code></td><td class="route-kimi">Kimi K2.7 highspeed</td><td class="route-glm">GLM-5.2 high</td><td class="route-glm">GLM-5.2 max</td></tr>
-                  <tr><td><code>explore</code></td><td class="route-kimi">Kimi K2.7 highspeed</td><td class="route-glm">GLM-5.2 high</td><td class="route-glm">GLM-5.2 max</td></tr>
+                  <tr><td><code>review</code></td><td class="route-kimi">Kimi K3 high</td><td class="route-glm">GLM-5.2 high</td><td class="route-glm">GLM-5.2 max</td></tr>
+                  <tr><td><code>implement</code></td><td class="route-kimi">Kimi K3 high</td><td class="route-glm">GLM-5.2 high</td><td class="route-glm">GLM-5.2 max</td></tr>
+                  <tr><td><code>explore</code></td><td class="route-kimi">Kimi K3 high</td><td class="route-kimi">Kimi K3 high</td><td class="route-glm">GLM-5.2 max</td></tr>
                   <tr><td><code>visual_check</code></td><td class="route-glm5v">GLM-5V Turbo</td><td class="route-glm5v">GLM-5V Turbo</td><td class="route-glm5v">GLM-5V Turbo</td></tr>
                   <tr><td><code>debug</code></td><td class="route-deepseek">DeepSeek V4 Pro high</td><td class="route-deepseek">DeepSeek V4 Pro high</td><td class="route-deepseek">DeepSeek V4 Pro max</td></tr>
                   <tr><td><code>test_fix</code></td><td class="route-deepseek">DeepSeek V4 Pro high</td><td class="route-deepseek">DeepSeek V4 Pro high</td><td class="route-deepseek">DeepSeek V4 Pro max</td></tr>
-                  <tr><td><code>summarize</code></td><td class="route-kimi">Kimi K2.7 highspeed</td><td class="route-kimi">Kimi K2.7 highspeed</td><td class="route-glm">GLM-5.2 high</td></tr>
-                  <tr><td><code>compaction</code></td><td class="route-glm">GLM-5.2 high</td><td class="route-glm">GLM-5.2 high</td><td class="route-glm">GLM-5.2 high</td></tr>
+                  <tr><td><code>summarize</code></td><td class="route-kimi">Kimi K3 high</td><td class="route-glm">GLM-5.2 high</td><td class="route-glm">GLM-5.2 max</td></tr>
+                  <tr><td><code>compaction</code></td><td class="route-glm">GLM-5.2 high</td><td class="route-kimi">Kimi K3 high</td><td class="route-kimi">Kimi K3 high</td></tr>
                 </tbody>
               </table>
             </div>
@@ -310,7 +310,8 @@ openchinacode</div>
         "variant": "high"
       },
       "explore.quick": {
-        "model": "moonshotai-cn/kimi-k2.7-code-highspeed"
+        "model": "moonshotai-cn/kimi-k3",
+        "variant": "high"
       },
       "visual_check": {
         "model": "zhipuai-pay2go/glm-5v-turbo"
@@ -359,7 +360,7 @@ openchinacode</div>
               <i data-lucide="layers"></i>
               <h2 data-i18n="compaction.title">Smart Compaction</h2>
             </div>
-            <p data-i18n-html="compaction.desc">OpenChinaCode compaction is routed through task policy and defaults to <code>zhipuai-pay2go/glm-5.2#high</code>. It uses three layers: general summary, active-task extraction, and minimal raw recent tail.</p>
+            <p data-i18n-html="compaction.desc">OpenChinaCode compaction is routed through task policy and defaults to <code>moonshotai-cn/kimi-k3#high</code>. It uses three layers: general summary, active-task extraction, and minimal raw recent tail.</p>
             <div class="manual-cards">
               <div class="card" style="--accent: var(--cinnabar);">
                 <span class="tag tag-cinnabar" data-i18n="compaction.strategy.tag">Strategy</span>
