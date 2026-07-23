@@ -2811,7 +2811,22 @@ function toolInput(tool: string, value: Record<string, unknown>): string {
   if (tool === "image_generate") return mediaToolInput(value, ["reference_images"])
   if (tool === "video_generate")
     return mediaToolInput(value, ["reference_images", "reference_videos", "first_frame_image", "last_frame_image"])
+  if (tool === "ocr_extract") return ocrToolInput(value)
   return input(value)
+}
+
+function ocrToolInput(value: Record<string, unknown>) {
+  const base = input(value, ["file", "files"])
+  const files = [
+    ...(typeof value.file === "string" && value.file.trim() ? [value.file] : []),
+    ...(Array.isArray(value.files) ? value.files.filter((item): item is string => typeof item === "string") : []),
+  ]
+  if (!files.length) return base
+  const preview = files.slice(0, 2).map(safeMediaRef).filter(Boolean)
+  const suffix = files.length > preview.length ? `, +${files.length - preview.length}` : ""
+  const summary = `files=${files.length}${preview.length ? ` (${preview.join(", ")}${suffix})` : ""}`
+  if (!base) return `[${summary}]`
+  return `${base.slice(0, -1)}, ${summary}]`
 }
 
 function mediaToolInput(value: Record<string, unknown>, mediaKeys: string[]) {

@@ -218,6 +218,15 @@ describe("ProviderTransform.options - OpenChina provider defaults", () => {
     })
   })
 
+  test("Kimi K3 does not inject K2 thinking or prompt cache options by default", () => {
+    expect(
+      ProviderTransform.options({
+        model: createModel("moonshotai-cn", "kimi-k3"),
+        sessionID,
+      }),
+    ).toEqual({})
+  })
+
   test("GLM 5.2 defaults to high reasoning effort instead of provider max", () => {
     expect(
       ProviderTransform.options({
@@ -3077,7 +3086,7 @@ describe("ProviderTransform OpenChina sampling and body rewrite", () => {
   test("does not inject default sampling params for OpenChina models", () => {
     for (const model of [
       createModel("zhipuai-pay2go", "glm-5.2"),
-      createModel("moonshotai-cn", "kimi-k2.7-code"),
+      createModel("moonshotai-cn", "kimi-k3"),
       createModel("deepseek", "deepseek-v4-pro"),
     ]) {
       expect(ProviderTransform.temperature(model)).toBeUndefined()
@@ -3090,6 +3099,7 @@ describe("ProviderTransform OpenChina sampling and body rewrite", () => {
     expect(ProviderTransform.maxOutputTokens(createModel("zhipuai-pay2go", "glm-4.5"))).toBe(65_536)
     expect(ProviderTransform.maxOutputTokens(createModel("zhipuai-pay2go", "glm-5v-turbo"))).toBe(65_536)
     expect(ProviderTransform.maxOutputTokens(createModel("zhipuai-pay2go", "glm-4.6v"))).toBe(16_384)
+    expect(ProviderTransform.maxOutputTokens(createModel("moonshotai-cn", "kimi-k3"))).toBe(131_072)
     expect(ProviderTransform.maxOutputTokens(createModel("moonshotai-cn", "kimi-k2.7-code"))).toBe(32_768)
     expect(ProviderTransform.maxOutputTokens(createModel("deepseek", "deepseek-v4-pro"))).toBe(131_072)
   })
@@ -3110,10 +3120,10 @@ describe("ProviderTransform OpenChina sampling and body rewrite", () => {
     ).toBe(393_216)
     expect(
       ProviderTransform.maxOutputTokens({
-        model: createModel("moonshotai-cn", "kimi-k2.7-code"),
+        model: createModel("moonshotai-cn", "kimi-k3"),
         messages,
       }),
-    ).toBe(32_768)
+    ).toBe(1_048_576)
   })
 
   test("uses current turn intent instead of stale long-output history", () => {
@@ -3144,6 +3154,12 @@ describe("ProviderTransform OpenChina sampling and body rewrite", () => {
           messages: [{ role: "user", content }],
         }),
       ).toBe(393_216)
+      expect(
+        ProviderTransform.maxOutputTokens({
+          model: createModel("moonshotai-cn", "kimi-k3"),
+          messages: [{ role: "user", content }],
+        }),
+      ).toBe(1_048_576)
     }
   })
 
@@ -3186,11 +3202,18 @@ describe("ProviderTransform OpenChina sampling and body rewrite", () => {
         variant: "max",
       }),
     ).toBe(393_216)
+    expect(
+      ProviderTransform.maxOutputTokens({
+        model: createModel("moonshotai-cn", "kimi-k3"),
+        variant: "max",
+      }),
+    ).toBe(1_048_576)
   })
 
   test("respects explicit output token overrides for OpenChina models", () => {
     expect(ProviderTransform.maxOutputTokens(createModel("deepseek", "deepseek-v4-pro"), 64_000)).toBe(64_000)
     expect(ProviderTransform.maxOutputTokens(createModel("deepseek", "deepseek-v4-pro"), 500_000)).toBe(393_216)
+    expect(ProviderTransform.maxOutputTokens(createModel("moonshotai-cn", "kimi-k3"), 2_000_000)).toBe(1_048_576)
   })
 
   test("GLM keeps only one sampling control when both are present", () => {
@@ -3240,6 +3263,28 @@ describe("ProviderTransform OpenChina sampling and body rewrite", () => {
         type: "enabled",
         keep: "all",
       },
+    })
+  })
+
+  test("Kimi K3 removes fixed params, converts max tokens, and preserves required tool choice", () => {
+    expect(
+      ProviderTransform.rewriteRequestBody(createModel("moonshotai-cn", "kimi-k3"), {
+        model: "kimi-k3",
+        max_tokens: 131_072,
+        temperature: 1,
+        top_p: 0.95,
+        presence_penalty: 0,
+        frequency_penalty: 0,
+        n: 1,
+        reasoningEffort: "high",
+        thinking: { type: "enabled", keep: "all" },
+        tool_choice: "required",
+      }),
+    ).toEqual({
+      model: "kimi-k3",
+      max_completion_tokens: 131_072,
+      reasoning_effort: "high",
+      tool_choice: "required",
     })
   })
 
@@ -3349,6 +3394,22 @@ describe("ProviderTransform.variants", () => {
       none: { thinking: { type: "disabled" } },
       high: { thinking: { type: "enabled" }, reasoningEffort: "high" },
       max: { thinking: { type: "enabled" }, reasoningEffort: "max" },
+    })
+  })
+
+  test("Kimi K3 returns official high and max reasoning variants", () => {
+    const model = createMockModel({
+      id: "moonshotai-cn/kimi-k3",
+      providerID: "moonshotai-cn",
+      api: {
+        id: "kimi-k3",
+        url: "https://api.moonshot.cn/v1",
+        npm: "@ai-sdk/openai-compatible",
+      },
+    })
+    expect(ProviderTransform.variants(model)).toEqual({
+      high: { reasoningEffort: "high" },
+      max: { reasoningEffort: "max" },
     })
   })
 

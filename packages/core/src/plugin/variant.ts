@@ -46,7 +46,7 @@ export function generate(model: ModelV2Info, provider?: ProviderLike): ModelV2In
   const api = projectedApi(model, provider)
   if (api.type !== "aisdk" || api.package !== "@ai-sdk/openai-compatible") return []
   const ids = `${model.id} ${model.api.id}`.toLowerCase()
-  if (!["glm-5.2", "glm-5-2", "glm-5p2"].some((name) => ids.includes(name))) return []
+  if (!["glm-5.2", "glm-5-2", "glm-5p2", "kimi-k3"].some((name) => ids.includes(name))) return []
   return ["high", "max"].map((id) => ({
     id,
     headers: {},

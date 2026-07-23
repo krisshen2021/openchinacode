@@ -2,6 +2,7 @@ import { execFile, spawn } from "node:child_process"
 import { readFile, rm } from "node:fs/promises"
 import { platform, release, tmpdir } from "node:os"
 import path from "node:path"
+import { fileURLToPath } from "node:url"
 import { promisify } from "node:util"
 
 const exec = promisify(execFile)
@@ -25,6 +26,8 @@ function writeOsc52(text: string) {
   const sequence = `\x1b]52;c;${Buffer.from(text).toString("base64")}\x07`
   process.stdout.write(process.env.TMUX || process.env.STY ? `\x1bPtmux;\x1b${sequence}\x1b\\` : sequence)
 }
+
+export const FILE_LIST_MIME = "application/x-openchinacode-file-list"
 
 export async function read() {
   if (platform() === "darwin") {
@@ -57,6 +60,9 @@ export async function read() {
       Buffer.alloc(0),
     )
     if (image.length) return { data: image.toString().trim(), mime: "image/png" }
+
+    const files = await readWindowsFileDropList(release().includes("WSL"))
+    if (files.length) return { data: files.join("\n"), mime: FILE_LIST_MIME }
   }
 
   if (platform() === "linux") {
@@ -66,11 +72,71 @@ export async function read() {
       Buffer.alloc(0),
     )
     if (x11.length) return { data: x11.toString("base64"), mime: "image/png" }
+
+    const files = await readLinuxFileList()
+    if (files.length) return { data: files.join("\n"), mime: FILE_LIST_MIME }
   }
 
   const { default: clipboardy } = await import("clipboardy")
   const text = await clipboardy.read().catch(() => undefined)
   if (text) return { data: text, mime: "text/plain" }
+}
+
+async function readWindowsFileDropList(wsl: boolean) {
+  const script = [
+    "Add-Type -AssemblyName System.Windows.Forms;",
+    "$files = [System.Windows.Forms.Clipboard]::GetFileDropList();",
+    "if ($files) { $files | ForEach-Object { $_ } }",
+  ].join(" ")
+  const output = await command("powershell.exe", ["-NonInteractive", "-NoProfile", "-command", script]).catch(() =>
+    Buffer.alloc(0),
+  )
+  return output
+    .toString("utf8")
+    .split(/\r?\n/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map((item) => (wsl ? windowsToWslPath(item) : item))
+}
+
+async function readLinuxFileList() {
+  const candidates = [
+    ["wl-paste", ["-t", "x-special/gnome-copied-files"]],
+    ["wl-paste", ["-t", "text/uri-list"]],
+    ["xclip", ["-selection", "clipboard", "-t", "x-special/gnome-copied-files", "-o"]],
+    ["xclip", ["-selection", "clipboard", "-t", "text/uri-list", "-o"]],
+  ] as const
+  for (const [cmd, args] of candidates) {
+    const output = await command(cmd, [...args]).catch(() => Buffer.alloc(0))
+    const files = parseClipboardFileList(output.toString("utf8"))
+    if (files.length) return files
+  }
+  return []
+}
+
+export function parseClipboardFileList(input: string) {
+  return input
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .split("\n")
+    .map((item) => item.trim())
+    .filter((item) => item && item !== "copy" && item !== "cut" && !item.startsWith("#"))
+    .flatMap((item) => {
+      if (item.startsWith("file://")) {
+        try {
+          return [fileURLToPath(item)]
+        } catch {
+          return []
+        }
+      }
+      return path.isAbsolute(item) ? [item] : []
+    })
+}
+
+function windowsToWslPath(input: string) {
+  const match = input.match(/^([a-zA-Z]):\\(.*)$/)
+  if (!match) return input
+  return `/mnt/${match[1].toLowerCase()}/${match[2].replace(/\\/g, "/")}`
 }
 
 export function copyCommand(

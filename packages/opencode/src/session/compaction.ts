@@ -39,7 +39,7 @@ const MAX_PRESERVE_RECENT_TOKENS = 8_000
 // Give China-hosted reasoning models enough time to return a small JSON decision;
 // failures still fall back to deterministic local inference.
 const PROFILE_JUDGE_TIMEOUT_MS = 60_000
-const PROFILE_JUDGE_FALLBACKS = ["moonshotai-cn/kimi-k2.7-code-highspeed", "deepseek/deepseek-v4-flash"]
+const PROFILE_JUDGE_FALLBACKS = ["moonshotai-cn/kimi-k3", "deepseek/deepseek-v4-flash"]
 const ACTIVE_TASK_EXTRACT_TIMEOUT_MS = 90_000
 const ACTIVE_TASK_EXTRACT_FALLBACKS = PROFILE_JUDGE_FALLBACKS
 const ACTIVE_TASK_EXTRACT_MAX_OUTPUT_TOKENS = 16_384
@@ -446,7 +446,10 @@ const layer = Layer.effect(
         smallModelProviderID: input.currentModel.providerID,
         timeoutMs: ACTIVE_TASK_EXTRACT_TIMEOUT_MS,
         maxOutputTokens: (model) =>
-          Math.min(ProviderTransform.maxOutputTokens(model, flags.outputTokenMax), ACTIVE_TASK_EXTRACT_MAX_OUTPUT_TOKENS),
+          Math.min(
+            ProviderTransform.maxOutputTokens(model, flags.outputTokenMax),
+            ACTIVE_TASK_EXTRACT_MAX_OUTPUT_TOKENS,
+          ),
         onSelected: (model) =>
           publishProgress({
             sessionID: input.sessionID,

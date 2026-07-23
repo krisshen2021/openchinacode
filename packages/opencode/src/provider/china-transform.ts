@@ -11,6 +11,8 @@ const GLM_46V_OUTPUT_DEFAULT = 16_384
 const GLM_VISION_OUTPUT_MAX = 32_768
 const GLM_LEGACY_OUTPUT_MAX = 16_384
 const KIMI_K2_CODE_OUTPUT_DEFAULT = 32_768
+const KIMI_K3_OUTPUT_DEFAULT = 131_072
+const KIMI_K3_OUTPUT_MAX = 1_048_576
 const DEEPSEEK_V4_OUTPUT_MAX = 393_216
 const DEEPSEEK_V4_OUTPUT_DEFAULT = 131_072
 
@@ -134,9 +136,14 @@ function isGLMVision(model: Provider.Model, bodyModel?: string) {
   return includesAny(id, ["glm-5v", "glm-5-v", "glm-4.6v", "glm-4.5v"])
 }
 
-function isKimiK27OrNewer(model: Provider.Model, bodyModel?: string) {
+function isKimiK27Code(model: Provider.Model, bodyModel?: string) {
   const id = text(model, bodyModel)
   return includesAny(id, ["kimi-k2.7-code", "kimi-k2-7-code", "k2p7"])
+}
+
+function isKimiK3(model: Provider.Model, bodyModel?: string) {
+  const id = text(model, bodyModel)
+  return includesAny(id, ["kimi-k3"])
 }
 
 function deepseekThinkingDefault(model: Provider.Model, bodyModel?: string) {
@@ -181,6 +188,9 @@ function officialOutputPolicy(model: Provider.Model): OutputPolicy | undefined {
       return undefined
 
     case "kimi":
+      if (isKimiK3(model)) {
+        return { default: KIMI_K3_OUTPUT_DEFAULT, max: KIMI_K3_OUTPUT_MAX }
+      }
       if (includesAny(id, ["kimi-k2.7", "kimi-k2-7", "kimi-k2.6", "kimi-k2-6", "kimi-k2.5", "kimi-k2-5", "k2p"])) {
         return { default: KIMI_K2_CODE_OUTPUT_DEFAULT, max: KIMI_K2_CODE_OUTPUT_DEFAULT }
       }
@@ -367,6 +377,7 @@ export function options(input: { model: Provider.Model; sessionID: string }): Re
       }
 
     case "kimi":
+      if (isKimiK3(input.model)) return undefined
       return {
         thinking: {
           type: "enabled",
@@ -387,6 +398,13 @@ export function options(input: { model: Provider.Model; sessionID: string }): Re
 
 export function variants(model: Provider.Model): Record<string, Record<string, any>> | undefined {
   if (!model.capabilities.reasoning || !isOpenAICompatible(model)) return undefined
+
+  if (isKimiK3(model)) {
+    return {
+      high: { reasoningEffort: "high" },
+      max: { reasoningEffort: "max" },
+    }
+  }
 
   if (isGLM52(model)) {
     return {
@@ -437,7 +455,13 @@ export function rewriteRequestBody(model: Provider.Model, body: Record<string, a
       delete result.max_tokens
     }
 
-    if (isKimiK27OrNewer(model, bodyModel)) {
+    if (isKimiK3(model, bodyModel)) {
+      if (result.reasoningEffort !== undefined && result.reasoning_effort === undefined) {
+        result.reasoning_effort = result.reasoningEffort
+      }
+      delete result.reasoningEffort
+      delete result.thinking
+    } else if (isKimiK27Code(model, bodyModel)) {
       result.thinking = {
         ...(typeof result.thinking === "object" && result.thinking !== null ? result.thinking : {}),
         type: "enabled",
@@ -445,7 +469,12 @@ export function rewriteRequestBody(model: Provider.Model, body: Record<string, a
       }
     }
 
-    if (result.tool_choice !== undefined && result.tool_choice !== "auto" && result.tool_choice !== "none") {
+    if (
+      !isKimiK3(model, bodyModel) &&
+      result.tool_choice !== undefined &&
+      result.tool_choice !== "auto" &&
+      result.tool_choice !== "none"
+    ) {
       result.tool_choice = "auto"
     }
 

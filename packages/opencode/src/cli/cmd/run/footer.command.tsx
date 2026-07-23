@@ -28,6 +28,7 @@ type ModelEntry = PanelEntry & {
   modelID: string
   providerName: string
   current: boolean
+  recommended: boolean
 }
 
 type VariantEntry = PanelEntry & {
@@ -57,6 +58,11 @@ export const RUN_COMMAND_PANEL_ROWS = PANEL_LIST_ROWS + PANEL_FRAME_ROWS
 const SUBAGENT_LIST_ROWS = 12
 export const RUN_SUBAGENT_PANEL_ROWS = SUBAGENT_LIST_ROWS + PANEL_FRAME_ROWS
 const PANEL_PAGE = PANEL_LIST_ROWS - 1
+const OPENCHINA_RECOMMENDED_MODELS = new Set([
+  "zhipuai-pay2go/glm-5.2",
+  "moonshotai-cn/kimi-k3",
+  "deepseek/deepseek-v4-pro",
+])
 const PANEL_BORDER = {
   topLeft: "",
   bottomLeft: "",
@@ -959,26 +965,37 @@ export function RunModelSelectBody(props: {
           .map(([modelID, model]) => {
             const title = model.name ?? modelID
             const current = props.current()?.providerID === provider.id && props.current()?.modelID === modelID
+            const recommended = OPENCHINA_RECOMMENDED_MODELS.has(`${provider.id}/${modelID}`)
+            const variants = Object.keys(model.variants ?? {})
+            const variantText = variants.length > 0 ? `variants: ${variants.join("/")}` : undefined
             const footer = current
               ? "current"
               : model.cost?.input === 0 && provider.id === "opencode"
                 ? "Free"
-                : title !== modelID
-                  ? modelID
-                  : undefined
+                : variantText
+                  ? variantText
+                  : title !== modelID
+                    ? modelID
+                    : undefined
             return {
               providerID: provider.id,
               modelID,
               providerName: provider.name,
-              category: provider.name,
+              category: recommended ? "OpenChinaCode" : provider.name,
               display: title,
               footer,
-              keywords: `${provider.id} ${provider.name} ${modelID} ${title} ${footer ?? ""}`,
+              keywords: `${provider.id} ${provider.name} ${modelID} ${title} ${footer ?? ""} ${variants.join(" ")}`,
               current,
+              recommended,
             }
           }),
       )
       .sort((a, b) => {
+        const recommended = Number(!a.recommended) - Number(!b.recommended)
+        if (recommended !== 0) {
+          return recommended
+        }
+
         const provider = Number(a.providerID !== "opencode") - Number(b.providerID !== "opencode")
         if (provider !== 0) {
           return provider

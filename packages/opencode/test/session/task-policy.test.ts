@@ -25,7 +25,7 @@ function mockProvider(input: { tagged?: boolean } = {}): Provider.Interface {
   const glmModelID = ModelV2.ID.make("glm-5.2")
   const glmVisionModelID = ModelV2.ID.make("glm-5v-turbo")
   const kimiProviderID = ProviderV2.ID.make("moonshotai-cn")
-  const kimiHighspeedModelID = ModelV2.ID.make("kimi-k2.7-code-highspeed")
+  const kimiK3ModelID = ModelV2.ID.make("kimi-k3")
   const deepseekProviderID = ProviderV2.ID.make("deepseek")
   const deepseekProModelID = ModelV2.ID.make("deepseek-v4-pro")
   const deepseekFlashModelID = ModelV2.ID.make("deepseek-v4-flash")
@@ -95,7 +95,7 @@ function mockProvider(input: { tagged?: boolean } = {}): Provider.Interface {
       env: [],
       options: {},
       models: {
-        [kimiHighspeedModelID]: model(kimiProviderID, kimiHighspeedModelID, "Kimi K2.7 Code Highspeed"),
+        [kimiK3ModelID]: model(kimiProviderID, kimiK3ModelID, "Kimi K3"),
       },
     },
     [deepseekProviderID]: {
@@ -239,7 +239,7 @@ describe("task policy", () => {
     expect(result?.route.variant).toBe("max")
   })
 
-  test("routes quick implementation to Kimi highspeed", async () => {
+  test("routes quick implementation to Kimi K3 high", async () => {
     const result = await Effect.runPromise(
       TaskPolicy.select({
         cfg: {},
@@ -257,8 +257,9 @@ describe("task policy", () => {
     expect(result?.assignment.complexity).toBe("quick")
     expect(result?.route.model).toEqual({
       providerID: ProviderV2.ID.make("moonshotai-cn"),
-      modelID: ModelV2.ID.make("kimi-k2.7-code-highspeed"),
+      modelID: ModelV2.ID.make("kimi-k3"),
     })
+    expect(result?.route.variant).toBe("high")
   })
 
   test("routes medium implementation to GLM high", async () => {
@@ -305,7 +306,7 @@ describe("task policy", () => {
     expect(result?.route.variant).toBe("max")
   })
 
-  test("routes quick review to Kimi highspeed", async () => {
+  test("routes quick review to Kimi K3 high", async () => {
     const result = await Effect.runPromise(
       TaskPolicy.select({
         cfg: {},
@@ -323,8 +324,9 @@ describe("task policy", () => {
     expect(result?.assignment.complexity).toBe("quick")
     expect(result?.route.model).toEqual({
       providerID: ProviderV2.ID.make("moonshotai-cn"),
-      modelID: ModelV2.ID.make("kimi-k2.7-code-highspeed"),
+      modelID: ModelV2.ID.make("kimi-k3"),
     })
+    expect(result?.route.variant).toBe("high")
   })
 
   test("routes medium review to GLM high", async () => {
@@ -371,7 +373,7 @@ describe("task policy", () => {
     expect(result?.route.variant).toBe("max")
   })
 
-  test("routes quick exploration to Kimi highspeed", async () => {
+  test("routes quick exploration to Kimi K3 high", async () => {
     const result = await Effect.runPromise(
       TaskPolicy.select({
         cfg: {},
@@ -387,11 +389,12 @@ describe("task policy", () => {
     expect(result?.assignment.complexity).toBe("quick")
     expect(result?.route.model).toEqual({
       providerID: ProviderV2.ID.make("moonshotai-cn"),
-      modelID: ModelV2.ID.make("kimi-k2.7-code-highspeed"),
+      modelID: ModelV2.ID.make("kimi-k3"),
     })
+    expect(result?.route.variant).toBe("high")
   })
 
-  test("routes medium exploration to GLM high", async () => {
+  test("routes medium exploration to Kimi K3 high", async () => {
     const result = await Effect.runPromise(
       TaskPolicy.select({
         cfg: {},
@@ -408,8 +411,8 @@ describe("task policy", () => {
     expect(result?.assignment.kind).toBe("explore")
     expect(result?.assignment.complexity).toBe("medium")
     expect(result?.route.model).toEqual({
-      providerID: ProviderV2.ID.make("zhipuai-pay2go"),
-      modelID: ModelV2.ID.make("glm-5.2"),
+      providerID: ProviderV2.ID.make("moonshotai-cn"),
+      modelID: ModelV2.ID.make("kimi-k3"),
     })
     expect(result?.route.variant).toBe("high")
   })
@@ -528,29 +531,32 @@ describe("task policy", () => {
     expect(result?.route.variant).toBe("max")
   })
 
-  test("routes compaction to GLM high", async () => {
-    const result = await Effect.runPromise(
-      TaskPolicy.select({
-        cfg: {},
-        provider: mockProvider({ tagged: false }),
-        agent,
-        inherited,
-        description: "compact history",
-        prompt: "preserve coding context during compaction",
-        kindHint: "compaction",
-        complexityHint: "medium",
-      }),
-    )
+  test("routes medium and complex compaction to Kimi K3 high", async () => {
+    for (const complexityHint of ["medium", "complex"] as const) {
+      const result = await Effect.runPromise(
+        TaskPolicy.select({
+          cfg: {},
+          provider: mockProvider({ tagged: false }),
+          agent,
+          inherited,
+          description: "compact history",
+          prompt: "preserve coding context during compaction",
+          kindHint: "compaction",
+          complexityHint,
+        }),
+      )
 
-    expect(result?.assignment.kind).toBe("compaction")
-    expect(result?.route.model).toEqual({
-      providerID: ProviderV2.ID.make("zhipuai-pay2go"),
-      modelID: ModelV2.ID.make("glm-5.2"),
-    })
-    expect(result?.route.variant).toBe("high")
+      expect(result?.assignment.kind).toBe("compaction")
+      expect(result?.assignment.complexity).toBe(complexityHint)
+      expect(result?.route.model).toEqual({
+        providerID: ProviderV2.ID.make("moonshotai-cn"),
+        modelID: ModelV2.ID.make("kimi-k3"),
+      })
+      expect(result?.route.variant).toBe("high")
+    }
   })
 
-  test("routes medium summaries to Kimi highspeed", async () => {
+  test("routes medium summaries to GLM high", async () => {
     const result = await Effect.runPromise(
       TaskPolicy.select({
         cfg: {},
@@ -565,8 +571,9 @@ describe("task policy", () => {
     expect(result?.assignment.kind).toBe("summarize")
     expect(result?.assignment.complexity).toBe("medium")
     expect(result?.route.model).toEqual({
-      providerID: ProviderV2.ID.make("moonshotai-cn"),
-      modelID: ModelV2.ID.make("kimi-k2.7-code-highspeed"),
+      providerID: ProviderV2.ID.make("zhipuai-pay2go"),
+      modelID: ModelV2.ID.make("glm-5.2"),
     })
+    expect(result?.route.variant).toBe("high")
   })
 })

@@ -48,7 +48,11 @@ describe("VariantPlugin", () => {
       const service = yield* Catalog.Service
       yield* service.transform((catalog) => {
         catalog.provider.update(ProviderV2.ID.make("zhipuai-pay2go"), (provider) => {
-          provider.api = { type: "aisdk", package: "@ai-sdk/openai-compatible", url: "https://open.bigmodel.cn/api/paas/v4" }
+          provider.api = {
+            type: "aisdk",
+            package: "@ai-sdk/openai-compatible",
+            url: "https://open.bigmodel.cn/api/paas/v4",
+          }
         })
         catalog.model.update(ProviderV2.ID.make("zhipuai-pay2go"), ModelV2.ID.make("glm-5.2"), (model) => {
           model.api = { id: ModelV2.ID.make("glm-5.2"), type: "native", settings: {} }
@@ -56,7 +60,31 @@ describe("VariantPlugin", () => {
       })
       yield* VariantPlugin.Plugin.effect(host({ catalog: catalogHost(service) }))
 
-      expect((yield* service.model.get(ProviderV2.ID.make("zhipuai-pay2go"), ModelV2.ID.make("glm-5.2")))?.variants).toEqual([
+      expect(
+        (yield* service.model.get(ProviderV2.ID.make("zhipuai-pay2go"), ModelV2.ID.make("glm-5.2")))?.variants,
+      ).toEqual([
+        expect.objectContaining({ id: "high", body: { reasoning_effort: "high" } }),
+        expect.objectContaining({ id: "max", body: { reasoning_effort: "max" } }),
+      ])
+    }),
+  )
+
+  it.effect("adds Kimi K3 variants when model inherits openai-compatible API from provider", () =>
+    Effect.gen(function* () {
+      const service = yield* Catalog.Service
+      yield* service.transform((catalog) => {
+        catalog.provider.update(ProviderV2.ID.make("moonshotai-cn"), (provider) => {
+          provider.api = { type: "aisdk", package: "@ai-sdk/openai-compatible", url: "https://api.moonshot.cn/v1" }
+        })
+        catalog.model.update(ProviderV2.ID.make("moonshotai-cn"), ModelV2.ID.make("kimi-k3"), (model) => {
+          model.api = { id: ModelV2.ID.make("kimi-k3"), type: "native", settings: {} }
+        })
+      })
+      yield* VariantPlugin.Plugin.effect(host({ catalog: catalogHost(service) }))
+
+      expect(
+        (yield* service.model.get(ProviderV2.ID.make("moonshotai-cn"), ModelV2.ID.make("kimi-k3")))?.variants,
+      ).toEqual([
         expect.objectContaining({ id: "high", body: { reasoning_effort: "high" } }),
         expect.objectContaining({ id: "max", body: { reasoning_effort: "max" } }),
       ])

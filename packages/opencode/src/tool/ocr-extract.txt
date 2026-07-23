@@ -1,0 +1,13 @@
+Extract text, tables, and document structure with OpenChinaCode's native Baidu Unlimited-OCR integration.
+
+Use this tool when the user asks to OCR a file, parse a PDF/document, extract text, extract tables, convert a document to Markdown/JSON, or analyze a pasted document attachment.
+
+Important rules:
+- Supported document formats are pdf, ofd, doc, docx, txt, wps, ppt, and pptx.
+- Supported image formats for OCR are jpg, jpeg, png, bmp, tif, and tiff.
+- For ordinary UI/image visual understanding, prefer the current multimodal model or the visual_check subtask. Use OCR for images only when the user asks to extract text, tables, or document-like content.
+- Local paths are resolved relative to the current worktree. HTTP(S) URLs and data URLs are also accepted.
+- If a file is missing or unsupported, stop and report the exact problem.
+- Always tell the user the returned markdown_path, json_path, and metadata_path after the tool succeeds.
+- If the user asks for a summary, analysis, translation, comparison, table extraction, or any content-dependent answer, read the returned markdown_path before answering.
+- Do not use shell scripts, local OCR engines, or unrelated online OCR services for native OpenChinaCode OCR.

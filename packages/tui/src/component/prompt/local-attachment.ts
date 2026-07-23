@@ -24,14 +24,44 @@ export function readLocalAttachment(file: string) {
 
 const mimeTypes: Record<string, string> = {
   ".avif": "image/avif",
+  ".bmp": "image/bmp",
+  ".doc": "application/msword",
+  ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   ".gif": "image/gif",
   ".jpeg": "image/jpeg",
   ".jpg": "image/jpeg",
+  ".ofd": "application/octet-stream",
   ".pdf": "application/pdf",
   ".png": "image/png",
+  ".ppt": "application/vnd.ms-powerpoint",
+  ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
   ".svg": "image/svg+xml",
+  ".tif": "image/tiff",
+  ".tiff": "image/tiff",
+  ".txt": "text/plain",
   ".webp": "image/webp",
+  ".wps": "application/octet-stream",
 }
+
+const supportedBinaryExtensions = new Set([
+  ".avif",
+  ".bmp",
+  ".doc",
+  ".docx",
+  ".gif",
+  ".jpeg",
+  ".jpg",
+  ".ofd",
+  ".pdf",
+  ".png",
+  ".ppt",
+  ".pptx",
+  ".tif",
+  ".tiff",
+  ".txt",
+  ".webp",
+  ".wps",
+])
 
 export async function readLocalAttachmentWith(files: LocalFiles, path: string): Promise<LocalAttachment | undefined> {
   const mime = await files.mime(path).catch(() => undefined)
@@ -41,8 +71,12 @@ export async function readLocalAttachmentWith(files: LocalFiles, path: string): 
     if (!content) return
     return { type: "text", mime, content }
   }
-  if (!mime.startsWith("image/") && mime !== "application/pdf") return
+  if (!mime.startsWith("image/") && !supportedBinaryExtensions.has(pathExt(path))) return
   const content = await files.readBytes(path).catch(() => undefined)
   if (!content) return
   return { type: "binary", mime, content }
+}
+
+function pathExt(value: string) {
+  return path.extname(value).toLowerCase()
 }

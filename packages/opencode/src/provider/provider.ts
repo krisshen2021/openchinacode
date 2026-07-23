@@ -1958,6 +1958,7 @@ const layer = Layer.effect(
 const priority = [
   "glm-5.2",
   "glm-5v-turbo",
+  "kimi-k3",
   "kimi-k2.7-code-highspeed",
   "kimi-k2.7-code",
   "deepseek-v4-pro",

@@ -20,6 +20,7 @@ import { ProcessLogsTool, ProcessStartTool, ProcessStatusTool, ProcessStopTool }
 import { ImageGenerateTool } from "./image-generate"
 import { VideoGenerateTool } from "./video-generate"
 import { VideoStatusTool } from "./video-status"
+import { OcrExtractTool } from "./ocr-extract"
 import * as Tool from "./tool"
 import { Config } from "@/config/config"
 import { Auth } from "@/auth"
@@ -122,6 +123,7 @@ const layer = Layer.effect(
     const imageGenerate = yield* ImageGenerateTool
     const videoGenerate = yield* VideoGenerateTool
     const videoStatus = yield* VideoStatusTool
+    const ocrExtract = yield* OcrExtractTool
     const agent = yield* Agent.Service
     const codeMode = flags.experimentalCodeMode ? yield* Effect.promise(() => import("./code-mode")) : undefined
     const codeModeTool = codeMode ? yield* codeMode.CodeModeTool : undefined
@@ -235,6 +237,7 @@ const layer = Layer.effect(
           imageGenerate: Tool.init(imageGenerate),
           videoGenerate: Tool.init(videoGenerate),
           videoStatus: Tool.init(videoStatus),
+          ocrExtract: Tool.init(ocrExtract),
           question: Tool.init(question),
           lsp: Tool.init(lsptool),
           plan: Tool.init(plan),
@@ -256,6 +259,7 @@ const layer = Layer.effect(
             tool.imageGenerate,
             tool.videoGenerate,
             tool.videoStatus,
+            tool.ocrExtract,
             tool.fetch,
             tool.todo,
             tool.search,

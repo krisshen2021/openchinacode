@@ -9,6 +9,8 @@ import * as fuzzysort from "fuzzysort"
 import { useConnected } from "./use-connected"
 import { useSync } from "../context/sync"
 
+const OPENCHINA_RECOMMENDED_ORDER = ["zhipuai-pay2go", "moonshotai-cn", "deepseek"]
+
 export function DialogModel(props: { providerID?: string }) {
   const local = useLocal()
   const sync = useSync()
@@ -25,6 +27,34 @@ export function DialogModel(props: { providerID?: string }) {
     const showSections = showExtra() && needle.length === 0
     const favorites = connected() ? local.model.favorite() : []
     const recents = local.model.recent()
+    const recommended = showSections
+      ? pipe(
+          sync.data.provider,
+          sortBy((provider) => {
+            const index = OPENCHINA_RECOMMENDED_ORDER.indexOf(provider.id)
+            return index === -1 ? OPENCHINA_RECOMMENDED_ORDER.length : index
+          }),
+          flatMap((provider) => {
+            const modelID = sync.data.provider_default[provider.id]
+            const model = modelID ? provider.models[modelID] : undefined
+            if (!model) return []
+            return [
+              {
+                key: { providerID: provider.id, modelID },
+                value: { providerID: provider.id, modelID },
+                title: model.name ?? modelID,
+                description: provider.name,
+                category: "OpenChinaCode",
+                footer: variantFooter(model),
+                onSelect: () => {
+                  onSelect(provider.id, modelID)
+                },
+              },
+            ]
+          }),
+        )
+      : []
+    const recommendedKeys = new Set(recommended.map((item) => `${item.value.providerID}/${item.value.modelID}`))
 
     function toOptions(items: typeof favorites, category: string) {
       if (!showSections) return []
@@ -41,7 +71,7 @@ export function DialogModel(props: { providerID?: string }) {
             description: provider.name,
             category,
             disabled: provider.id === "opencode" && model.id.includes("-nano"),
-            footer: model.cost?.input === 0 && provider.id === "opencode" ? "Free" : undefined,
+            footer: model.cost?.input === 0 && provider.id === "opencode" ? "Free" : variantFooter(model),
             onSelect: () => {
               onSelect(provider.id, model.id)
             },
@@ -52,9 +82,9 @@ export function DialogModel(props: { providerID?: string }) {
 
     const favoriteOptions = toOptions(favorites, "Favorites")
     const recentOptions = toOptions(
-      recents.filter(
-        (item) => !favorites.some((fav) => fav.providerID === item.providerID && fav.modelID === item.modelID),
-      ),
+      recents
+        .filter((item) => !favorites.some((fav) => fav.providerID === item.providerID && fav.modelID === item.modelID))
+        .filter((item) => !recommendedKeys.has(`${item.providerID}/${item.modelID}`)),
       "Recent",
     )
 
@@ -79,7 +109,7 @@ export function DialogModel(props: { providerID?: string }) {
               : undefined,
             category: connected() ? provider.name : undefined,
             disabled: provider.id === "opencode" && model.includes("-nano"),
-            footer: info.cost?.input === 0 && provider.id === "opencode" ? "Free" : undefined,
+            footer: info.cost?.input === 0 && provider.id === "opencode" ? "Free" : variantFooter(info),
             onSelect() {
               onSelect(provider.id, model)
             },
@@ -98,6 +128,7 @@ export function DialogModel(props: { providerID?: string }) {
               )
             )
               return false
+            if (recommendedKeys.has(`${option.value.providerID}/${option.value.modelID}`)) return false
             return true
           }),
           (options) => sortModelOptions(options, props.providerID !== undefined),
@@ -126,7 +157,7 @@ export function DialogModel(props: { providerID?: string }) {
       ]
     }
 
-    return [...favoriteOptions, ...recentOptions, ...providerOptions, ...popularProviders]
+    return [...recommended, ...favoriteOptions, ...recentOptions, ...providerOptions, ...popularProviders]
   })
 
   const provider = createMemo(() =>
@@ -181,6 +212,12 @@ export function DialogModel(props: { providerID?: string }) {
       current={local.model.current()}
     />
   )
+}
+
+function variantFooter(model: { variants?: Record<string, unknown> }) {
+  const variants = Object.keys(model.variants ?? {})
+  if (variants.length === 0) return undefined
+  return `variants: ${variants.join("/")}`
 }
 
 export function sortModelOptions<T extends { footer?: string; releaseDate: string | number; title: string }>(

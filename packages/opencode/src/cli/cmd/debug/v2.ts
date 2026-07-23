@@ -16,25 +16,26 @@ export const V2Command = effectCmd({
   handler: () =>
     Effect.gen(function* () {
       const catalog = yield* Catalog.Service
-      const legacyAuth: Record<string, LegacyAuth.Info> = yield* LegacyAuth.Service.use((service) => service.all()).pipe(
-        Effect.catch(() => Effect.succeed({})),
-      )
+      const legacyAuth: Record<string, LegacyAuth.Info> = yield* LegacyAuth.Service.use((service) =>
+        service.all(),
+      ).pipe(Effect.catch(() => Effect.succeed({})))
       const providers = (yield* catalog.provider.available()).sort((a, b) => a.id.localeCompare(b.id))
       const all = (yield* catalog.provider.all()).sort((a, b) => a.id.localeCompare(b.id))
-      const availableModels = new Set((yield* catalog.model.available()).map((model) => `${model.providerID}/${model.id}`))
+      const availableModels = new Set(
+        (yield* catalog.model.available()).map((model) => `${model.providerID}/${model.id}`),
+      )
       const openChinaRefs = [
         ["zhipuai-pay2go", "glm-5.2"],
-        ["moonshotai-cn", "kimi-k2.7-code"],
-        ["moonshotai-cn", "kimi-k2.7-code-highspeed"],
+        ["moonshotai-cn", "kimi-k3"],
         ["deepseek", "deepseek-v4-pro"],
         ["deepseek", "deepseek-v4-flash"],
       ] as const
       const result = {
         providers: providers.map((provider) => provider.id),
         allProviders: all.map((provider) => provider.id),
-        default: yield* catalog.model.default().pipe(
-          Effect.map((item) => (item ? `${item.providerID}/${item.id}` : undefined)),
-        ),
+        default: yield* catalog.model
+          .default()
+          .pipe(Effect.map((item) => (item ? `${item.providerID}/${item.id}` : undefined))),
         small: Object.fromEntries(
           yield* Effect.all(
             all.map((provider) =>

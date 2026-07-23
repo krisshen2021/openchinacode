@@ -333,13 +333,16 @@ function builtinRoute(assignment: Assignment): ConfigTaskPolicy.Route {
   }
 
   if (assignment.kind === "summarize") {
-    return assignment.complexity === "complex"
-      ? { model: "zhipuai-pay2go/glm-5.2", variant: "high" }
-      : { model: "moonshotai-cn/kimi-k2.7-code-highspeed" }
+    if (assignment.complexity === "quick") return { model: "moonshotai-cn/kimi-k3", variant: "high" }
+    return {
+      model: "zhipuai-pay2go/glm-5.2",
+      variant: assignment.complexity === "complex" ? "max" : "high",
+    }
   }
 
   if (assignment.kind === "compaction") {
-    return { model: "zhipuai-pay2go/glm-5.2", variant: "high" }
+    if (assignment.complexity === "quick") return { model: "zhipuai-pay2go/glm-5.2", variant: "high" }
+    return { model: "moonshotai-cn/kimi-k3", variant: "high" }
   }
 
   if (assignment.kind === "visual_check") {
@@ -347,7 +350,7 @@ function builtinRoute(assignment: Assignment): ConfigTaskPolicy.Route {
   }
 
   if (assignment.kind === "review") {
-    if (assignment.complexity === "quick") return { model: "moonshotai-cn/kimi-k2.7-code-highspeed" }
+    if (assignment.complexity === "quick") return { model: "moonshotai-cn/kimi-k3", variant: "high" }
     return {
       model: "zhipuai-pay2go/glm-5.2",
       variant: assignment.complexity === "complex" ? "max" : "high",
@@ -355,7 +358,7 @@ function builtinRoute(assignment: Assignment): ConfigTaskPolicy.Route {
   }
 
   if (assignment.kind === "implement") {
-    if (assignment.complexity === "quick") return { model: "moonshotai-cn/kimi-k2.7-code-highspeed" }
+    if (assignment.complexity === "quick") return { model: "moonshotai-cn/kimi-k3", variant: "high" }
     return {
       model: "zhipuai-pay2go/glm-5.2",
       variant: assignment.complexity === "complex" ? "max" : "high",
@@ -363,11 +366,9 @@ function builtinRoute(assignment: Assignment): ConfigTaskPolicy.Route {
   }
 
   if (assignment.kind === "explore") {
-    if (assignment.complexity === "quick") return { model: "moonshotai-cn/kimi-k2.7-code-highspeed" }
-    return {
-      model: "zhipuai-pay2go/glm-5.2",
-      variant: assignment.complexity === "complex" ? "max" : "high",
-    }
+    if (assignment.complexity === "quick") return { model: "moonshotai-cn/kimi-k3", variant: "high" }
+    if (assignment.complexity === "medium") return { model: "moonshotai-cn/kimi-k3", variant: "high" }
+    return { model: "zhipuai-pay2go/glm-5.2", variant: "max" }
   }
 
   if (assignment.kind === "debug" || assignment.kind === "test_fix") {

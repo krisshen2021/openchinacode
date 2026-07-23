@@ -64,9 +64,12 @@ const PROMPT_TASK_POLICY = [
   "- complex plan, architecture, refactor: zhipuai-pay2go/glm-5.2#max",
   "- quick/medium plan, architecture, refactor: zhipuai-pay2go/glm-5.2#high",
   "- complex implement, complex review, and complex explore: zhipuai-pay2go/glm-5.2#max",
-  "- medium implement, medium review, complex summarize, and all compaction: zhipuai-pay2go/glm-5.2#high",
-  "- quick implement, quick review, quick/medium summarize, and quick explore: moonshotai-cn/kimi-k2.7-code-highspeed",
-  "- medium explore: zhipuai-pay2go/glm-5.2#high",
+  "- medium implement, medium review, and medium summarize: zhipuai-pay2go/glm-5.2#high",
+  "- complex summarize: zhipuai-pay2go/glm-5.2#max",
+  "- quick implement, quick review, quick summarize, and quick explore: moonshotai-cn/kimi-k3#high",
+  "- medium explore: moonshotai-cn/kimi-k3#high",
+  "- medium/complex compaction: moonshotai-cn/kimi-k3#high",
+  "- quick compaction: zhipuai-pay2go/glm-5.2#high",
   "- visual_check: zhipuai-pay2go/glm-5v-turbo",
   "- quick/medium debug and test_fix: deepseek/deepseek-v4-pro#high",
   "- complex debug and test_fix: deepseek/deepseek-v4-pro#max",
@@ -175,7 +178,8 @@ const layer = Layer.effect(
       }
       commands[Default.TASK_POLICY] = {
         name: Default.TASK_POLICY,
-        description: "Usage: /task-policy [focus|status|on|off|extra-status|extra-on|extra-off] - show or hot-toggle OpenChinaCode task routing",
+        description:
+          "Usage: /task-policy [focus|status|on|off|extra-status|extra-on|extra-off] - show or hot-toggle OpenChinaCode task routing",
         source: "command",
         get template() {
           return PROMPT_TASK_POLICY

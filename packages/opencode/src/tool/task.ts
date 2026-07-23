@@ -116,6 +116,14 @@ function renderOutput(input: {
   ].join("\n")
 }
 
+function isInternalVisualPreprocess(params: Schema.Schema.Type<typeof Parameters>, ctx: Tool.Context) {
+  return (
+    params.command === "openchinacode.visual_preprocess" &&
+    ctx.extra?.bypassAgentCheck === true &&
+    ctx.extra?.explicitTaskModel === true
+  )
+}
+
 export const TaskTool = Tool.define(
   id,
   Effect.gen(function* () {
@@ -133,7 +141,7 @@ export const TaskTool = Tool.define(
       ctx: Tool.Context,
     ) {
       const cfg = yield* config.get()
-      if (cfg.task_policy?.enabled === false) {
+      if (cfg.task_policy?.enabled === false && !isInternalVisualPreprocess(params, ctx)) {
         return yield* Effect.fail(
           new Error(
             "OpenChinaCode task policy is disabled. Do not create a subagent; answer or work directly with the current main model.",

@@ -121,7 +121,7 @@ export const OpenChinaCostCurrency = "CNY"
 
 export const OpenChinaOfficialPricingSource = {
   glm: "https://bigmodel.cn/pricing",
-  kimi: "https://platform.kimi.com/docs/pricing/chat-k27-code",
+  kimi: "https://www.kimi.com/API",
   deepseek: "https://api-docs.deepseek.com/zh-cn/quick_start/pricing",
 } as const
 
@@ -151,6 +151,15 @@ export const OpenChinaOfficialPricing = {
     input: 13,
     output: 54,
     cache_read: 2.6,
+    cache_write: 0,
+  },
+  // Official K3 API pricing is USD-denominated ($3 input / $15 output /
+  // $0.30 cache hit per MTok). OpenChinaCode displays CNY, so this uses the
+  // same Moonshot CNY conversion basis as the existing K2.7 entries.
+  "kimi-k3": {
+    input: 20.5,
+    output: 101.25,
+    cache_read: 2.05,
     cache_write: 0,
   },
   "deepseek-v4-flash": {
@@ -189,6 +198,37 @@ function applyOpenChinaOfficialPricing(provider: Provider): Provider {
   return updated ? cloneProvider(provider, { models }) : provider
 }
 
+function withOpenChinaBuiltinModels(provider: Provider): Provider {
+  if (provider.id !== "moonshotai-cn") return provider
+  const existing = provider.models["kimi-k3"]
+  const models: Record<string, Model> = {
+    ...provider.models,
+    "kimi-k3": {
+      ...existing,
+      id: "kimi-k3",
+      name: existing?.name ?? "Kimi K3",
+      family: existing?.family ?? "kimi-k3",
+      release_date: existing?.release_date ?? "2026-07-23",
+      attachment: true,
+      reasoning: true,
+      temperature: false,
+      tool_call: true,
+      interleaved: existing?.interleaved ?? { field: "reasoning_content" },
+      cost: { ...OpenChinaOfficialPricing["kimi-k3"] },
+      limit: {
+        context: 1_048_576,
+        input: existing?.limit.input ?? 1_048_576,
+        output: 1_048_576,
+      },
+      modalities: {
+        input: ["text", "image", "video"],
+        output: ["text"],
+      },
+    },
+  }
+  return cloneProvider(provider, { models })
+}
+
 function cloneProvider(provider: Provider, patch: Partial<Provider>): Provider {
   return {
     ...(JSON.parse(JSON.stringify(provider)) as Provider),
@@ -200,7 +240,7 @@ export function openChinaCatalog(input: Record<string, Provider>): Record<string
   const result: Record<string, Provider> = {}
   for (const [id, provider] of Object.entries(input)) {
     if (!openChinaProviderSet.has(id)) continue
-    result[id] = applyOpenChinaOfficialPricing(provider)
+    result[id] = applyOpenChinaOfficialPricing(withOpenChinaBuiltinModels(provider))
   }
 
   if (input.zhipuai && !result["zhipuai-pay2go"]) {

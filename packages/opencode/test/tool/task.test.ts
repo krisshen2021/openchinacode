@@ -478,6 +478,97 @@ describe("tool.task", () => {
     },
   )
 
+  it.instance(
+    "rejects ordinary subagents when task_policy is disabled",
+    () =>
+      Effect.gen(function* () {
+        const { chat, assistant } = yield* seed()
+        const tool = yield* TaskTool
+        const def = yield* tool.init()
+
+        const exit = yield* def
+          .execute(
+            {
+              description: "inspect bug",
+              prompt: "debug the failing cache invalidation path",
+              subagent_type: "general",
+            },
+            {
+              sessionID: chat.id,
+              messageID: assistant.id,
+              agent: "build",
+              abort: new AbortController().signal,
+              extra: { promptOps: stubOps() },
+              messages: [],
+              metadata: () => Effect.void,
+              ask: () => Effect.void,
+            },
+          )
+          .pipe(Effect.exit)
+
+        expect(Exit.isFailure(exit)).toBe(true)
+      }),
+    {
+      config: {
+        ...testProviderConfig(),
+        task_policy: {
+          enabled: false,
+        },
+      },
+    },
+  )
+
+  it.instance(
+    "allows internal visual preprocessing when task_policy is disabled",
+    () =>
+      Effect.gen(function* () {
+        const { chat, assistant } = yield* seed()
+        const tool = yield* TaskTool
+        const def = yield* tool.init()
+        let seen: SessionPrompt.PromptInput | undefined
+        const promptOps = stubOps({ text: "visual done", onPrompt: (input) => (seen = input) })
+
+        const result = yield* def.execute(
+          {
+            description: "Pasted image visual preprocessing",
+            prompt: "Inspect @/tmp/screenshot.png before the primary model continues.",
+            subagent_type: "general",
+            command: "openchinacode.visual_preprocess",
+            task_kind: "visual_check",
+            task_complexity: "quick",
+          },
+          {
+            sessionID: chat.id,
+            messageID: assistant.id,
+            agent: "build",
+            abort: new AbortController().signal,
+            extra: {
+              bypassAgentCheck: true,
+              explicitTaskModel: true,
+              taskModel: policyRef,
+              promptOps,
+            },
+            messages: [],
+            metadata: () => Effect.void,
+            ask: () => Effect.void,
+          },
+        )
+
+        expect(seen?.model).toEqual(policyRef)
+        expect(result.metadata.modelSource).toBe("explicit")
+        expect(result.metadata.taskPolicy).toBeUndefined()
+        expect(result.output).toContain(`<task id="${result.metadata.sessionId}" state="completed">`)
+      }),
+    {
+      config: {
+        ...testProviderConfig(),
+        task_policy: {
+          enabled: false,
+        },
+      },
+    },
+  )
+
   it.instance("forces subagents read-only when parent session is in plan mode", () =>
     Effect.gen(function* () {
       const sessions = yield* Session.Service

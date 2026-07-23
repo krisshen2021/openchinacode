@@ -67,6 +67,25 @@ describe("openChinaCatalog", () => {
     expect(result["moonshotai-cn"].models["kimi-k2.7-code-highspeed"].cost).toEqual(
       ModelsDev.OpenChinaOfficialPricing["kimi-k2.7-code-highspeed"],
     )
+    expect(result["moonshotai-cn"].models["kimi-k3"]).toMatchObject({
+      id: "kimi-k3",
+      name: "Kimi K3",
+      reasoning: true,
+      temperature: false,
+      tool_call: true,
+      attachment: true,
+      interleaved: { field: "reasoning_content" },
+      limit: {
+        context: 1_048_576,
+        input: 1_048_576,
+        output: 1_048_576,
+      },
+      modalities: {
+        input: ["text", "image", "video"],
+        output: ["text"],
+      },
+      cost: ModelsDev.OpenChinaOfficialPricing["kimi-k3"],
+    })
     expect(result.deepseek.models["deepseek-v4-pro"].cost).toEqual(
       ModelsDev.OpenChinaOfficialPricing["deepseek-v4-pro"],
     )

@@ -19,17 +19,35 @@ describe("prompt local attachments", () => {
     })
   })
 
-  test("reads image and PDF attachments as bytes", async () => {
+  test("reads image and OCR document attachments as bytes", async () => {
     const content = new Uint8Array([1, 2, 3])
     expect(await readLocalAttachmentWith(files({ mime: "application/pdf", bytes: content }), "/tmp/file.pdf")).toEqual({
       type: "binary",
       mime: "application/pdf",
       content,
     })
+    expect(await readLocalAttachmentWith(files({ mime: "text/plain", bytes: content }), "/tmp/file.txt")).toEqual({
+      type: "binary",
+      mime: "text/plain",
+      content,
+    })
+    expect(
+      await readLocalAttachmentWith(
+        files({
+          mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          bytes: content,
+        }),
+        "/tmp/file.docx",
+      ),
+    ).toEqual({
+      type: "binary",
+      mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      content,
+    })
   })
 
   test("ignores unsupported and unreadable local files", async () => {
-    expect(await readLocalAttachmentWith(files({ mime: "text/plain" }), "/tmp/file.txt")).toBeUndefined()
+    expect(await readLocalAttachmentWith(files({ mime: "application/octet-stream" }), "/tmp/file.bin")).toBeUndefined()
     expect(
       await readLocalAttachmentWith(
         {

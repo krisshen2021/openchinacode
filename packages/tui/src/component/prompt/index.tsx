@@ -73,6 +73,14 @@ import { useTuiConfig } from "../../config"
 import { usePromptWorkspace } from "./workspace"
 import { usePromptMove } from "./move"
 import { readLocalAttachment } from "./local-attachment"
+import { shouldUseVisualPreprocess } from "./visual-preprocess"
+import {
+  isOcrDocumentFilePart,
+  ocrFilePartReference,
+  ocrPreprocessUserText,
+  shouldRouteImageToOcr,
+} from "./ocr-route"
+import { FILE_LIST_MIME } from "../../clipboard"
 import {
   parseAutoMaxTokensSlashAction,
   parseCompactSlashAction,
@@ -134,6 +142,7 @@ const BUILTIN_PROMPT_COMMANDS = new Set(["task-policy", "task-classify"])
 const TEST_MCP_NAME = "playwright"
 const TEST_MCP_TIMEOUT_MS = 30_000
 const ARK_AUTH_PROVIDER_ID = "volcengine-ark"
+const BAIDU_OCR_AUTH_PROVIDER_ID = "baidu-unlimited-ocr"
 const VISUAL_PREPROCESS_PROVIDER_ID = "zhipuai-pay2go"
 const VISUAL_PREPROCESS_MODEL_ID = "glm-5v-turbo"
 const VISUAL_PREPROCESS_ROOT = path.join(tmpdir(), "openchinacode", "attachments")
@@ -242,6 +251,8 @@ function visualPreprocessSubtask(
       providerID: VISUAL_PREPROCESS_PROVIDER_ID,
       modelID: VISUAL_PREPROCESS_MODEL_ID,
     },
+    task_kind: "visual_check",
+    task_complexity: "quick",
     prompt: visualPreprocessPrompt(inputText, imagePaths),
   }
 }
@@ -1050,6 +1061,95 @@ export function Prompt(props: PromptProps) {
     }
   }
 
+  async function handleOcrAuthSlash(args: string) {
+    try {
+      const [argKey, argSecret] = args.trim().split(/\s+/)
+      const apiKey =
+        argKey ||
+        (await DialogPrompt.show(dialog, "Baidu OCR API Key", {
+          placeholder: "API Key",
+          description: () => (
+            <text fg={theme.textMuted}>
+              Stored as {BAIDU_OCR_AUTH_PROVIDER_ID}. Environment fallback: BAIDU_OCR_API_KEY.
+            </text>
+          ),
+        }))
+      if (!apiKey?.trim()) {
+        dialog.clear()
+        return
+      }
+
+      const secretKey =
+        argSecret ||
+        (await DialogPrompt.show(dialog, "Baidu OCR Secret Key", {
+          placeholder: "Secret Key",
+          description: () => <text fg={theme.textMuted}>Environment fallback: BAIDU_OCR_SECRET_KEY.</text>,
+        }))
+      if (!secretKey?.trim()) {
+        dialog.clear()
+        return
+      }
+
+      dialog.clear()
+      await sdk.client.auth.set({
+        providerID: BAIDU_OCR_AUTH_PROVIDER_ID,
+        auth: {
+          type: "api",
+          key: apiKey.trim(),
+          metadata: {
+            secret_key: secretKey.trim(),
+          },
+        },
+      })
+      await sdk.client.instance.dispose()
+      await sync.bootstrap()
+      toast.show({
+        title: "OCR auth saved",
+        message: `Saved credentials for ${BAIDU_OCR_AUTH_PROVIDER_ID}.`,
+        variant: "success",
+        duration: 6000,
+      })
+    } catch (error) {
+      toast.show({
+        title: "Failed to save OCR auth",
+        message: errorMessage(error),
+        variant: "error",
+        duration: 7000,
+      })
+    }
+  }
+
+  async function runOcrWizard(initialFiles = "") {
+    const files = optionalLines(
+      await DialogPrompt.show(dialog, "OCR files", {
+        value: initialFiles,
+        placeholder: "Paths/URLs, comma or newline separated",
+        description: () => (
+          <text fg={theme.textMuted}>Supports PDF/OFD/DOC/DOCX/PPT/PPTX/WPS/TXT and JPG/PNG/BMP/TIFF.</text>
+        ),
+      }),
+    )
+    if (!files?.length) {
+      dialog.clear()
+      return
+    }
+
+    const outputDir = await DialogPrompt.show(dialog, "OCR output dir", {
+      placeholder: "Optional, defaults to /tmp/openchinacode/ocr",
+    })
+    if (outputDir === null) return
+
+    submitSyntheticPrompt(
+      [
+        "Use OpenChinaCode native OCR extraction.",
+        "Call the ocr_extract tool with these parameters. If a file is missing or unsupported, stop and report the exact problem.",
+        `files:\n${files.map((item) => `- ${item}`).join("\n")}`,
+        outputDir.trim() ? `output_dir: ${outputDir.trim()}` : "output_dir: default",
+        "After the tool succeeds, tell me the markdown_path, json_path, and metadata_path. If I ask for content summary/analysis, read markdown_path before answering.",
+      ].join("\n"),
+    )
+  }
+
   async function runImageGenerateWizard(initialPrompt = "") {
     const prompt = await DialogPrompt.show(dialog, "Image prompt", {
       value: initialPrompt,
@@ -1495,6 +1595,16 @@ export function Prompt(props: PromptProps) {
             })
             return
           }
+          if (content?.mime === FILE_LIST_MIME) {
+            const files = content.data
+              .split(/\r?\n/)
+              .map((item) => item.trim())
+              .filter(Boolean)
+            for (const file of files) {
+              await pasteLocalAttachmentPath(file)
+            }
+            return
+          }
           if (content?.mime === "text/plain") {
             await pasteInputText(content.data)
           }
@@ -1609,6 +1719,28 @@ export function Prompt(props: PromptProps) {
         slashAliases: ["ark-auth"],
         run: () => {
           void handleMediaAuthSlash("")
+        },
+      },
+      {
+        title: "OCR extract",
+        desc: "Usage: /ocr [paths] - Baidu Unlimited-OCR document/image OCR wizard",
+        name: "openchinacode.ocr",
+        category: "OpenChinaCode",
+        slashName: "ocr",
+        slashAliases: ["ocr-extract"],
+        run: () => {
+          void runOcrWizard()
+        },
+      },
+      {
+        title: "OCR auth",
+        desc: "Usage: /ocr-auth - save Baidu Unlimited-OCR API Key and Secret Key",
+        name: "openchinacode.ocr_auth",
+        category: "OpenChinaCode",
+        slashName: "ocr-auth",
+        slashAliases: ["baidu-ocr-auth"],
+        run: () => {
+          void handleOcrAuthSlash("")
         },
       },
       {
@@ -2262,13 +2394,33 @@ export function Prompt(props: PromptProps) {
 
     // Filter out text parts (pasted content) since they're now expanded inline
     const nonTextParts = store.prompt.parts.filter((part) => part.type !== "text")
-    const imageParts = nonTextParts.filter(isImageFilePart)
+    const ocrParts = nonTextParts.filter(
+      (part): part is Omit<FilePart, "id" | "messageID" | "sessionID"> =>
+        isOcrDocumentFilePart(part) || (isImageFilePart(part) && shouldRouteImageToOcr({ part, prompt: inputText })),
+    )
+    const ocrPartSet = new Set<PromptInfo["parts"][number]>(ocrParts)
+    const ocrFiles = ocrParts.map(ocrFilePartReference)
+    const imageParts = nonTextParts.filter(
+      (part): part is Omit<FilePart, "id" | "messageID" | "sessionID"> =>
+        !ocrPartSet.has(part) && isImageFilePart(part),
+    )
     const imagePaths = imageParts.flatMap((part) => {
       const value = filePartPath(part)
       return value ? [value] : []
     })
-    const shouldVisualPreprocess = imagePaths.length > 0 && !isPromptCommand(inputText)
-    const nonImageParts = shouldVisualPreprocess ? nonTextParts.filter((part) => !isImageFilePart(part)) : nonTextParts
+    const selectedProvider = sync.data.provider.find((item) => item.id === selectedModel.providerID)
+    const selectedModelInfo = selectedProvider?.models[selectedModel.modelID]
+    const commandInput = isPromptCommand(inputText)
+    const shouldVisualPreprocess = shouldUseVisualPreprocess({
+      imageCount: imagePaths.length,
+      isPromptCommand: commandInput,
+      model: selectedModelInfo,
+    })
+    const routedParts = new Set<PromptInfo["parts"][number]>([
+      ...ocrParts,
+      ...(shouldVisualPreprocess ? imageParts : []),
+    ])
+    const remainingParts = nonTextParts.filter((part) => !routedParts.has(part))
 
     // Capture mode before it gets reset
     const currentMode = store.mode
@@ -2302,7 +2454,7 @@ export function Prompt(props: PromptProps) {
         command: inputText,
       })
       setStore("mode", "normal")
-    } else if (isPromptCommand(inputText)) {
+    } else if (commandInput) {
       move.startSubmit()
       // Parse command from first line, preserve multi-line content in arguments
       const firstLineEnd = inputText.indexOf("\n")
@@ -2322,7 +2474,8 @@ export function Prompt(props: PromptProps) {
       })
     } else {
       move.startSubmit()
-      const promptText = shouldVisualPreprocess ? visualPreprocessUserText(inputText, imagePaths) : inputText
+      const ocrPromptText = ocrFiles.length ? ocrPreprocessUserText(inputText, ocrFiles) : inputText
+      const promptText = shouldVisualPreprocess ? visualPreprocessUserText(ocrPromptText, imagePaths) : ocrPromptText
       sdk.client.session
         .prompt(
           {
@@ -2338,7 +2491,7 @@ export function Prompt(props: PromptProps) {
                 text: promptText,
               },
               ...(shouldVisualPreprocess ? [visualPreprocessSubtask(inputText, imagePaths)] : []),
-              ...nonImageParts,
+              ...remainingParts,
             ],
           },
           { throwOnError: true },
@@ -2423,24 +2576,30 @@ export function Prompt(props: PromptProps) {
   async function pasteInputText(text: string) {
     const normalizedText = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n")
     const pastedContent = normalizedText.trim()
-    const filepath = pastedFilepath(pastedContent, terminalEnvironment.platform)
-    const isUrl = /^(https?):\/\//.test(filepath)
-    if (!isUrl) {
-      const attachment = await readLocalAttachment(filepath)
-      const filename = path.basename(filepath)
-      if (attachment?.type === "text") {
-        pasteText(attachment.content, `[SVG: ${filename ?? "image"}]`)
-        return
+    const pastedLines = pastedContent
+      .split("\n")
+      .map((item) => item.trim())
+      .filter(Boolean)
+    if (pastedLines.length > 1) {
+      let attached = 0
+      for (const line of pastedLines) {
+        if (await pasteLocalAttachmentPath(line)) attached++
       }
-      if (attachment?.type === "binary") {
-        await pasteAttachment({
-          filename,
-          filepath,
-          mime: attachment.mime,
-          content: Buffer.from(attachment.content).toString("base64"),
+      if (attached === pastedLines.length) return
+      if (attached > 0) {
+        toast.show({
+          title: "Partial paste",
+          message: `Attached ${attached} file(s); ignored ${pastedLines.length - attached} unsupported path(s).`,
+          variant: "warning",
+          duration: 6000,
         })
         return
       }
+    }
+    const filepath = pastedFilepath(pastedContent, terminalEnvironment.platform)
+    const isUrl = /^(https?):\/\//.test(filepath)
+    if (!isUrl) {
+      if (await pasteLocalAttachmentPath(filepath)) return
     }
 
     const lineCount = (pastedContent.match(/\n/g)?.length ?? 0) + 1
@@ -2461,6 +2620,27 @@ export function Prompt(props: PromptProps) {
     }, 0)
   }
 
+  async function pasteLocalAttachmentPath(inputPath: string) {
+    const filepath = pastedFilepath(inputPath, terminalEnvironment.platform)
+    if (/^(https?):\/\//.test(filepath)) return false
+    const attachment = await readLocalAttachment(filepath)
+    const filename = path.basename(filepath)
+    if (attachment?.type === "text") {
+      pasteText(attachment.content, `[SVG: ${filename ?? "image"}]`)
+      return true
+    }
+    if (attachment?.type === "binary") {
+      await pasteAttachment({
+        filename,
+        filepath,
+        mime: attachment.mime,
+        content: Buffer.from(attachment.content).toString("base64"),
+      })
+      return true
+    }
+    return false
+  }
+
   async function pasteAttachment(file: { filename?: string; filepath?: string; content: string; mime: string }) {
     let filepath = file.filepath
     let filename = file.filename
@@ -2475,13 +2655,15 @@ export function Prompt(props: PromptProps) {
     }
     const currentOffset = input.cursorOffset
     const extmarkStart = currentOffset
+    const image = file.mime.startsWith("image/")
     const pdf = file.mime === "application/pdf"
+    const document = !image
     const count = store.prompt.parts.filter((x) => {
       if (x.type !== "file") return false
-      if (pdf) return x.mime === "application/pdf"
+      if (document) return !x.mime.startsWith("image/")
       return x.mime.startsWith("image/")
     }).length
-    const virtualText = pdf ? `[PDF ${count + 1}]` : `[Image ${count + 1}]`
+    const virtualText = image ? `[Image ${count + 1}]` : pdf ? `[PDF ${count + 1}]` : `[Doc ${count + 1}]`
     const extmarkEnd = extmarkStart + virtualText.length
     const textToInsert = virtualText + " "
 
@@ -2567,6 +2749,16 @@ export function Prompt(props: PromptProps) {
     if (parsed.command === "media-auth" || parsed.command === "ark-auth") {
       clearPrompt()
       void handleMediaAuthSlash(parsed.args)
+      return true
+    }
+    if (parsed.command === "ocr" || parsed.command === "ocr-extract") {
+      clearPrompt()
+      void runOcrWizard(parsed.args)
+      return true
+    }
+    if (parsed.command === "ocr-auth" || parsed.command === "baidu-ocr-auth") {
+      clearPrompt()
+      void handleOcrAuthSlash(parsed.args)
       return true
     }
     if (parsed.command === "compact" || parsed.command === "summarize") {

@@ -1,19 +1,17 @@
-import { expect, test } from "bun:test"
-import { copyCommand } from "../src/clipboard"
+import { describe, expect, test } from "bun:test"
+import { parseClipboardFileList } from "../src/clipboard"
 
-test("prefers Wayland clipboard when available", () => {
-  expect(copyCommand("linux", true, (name) => name === "wl-copy")).toEqual(["wl-copy"])
-})
+describe("clipboard file list parsing", () => {
+  test("parses text/uri-list and GNOME copied file lists", () => {
+    expect(parseClipboardFileList("copy\nfile:///home/kris/Documents/a.pdf\nfile:///tmp/b%20c.png\n")).toEqual([
+      "/home/kris/Documents/a.pdf",
+      "/tmp/b c.png",
+    ])
+  })
 
-test("uses osascript on macOS", () => {
-  expect(copyCommand("darwin", false, (name) => name === "osascript")).toEqual(["osascript"])
-})
-
-test("falls back through X11 clipboard commands", () => {
-  expect(copyCommand("linux", true, (name) => name === "xclip")).toEqual(["xclip", "-selection", "clipboard"])
-  expect(copyCommand("linux", false, (name) => name === "xsel")).toEqual(["xsel", "--clipboard", "--input"])
-})
-
-test("returns undefined when native clipboard is unavailable", () => {
-  expect(copyCommand("linux", false, () => false)).toBeUndefined()
+  test("ignores comments, relative entries, and unsupported lines", () => {
+    expect(parseClipboardFileList("# comment\ncut\nrelative.pdf\n/home/kris/file.docx\n")).toEqual([
+      "/home/kris/file.docx",
+    ])
+  })
 })
