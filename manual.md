@@ -863,12 +863,12 @@ Extra router：
 | 命令                        | 作用                                                                 |
 | --------------------------- | -------------------------------------------------------------------- |
 | `/task-policy on`           | 热启用 task policy。subagent / compaction / visual_check 等继续路由  |
-| `/task-policy off`          | 热禁用 task policy 和 task subagent 入口。需要只使用当前主模型时使用 |
+| `/task-policy off`          | 热禁用普通 task policy/subagent 路由。视觉检查 `visual_check` 仍保留 |
 | `/task-policy extra-status` | 查看普通 prompt 额外任务路由是否开启                                 |
 | `/task-policy extra-on`     | 开启 fast judge。普通 prompt 会先判断是否需要自动插入 routed subtask |
 | `/task-policy extra-off`    | 关闭 fast judge，回到只有显式 task/subtask 才触发路由的模式          |
 
-`/task-policy on/off` 控制整个 task policy，适合在某些任务里强制只用当前主模型。关闭后，新 turn 不会注入 OpenChinaCode 的 subagent 委派提示，也不会向主模型暴露 `task` subagent tool；如果旧 turn 已经拿到 tool schema，TaskTool 也会兜底拒绝继续创建 subagent。这个开关会写入全局配置，并热应用到当前运行实例的新 turn。
+`/task-policy on/off` 控制普通 task policy，适合在某些任务里强制只用当前主模型。关闭后，新 turn 不会注入 OpenChinaCode 的普通 subagent 委派提示；TaskTool 也会兜底拒绝普通 subagent。视觉检查是例外：当当前主模型不能直接看图，`task_kind=visual_check` 仍可用，并继续路由到 GLM-5V。这个开关会写入全局配置，并热应用到当前运行实例的新 turn。
 
 Extra router 默认关闭。开启后，普通请求如果被判断为适合委派，例如复杂重构、代码审查、debug、测试修复、架构规划，会自动插入一个 `subtask` part，并带上 `task_kind` / `task_complexity`，再由 task policy 选择 GLM/Kimi/DeepSeek 路由。已有粘贴图片视觉预处理、显式 subtask、agent 调用、附件输入不会再次触发 extra router。`extra-on/off` 同样会写入全局配置，并热应用到当前运行实例的新 turn。
 
@@ -1053,7 +1053,7 @@ compaction
 - `agents` 是按 subagent 名称覆盖，只影响指定 agent。
 - `kind.complexity` 比 `kind` 更精确，会优先匹配。
 - `inherit: true` 表示继承父模型。
-- `enabled: false` 会关闭 OpenChinaCode task policy 和 task subagent 入口，回到只由当前主模型处理的行为；也可以用 `/task-policy off/on` 热切换。
+- `enabled: false` 会关闭 OpenChinaCode 普通 task policy 和普通 subagent 路由，回到主要由当前主模型处理的行为；也可以用 `/task-policy off/on` 热切换。视觉检查 `visual_check` 是能力兜底例外，仍可路由到 GLM-5V。
 - `extra_router.enabled: true` 会让普通 prompt 先经过 fast judge，适合时自动插入 routed subtask；也可以用 `/task-policy extra-on/off` 修改。
 - `extra_router.allow/deny` 控制哪些 task kind 允许被自动委派。默认拒绝 `general`、`summarize`、`compaction`。
 - `judges` 是 OpenChinaCode 共享 LLM judge 配置，当前用于 `auto_maxtokens`、`compaction_profile`、`compaction_active_task`、`task_router`。可以分别设置候选模型、超时和输出 token 上限。

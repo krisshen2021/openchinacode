@@ -124,6 +124,10 @@ function isInternalVisualPreprocess(params: Schema.Schema.Type<typeof Parameters
   )
 }
 
+function isVisualCheckTask(params: Schema.Schema.Type<typeof Parameters>) {
+  return params.task_kind === "visual_check"
+}
+
 export const TaskTool = Tool.define(
   id,
   Effect.gen(function* () {
@@ -141,10 +145,14 @@ export const TaskTool = Tool.define(
       ctx: Tool.Context,
     ) {
       const cfg = yield* config.get()
-      if (cfg.task_policy?.enabled === false && !isInternalVisualPreprocess(params, ctx)) {
+      if (
+        cfg.task_policy?.enabled === false &&
+        !isInternalVisualPreprocess(params, ctx) &&
+        !isVisualCheckTask(params)
+      ) {
         return yield* Effect.fail(
           new Error(
-            "OpenChinaCode task policy is disabled. Do not create a subagent; answer or work directly with the current main model.",
+            "OpenChinaCode task policy is disabled. Do not create ordinary subagents; answer or work directly with the current main model. The only subagent exception is task_kind=visual_check for image/screenshot inspection.",
           ),
         )
       }

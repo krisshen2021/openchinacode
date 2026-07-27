@@ -483,6 +483,44 @@ describe("task policy", () => {
     }
   })
 
+  test("keeps visual_check routing available when task policy is disabled", async () => {
+    const result = await Effect.runPromise(
+      TaskPolicy.select({
+        cfg: { task_policy: { enabled: false } },
+        provider: mockProvider({ tagged: false }),
+        agent,
+        inherited,
+        description: "image inspection",
+        prompt: "look at /tmp/spatial_plan.jpg",
+        kindHint: "visual_check",
+        complexityHint: "quick",
+      }),
+    )
+
+    expect(result?.assignment.kind).toBe("visual_check")
+    expect(result?.route.model).toEqual({
+      providerID: ProviderV2.ID.make("zhipuai-pay2go"),
+      modelID: ModelV2.ID.make("glm-5v-turbo"),
+    })
+  })
+
+  test("disables ordinary task policy routes when task policy is disabled", async () => {
+    const result = await Effect.runPromise(
+      TaskPolicy.select({
+        cfg: { task_policy: { enabled: false } },
+        provider: mockProvider({ tagged: false }),
+        agent,
+        inherited,
+        description: "debug bug",
+        prompt: "debug the failing cache invalidation path",
+        kindHint: "debug",
+        complexityHint: "medium",
+      }),
+    )
+
+    expect(result).toBeUndefined()
+  })
+
   test("routes quick and medium debug tasks to DeepSeek high", async () => {
     for (const complexityHint of ["quick", "medium"] as const) {
       const result = await Effect.runPromise(

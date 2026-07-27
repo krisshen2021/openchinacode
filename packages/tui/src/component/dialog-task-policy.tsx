@@ -212,8 +212,9 @@ export function DialogTaskPolicy(props: { focus?: string }) {
             Runtime controls
           </text>
           <text fg={theme.textMuted} wrapMode="word">
-            Use /task-policy off to hot-disable task policy routing when you want only the current main model to handle
-            the next tasks. Use /task-policy on to re-enable. Use /task-policy status to inspect both switches.
+            Use /task-policy off to hot-disable ordinary task routing when you want the current main model to handle
+            the next tasks. visual_check remains available for non-vision models. Use /task-policy on to re-enable. Use
+            /task-policy status to inspect both switches.
           </text>
         </box>
 

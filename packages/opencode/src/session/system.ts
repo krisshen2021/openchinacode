@@ -23,6 +23,15 @@ import { Reference } from "@opencode-ai/core/reference"
 import { MCP } from "@/mcp"
 import { PermissionV1 } from "@opencode-ai/core/v1/permission"
 
+const PROMPT_CHINA_VISUAL_FALLBACK = [
+  "# OpenChinaCode Visual Fallback",
+  "",
+  "Task policy routing may be disabled for ordinary subagents, but visual_check remains available as a model capability fallback.",
+  "If the current model cannot inspect a pasted, read, captured, or generated screenshot/image directly, do not ask the user to inspect it manually.",
+  'Call the task tool with subagent_type="general", task_kind="visual_check", task_complexity="quick" or "medium", and include the image path/name plus the user\'s exact visual question.',
+  "Do not use task for ordinary planning, refactor, implementation, review, debug, or exploration while task policy is disabled; handle those with the current main model.",
+].join("\n")
+
 export function provider(model: Provider.Model, options: { soul?: string; taskPolicyEnabled?: boolean } = {}) {
   const apiID = model.api.id.toLowerCase()
   const providerID = model.providerID.toLowerCase()
@@ -35,8 +44,12 @@ export function provider(model: Provider.Model, options: { soul?: string; taskPo
     apiID.includes("glm-") ||
     apiID.includes("kimi") ||
     apiID.includes("deepseek")
-  const withOpenChinaTools = (prompts: string[]) =>
-    isOpenChina && options.taskPolicyEnabled !== false ? [...prompts, PROMPT_CHINA_TOOLS] : prompts
+  const withOpenChinaTools = (prompts: string[]) => {
+    if (!isOpenChina) return prompts
+    return options.taskPolicyEnabled === false
+      ? [...prompts, PROMPT_CHINA_VISUAL_FALLBACK]
+      : [...prompts, PROMPT_CHINA_TOOLS]
+  }
   const withSoul = (prompts: string[]) => {
     const soul = options.soul?.trim()
     return soul ? [...prompts, soul] : prompts

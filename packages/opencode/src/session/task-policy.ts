@@ -415,9 +415,9 @@ export const select = Effect.fn("TaskPolicy.select")(function* (input: {
   kindHint?: TaskKind
   complexityHint?: TaskComplexity
 }) {
-  if (input.cfg.task_policy?.enabled === false) return undefined
-
   const assignment = classify(input)
+  if (input.cfg.task_policy?.enabled === false && assignment.kind !== "visual_check") return undefined
+
   const providers = yield* input.provider
     .list()
     .pipe(Effect.catchCause(() => Effect.succeed({} as Record<ProviderV2.ID, Provider.Info>)))

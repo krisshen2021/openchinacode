@@ -78,7 +78,7 @@ const PROMPT_TASK_POLICY = [
   "",
   "Runtime controls:",
   "- /task-policy status: show task policy and extra router state",
-  "- /task-policy off: hot-disable task policy routing so the current main model handles work directly",
+  "- /task-policy off: hot-disable ordinary task policy routing so the current main model handles work directly; visual_check remains available for non-vision models",
   "- /task-policy on: hot-enable task policy routing again",
   "- /task-policy extra-on/off: hot-toggle fast judge auto-delegation for ordinary prompts",
   "",

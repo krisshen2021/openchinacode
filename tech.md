@@ -793,10 +793,10 @@ TUI 状态 part 约定：
 保护条件：
 
 - `task_policy.enabled === false` 时：
-  - `TaskPolicy.select` 返回 `undefined`。
-  - `SessionTools.resolve` 不向主模型暴露 `task` tool。
-  - `SystemPrompt.provider` 不注入 `china-tools.txt`，避免模型被提示去委派。
-  - `TaskTool` 执行层兜底拒绝创建 subagent。
+  - 普通任务的 `TaskPolicy.select` 返回 `undefined`。
+  - `SystemPrompt.provider` 不注入完整 `china-tools.txt`，避免模型被提示做普通委派。
+  - `TaskTool` 执行层兜底拒绝普通 subagent。
+  - 例外：`task_kind=visual_check` 仍允许，并继续路由到内置视觉模型。非视觉主模型读取/生成图片后仍可用 GLM-5V 看图。
 - `task_policy.extra_router.enabled !== true` 时不运行。
 - `noReply`、显式 `subtask`、显式 `agent`、file attachment、slash-like prompt、subagent 自己的 prompt 都跳过。
 - 目标是补足普通 build/plan/debug/refactor 请求不会主动调用 `task` tool 的短板，不干扰粘贴图片视觉预处理和媒体生成命令。
@@ -1128,7 +1128,7 @@ TUI subagent 行应显示：
 
 ## Build 模式
 
-默认情况下，build 模式不做额外代码级自动实施路由。用户在 build 模式里确认“可以开始”“继续执行”时，primary build agent 会按正常对话执行；是否调用 `task` 由模型根据 `china-tools.txt` 的 task routing contract 自行决定。当 `/task-policy off` 或 `task_policy.enabled === false` 时，不注入 `china-tools.txt`，也不暴露 `task` tool，因此 build turn 会只由当前主模型处理。
+默认情况下，build 模式不做额外代码级自动实施路由。用户在 build 模式里确认“可以开始”“继续执行”时，primary build agent 会按正常对话执行；是否调用 `task` 由模型根据 `china-tools.txt` 的 task routing contract 自行决定。当 `/task-policy off` 或 `task_policy.enabled === false` 时，不注入完整 `china-tools.txt`，普通 build turn 会只由当前主模型处理。视觉能力是例外：`task` tool 仍可用于 `task_kind=visual_check`，让 GLM-5.2 / DeepSeek 这类非视觉主模型在读取截图或图片后路由到 GLM-5V。
 
 如果启用 `task_policy.extra_router.enabled`，普通 build/plan prompt 会先经过 `TaskRouterJudge`。当 judge 判断应委派时，runtime 会直接插入 `subtask` part，而不是只提示主模型“应该调用 task”。这条路径用于让 implement/refactor/debug/test_fix 等不常主动触发 tool call 的任务也能进入 task policy。
 

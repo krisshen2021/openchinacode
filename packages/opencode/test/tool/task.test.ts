@@ -40,6 +40,11 @@ const policyRef = {
   modelID: ModelV2.ID.make("policy-model"),
 }
 
+const visualRef = {
+  providerID: ProviderV2.ID.make("zhipuai-pay2go"),
+  modelID: ModelV2.ID.make("glm-5v-turbo"),
+}
+
 function testProviderConfig() {
   const model = (name: string) => ({
     id: name,
@@ -63,6 +68,22 @@ function testProviderConfig() {
         models: {
           "test-model": model("test-model"),
           "policy-model": model("policy-model"),
+        },
+        options: {
+          apiKey: "test-key",
+          baseURL: "http://localhost:1/v1",
+        },
+      },
+      "zhipuai-pay2go": {
+        name: "Zhipu AI Pay2Go",
+        id: "zhipuai-pay2go",
+        env: [],
+        npm: "@ai-sdk/openai-compatible",
+        models: {
+          "glm-5v-turbo": {
+            ...model("glm-5v-turbo"),
+            attachment: true,
+          },
         },
         options: {
           apiKey: "test-key",
@@ -195,10 +216,11 @@ describe("tool.task", () => {
 
         expect(first).toBe(second)
 
-        const alpha = first.indexOf("- alpha: Alpha agent")
-        const explore = first.indexOf("- explore:")
-        const general = first.indexOf("- general:")
-        const zebra = first.indexOf("- zebra: Zebra agent")
+        const agentList = first.slice(first.indexOf("Available agent types and the tools they have access to:"))
+        const alpha = agentList.indexOf("- alpha: Alpha agent")
+        const explore = agentList.indexOf("- explore:")
+        const general = agentList.indexOf("- general:")
+        const zebra = agentList.indexOf("- zebra: Zebra agent")
 
         expect(alpha).toBeGreaterThan(-1)
         expect(explore).toBeGreaterThan(alpha)
@@ -558,6 +580,51 @@ describe("tool.task", () => {
         expect(result.metadata.modelSource).toBe("explicit")
         expect(result.metadata.taskPolicy).toBeUndefined()
         expect(result.output).toContain(`<task id="${result.metadata.sessionId}" state="completed">`)
+      }),
+    {
+      config: {
+        ...testProviderConfig(),
+        task_policy: {
+          enabled: false,
+        },
+      },
+    },
+  )
+
+  it.instance(
+    "allows visual_check subagents when task_policy is disabled",
+    () =>
+      Effect.gen(function* () {
+        const { chat, assistant } = yield* seed()
+        const tool = yield* TaskTool
+        const def = yield* tool.init()
+        let seen: SessionPrompt.PromptInput | undefined
+        const promptOps = stubOps({ text: "visual result", onPrompt: (input) => (seen = input) })
+
+        const result = yield* def.execute(
+          {
+            description: "Inspect generated image",
+            prompt: "Inspect /tmp/spatial_plan.jpg and answer the user's visual layout questions.",
+            subagent_type: "general",
+            task_kind: "visual_check",
+            task_complexity: "quick",
+          },
+          {
+            sessionID: chat.id,
+            messageID: assistant.id,
+            agent: "build",
+            abort: new AbortController().signal,
+            extra: { promptOps },
+            messages: [],
+            metadata: () => Effect.void,
+            ask: () => Effect.void,
+          },
+        )
+
+        expect(seen?.model).toEqual(visualRef)
+        expect(result.metadata.modelSource).toBe("openchinacode.default")
+        expect(result.metadata.taskPolicy?.kind).toBe("visual_check")
+        expect(result.output).toContain("visual result")
       }),
     {
       config: {
