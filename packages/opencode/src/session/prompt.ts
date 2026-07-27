@@ -66,6 +66,8 @@ const decodeMessagePart = Schema.decodeUnknownExit(SessionV1.Part)
 const MAX_MCP_RESOURCE_BLOB_BYTES = 10 * 1024 * 1024
 const EXTRA_TASK_ROUTER_COMMAND = "openchinacode.extra_task_router"
 const EXTRA_TASK_ROUTER_STATUS_KIND = "openchinacode.extra_router_status"
+const ATTACHMENT_ROUTER_COMMAND = "openchinacode.attachment_router"
+const OCR_IMAGE_MIMES = new Set(["image/jpeg", "image/png", "image/bmp", "image/tiff"])
 const SUPPORTED_MCP_RESOURCE_ATTACHMENT_MIMES = new Set([
   "application/pdf",
   "image/gif",
@@ -125,6 +127,15 @@ function promptPartSummary(parts: readonly PromptInput["parts"][number][]) {
     if (part.type === "subtask") return `subtask:${part.agent}:${part.description}`
     return "part"
   })
+}
+
+function filePartReference(part: Pick<SessionV1.FilePart, "source" | "url">) {
+  if (part.source?.type === "file" && part.source.path) return part.source.path
+  return part.url
+}
+
+function isOcrCapableImagePart(part: SessionV1.Part): part is SessionV1.FilePart {
+  return part.type === "file" && OCR_IMAGE_MIMES.has(part.mime)
 }
 
 function sessionMessageText(message: SessionV1.WithParts) {
@@ -702,6 +713,57 @@ const layer = Layer.effect(
       return yield* provider.defaultModel().pipe(Effect.orDie)
     })
 
+    const applyAttachmentRouter = Effect.fn("SessionPrompt.applyAttachmentRouter")(function* (
+      input: PromptInput,
+      message: SessionV1.WithParts,
+    ) {
+      if (input.noReply === true) return
+
+      const promptText = promptPartText(input.parts)
+      if (!promptText || promptText.startsWith("/")) return
+      if (promptText.includes("<openchinacode-ocr>") || promptText.includes("<openchinacode-visual-preprocess>")) return
+
+      const imageParts = message.parts.filter(isOcrCapableImagePart)
+      if (!imageParts.length) return
+
+      const references = imageParts.map(filePartReference)
+      const reason = "Pasted image defaults to visual handling; image OCR requires explicit /ocr."
+      const routeText = [
+        "<openchinacode-attachment-router>",
+        "decision: visual",
+        `reason: ${reason}`,
+        "Treat the pasted image(s) as visual/UI/reference material. Analyze layout, style, color, visible state, and image content according to the user request.",
+        "Do not call ocr_extract for pasted images in normal prompts. If the user wants OCR for an image, they must use the explicit /ocr command.",
+        "",
+        "Image reference(s):",
+        references.map((item, index) => `${index + 1}. ${item}`).join("\n"),
+        "</openchinacode-attachment-router>",
+      ].join("\n")
+
+      yield* Effect.logInfo("attachment router decision", {
+        "session.id": input.sessionID,
+        route: "visual",
+        reason,
+        imageCount: imageParts.length,
+      })
+
+      const routerPart: SessionV1.TextPart = {
+        id: PartID.ascending(),
+        messageID: message.info.id,
+        sessionID: input.sessionID,
+        type: "text",
+        synthetic: true,
+        text: routeText,
+        metadata: {
+          kind: "openchinacode.attachment_router_decision",
+          command: ATTACHMENT_ROUTER_COMMAND,
+          route: "visual",
+          reason,
+        },
+      }
+      yield* sessions.updatePart(routerPart)
+    })
+
     const applyExtraTaskRouter = Effect.fn("SessionPrompt.applyExtraTaskRouter")(function* (
       input: PromptInput,
       message: SessionV1.WithParts,
@@ -1275,6 +1337,7 @@ const layer = Layer.effect(
       }
 
       if (input.noReply === true) return message
+      yield* applyAttachmentRouter(input, message)
       yield* applyExtraTaskRouter(input, message)
       return yield* loop({ sessionID: input.sessionID })
     })

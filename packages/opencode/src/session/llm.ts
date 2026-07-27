@@ -33,6 +33,7 @@ import { LLMRequestPrep } from "./llm/request"
 import * as OutputBudget from "./llm/budget"
 import { AutoMaxTokensJudge } from "./judge/auto-maxtokens"
 import { SystemSoul } from "./soul"
+import { parseToolArguments, repairMediaPromptToolArguments } from "./tool-args-repair"
 
 export const OUTPUT_TOKEN_MAX = ProviderTransform.OUTPUT_TOKEN_MAX
 
@@ -405,7 +406,7 @@ const live: Layer.Layer<
             return { result: "", error: `Unknown tool: ${toolName}` }
           }
           try {
-            const result = await t.execute!(JSON.parse(argsJson), {
+            const result = await t.execute!(parseToolArguments(toolName, argsJson), {
               toolCallId: _requestID,
               messages: input.messages,
               abortSignal: input.abort,
@@ -575,6 +576,16 @@ const live: Layer.Layer<
               return {
                 ...failed.toolCall,
                 toolName: lower,
+              }
+            }
+            const repaired =
+              typeof failed.toolCall.input === "string"
+                ? repairMediaPromptToolArguments(failed.toolCall.toolName, failed.toolCall.input)
+                : undefined
+            if (repaired !== undefined) {
+              return {
+                ...failed.toolCall,
+                input: JSON.stringify(repaired),
               }
             }
             return {

@@ -106,9 +106,21 @@ function routedProvider() {
       max: { effort: "max" },
     },
   })
+  const kimi = createModel({
+    id: ModelV2.ID.make("kimi-k3"),
+    providerID: ProviderV2.ID.make("moonshotai-cn"),
+    context: 1_048_576,
+    output: 1_048_576,
+    npm: "@ai-sdk/openai-compatible",
+    variants: {
+      high: { reasoning_effort: "high" },
+      max: { reasoning_effort: "max" },
+    },
+  })
   const providers = {
     [parent.providerID]: ProviderTest.info({}, parent),
     [glm.providerID]: ProviderTest.info({ id: glm.providerID, name: "Zhipu AI Pay2Go", source: "api" }, glm),
+    [kimi.providerID]: ProviderTest.info({ id: kimi.providerID, name: "Moonshot AI CN", source: "api" }, kimi),
   }
 
   return ProviderTest.fake({
@@ -1031,7 +1043,7 @@ describe("session.compaction.process", () => {
   )
 
   itCompaction.instance(
-    "routes compaction through task policy to GLM high",
+    "routes medium compaction through task policy to Kimi K3 high",
     Effect.gen(function* () {
       const ssn = yield* SessionNs.Service
       const session = yield* ssn.create({})
@@ -1062,18 +1074,18 @@ describe("session.compaction.process", () => {
       )
 
       expect(result).toBe("continue")
-      expect(created?.model.providerID).toBe(ProviderV2.ID.make("zhipuai-pay2go"))
-      expect(created?.model.id).toBe(ModelV2.ID.make("glm-5.2"))
-      expect(created?.assistantMessage.providerID).toBe(ProviderV2.ID.make("zhipuai-pay2go"))
-      expect(created?.assistantMessage.modelID).toBe(ModelV2.ID.make("glm-5.2"))
+      expect(created?.model.providerID).toBe(ProviderV2.ID.make("moonshotai-cn"))
+      expect(created?.model.id).toBe(ModelV2.ID.make("kimi-k3"))
+      expect(created?.assistantMessage.providerID).toBe(ProviderV2.ID.make("moonshotai-cn"))
+      expect(created?.assistantMessage.modelID).toBe(ModelV2.ID.make("kimi-k3"))
       expect(created?.assistantMessage.variant).toBe("high")
-      expect(processed?.user.model.providerID).toBe(ProviderV2.ID.make("zhipuai-pay2go"))
-      expect(processed?.user.model.modelID).toBe(ModelV2.ID.make("glm-5.2"))
+      expect(processed?.user.model.providerID).toBe(ProviderV2.ID.make("moonshotai-cn"))
+      expect(processed?.user.model.modelID).toBe(ModelV2.ID.make("kimi-k3"))
       expect(processed?.user.model.variant).toBe("high")
       expect(summary?.info.role).toBe("assistant")
       if (summary?.info.role === "assistant") {
-        expect(summary.info.providerID).toBe(ProviderV2.ID.make("zhipuai-pay2go"))
-        expect(summary.info.modelID).toBe(ModelV2.ID.make("glm-5.2"))
+        expect(summary.info.providerID).toBe(ProviderV2.ID.make("moonshotai-cn"))
+        expect(summary.info.modelID).toBe(ModelV2.ID.make("kimi-k3"))
         expect(summary.info.variant).toBe("high")
       }
     }),

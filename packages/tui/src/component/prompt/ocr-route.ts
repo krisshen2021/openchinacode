@@ -19,16 +19,6 @@ const OCR_DOCUMENT_EXTENSIONS = new Set([".pdf", ".ofd", ".doc", ".docx", ".txt"
 const OCR_IMAGE_MIMES = new Set(["image/jpeg", "image/png", "image/bmp", "image/tiff"])
 const OCR_IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff"])
 
-const OCR_INTENT_PATTERNS = [
-  /ocr/i,
-  /提取.*(文字|文本|表格|内容)/,
-  /(识别|解析|读取).*(文字|文本|表格|文档|pdf|内容)/i,
-  /(转|转换).*(markdown|md|json|文本|文字)/i,
-  /(extract|parse|read|convert).*(text|table|document|pdf|markdown|json)/i,
-  /(invoice|receipt|contract|form|spreadsheet|table)/i,
-  /(发票|收据|合同|表格|单据|票据|文档解析)/,
-]
-
 export function isOcrDocumentFilePart(part: unknown): part is ModelFilePart {
   if (!isFilePart(part)) return false
   if (OCR_DOCUMENT_MIMES.has(part.mime)) return true
@@ -39,14 +29,6 @@ export function isOcrSupportedImageFilePart(part: unknown): part is ModelFilePar
   if (!isFilePart(part)) return false
   if (OCR_IMAGE_MIMES.has(part.mime)) return true
   return OCR_IMAGE_EXTENSIONS.has(extension(part.filename || part.source?.path || part.url))
-}
-
-export function hasOcrIntent(input: string) {
-  return OCR_INTENT_PATTERNS.some((pattern) => pattern.test(input))
-}
-
-export function shouldRouteImageToOcr(input: { part: unknown; prompt: string }) {
-  return hasOcrIntent(input.prompt) && isOcrSupportedImageFilePart(input.part)
 }
 
 export function ocrFilePartReference(part: ModelFilePart) {

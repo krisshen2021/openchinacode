@@ -701,12 +701,12 @@ Ctrl+V file manager list -> local attachments
 Ctrl+V text path(s) -> local attachments when recognized
 
 document file part -> OCR route, remove raw document from provider parts
-image file part + OCR intent -> OCR route
+explicit /ocr + pasted image/file part -> OCR wizard route
 remaining image file part -> direct to visual-capable main model, or GLM-5V visual subtask
 remaining parts -> normal prompt parts
 ```
 
-OCR intent 是本地轻量关键词判断，只用于“图片是否改走 OCR”。文档文件不靠关键词，始终走 `ocr_extract`，避免 PDF/DOC 直接塞给 provider 造成格式或上下文预算问题。
+OpenChinaCode 不再用自然语言关键词判断图片 OCR。图片默认属于视觉输入，避免参考图、UI 截图、图像生成 prompt 被误路由到 OCR。文档文件不靠关键词，始终走 `ocr_extract`，避免 PDF/DOC 直接塞给 provider 造成格式或上下文预算问题。图片 OCR 只能通过显式 `/ocr` 进入。
 
 默认输出：
 
@@ -1162,8 +1162,9 @@ TUI subagent 行应显示：
 智能 profile：
 
 - 压缩前先由 judge 模型输出稳定 JSON：`profiles`、`must_preserve`、`active_task`、`risk`。
-- 默认 judge 候选：当前 compaction 路由选中的模型，然后 `moonshotai-cn/kimi-k3`，然后 `deepseek/deepseek-v4-flash`，最后当前 provider 的 small model。
-- 默认 compaction 路由是 `moonshotai-cn/kimi-k3#high`，因此默认 profile judge 也优先使用 Kimi K3。
+- 默认 judge 候选：`deepseek/deepseek-v4-flash`，然后 `moonshotai-cn/kimi-k3`，最后当前 provider 的 small model。
+- profile judge 是轻量 JSON 判断，默认最多 8192 output tokens；active-task extraction 默认最多 16384 output tokens。
+- judge 不继承当前主模型，也不继承 compaction summary 的 route/variant，避免当前模型为 Kimi K3 max 时前置判断卡满超时窗口。
 - judge 只拿截断后的判断上下文：previous summary tail 和 recent conversation tail，不会把完整超大历史再塞给 judge。
 - `CompactionProfile.parseJudgeOutput` 解析并 normalize JSON，最终 Decision 增加 `source`。
 - `CompactionProfile.buildPrompt` 根据 JSON 拼接固定 Markdown section 模板。
@@ -1173,7 +1174,7 @@ TUI subagent 行应显示：
 Active task extraction：
 
 - profile judge 后，如果 `active_task.present=true`，会再调用 `compaction_active_task` judge。
-- 默认候选同 profile judge：当前 compaction 路由模型，然后 Kimi K3，然后 DeepSeek flash。
+- 默认候选同 profile judge：DeepSeek flash，然后 Kimi K3，最后当前 provider 的 small model。
 - 默认超时 90s，默认输出上限 16384 tokens，可通过 `task_policy.judges.compaction_active_task` 覆盖。
 - 输出 JSON 字段包括 `objective`、`status`、`focus`、`files`、`decisions`、`findings`、`changes`、`commands`、`failures`、`next_actions`、`risks`、`open_questions`。
 - 最终 summary prompt 会把这份 JSON 作为 `Active Task Essential State` 的权威输入，避免近期任务状态被压缩成一句话。

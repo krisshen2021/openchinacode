@@ -105,6 +105,17 @@ function configuredEnabled(config: ConfigTaskPolicy.Judge | undefined) {
   return config?.enabled !== false
 }
 
+function failureMessage(error: unknown, input: { timedOut: boolean; externallyAborted: boolean; timeoutMs: number }) {
+  if (input.timedOut) return `timeout after ${input.timeoutMs}ms`
+  if (input.externallyAborted) return "aborted by parent request"
+  if (error instanceof DOMException && error.name === "AbortError") return "aborted"
+  if (error instanceof Error && error.name === "AbortError") return error.message || "aborted"
+  const message = errorMessage(error)
+  if (message !== "An error occurred in Effect.tryPromise") return message
+  if (error instanceof Error && error.message) return `${error.name}: ${error.message}`
+  return message
+}
+
 export const selectJudgeModel = Effect.fn("JsonJudge.selectModel")(function* (input: {
   provider: Provider.Interface
   candidates: string[]
@@ -172,10 +183,19 @@ export const runJsonJudge = Effect.fn("JsonJudge.run")(function* <T>(input: RunJ
     (typeof input.maxOutputTokens === "function" ? input.maxOutputTokens(selected.model) : input.maxOutputTokens)
   const timeoutMs = input.config?.timeout_ms ?? input.timeoutMs
   const ctrl = new AbortController()
-  const timeout = setTimeout(() => ctrl.abort(), timeoutMs)
+  let timedOut = false
+  let externallyAborted = input.abort?.aborted === true
+  const timeout = setTimeout(() => {
+    timedOut = true
+    ctrl.abort()
+  }, timeoutMs)
   const abort = () => ctrl.abort()
+  const parentAbort = () => {
+    externallyAborted = true
+    abort()
+  }
   if (input.abort?.aborted) ctrl.abort()
-  else input.abort?.addEventListener("abort", abort, { once: true })
+  else input.abort?.addEventListener("abort", parentAbort, { once: true })
 
   const started = Date.now()
   try {
@@ -191,7 +211,8 @@ export const runJsonJudge = Effect.fn("JsonJudge.run")(function* <T>(input: RunJ
     )
     const elapsedMs = Date.now() - started
     if (Exit.isFailure(exit)) {
-      const message = errorMessage(Cause.squash(exit.cause))
+      const error = Cause.squash(exit.cause)
+      const message = failureMessage(error, { timedOut, externallyAborted, timeoutMs })
       yield* Effect.logWarning(`${input.name} judge failed`, {
         "session.id": input.sessionID,
         providerID: selected.model.providerID,
@@ -239,7 +260,7 @@ export const runJsonJudge = Effect.fn("JsonJudge.run")(function* <T>(input: RunJ
     } satisfies JsonJudgeResult<T>
   } finally {
     clearTimeout(timeout)
-    input.abort?.removeEventListener("abort", abort)
+    input.abort?.removeEventListener("abort", parentAbort)
   }
 })
 

@@ -1,11 +1,9 @@
 import { describe, expect, test } from "bun:test"
 import {
-  hasOcrIntent,
   isOcrDocumentFilePart,
   isOcrSupportedImageFilePart,
   ocrFilePartReference,
   ocrPreprocessUserText,
-  shouldRouteImageToOcr,
 } from "../../src/component/prompt/ocr-route"
 
 const pdfPart = {
@@ -30,11 +28,9 @@ describe("prompt OCR routing", () => {
     expect(ocrFilePartReference(pdfPart)).toBe("/tmp/sample.pdf")
   })
 
-  test("routes images to OCR only when prompt asks for OCR-like extraction", () => {
+  test("recognizes OCR-supported image files without auto-routing them", () => {
     expect(isOcrSupportedImageFilePart(imagePart)).toBe(true)
-    expect(hasOcrIntent("请提取这张图里的表格并转成 Markdown")).toBe(true)
-    expect(shouldRouteImageToOcr({ part: imagePart, prompt: "请提取这张图里的表格" })).toBe(true)
-    expect(shouldRouteImageToOcr({ part: imagePart, prompt: "看看这个 UI 的按钮颜色对不对" })).toBe(false)
+    expect(isOcrDocumentFilePart(imagePart)).toBe(false)
   })
 
   test("builds an explicit OCR tool instruction", () => {

@@ -249,13 +249,12 @@ compaction.medium/complex -> moonshotai-cn/kimi-k3#high
 默认 judge 候选优先级：
 
 ```text
-当前 compaction 路由选中的模型
-moonshotai-cn/kimi-k3
 deepseek/deepseek-v4-flash
+moonshotai-cn/kimi-k3
 当前 provider 的 small model
 ```
 
-默认情况下，手动 `/compact` 和自动压缩会按 `compaction.medium` 路由到 `moonshotai-cn/kimi-k3#high`。compaction 不是高频动作，但摘要质量会直接影响后续开发，所以 profile judge 优先使用这个主压缩模型。judge 只接收截断后的判断上下文，不会把完整超大历史再喂给模型。judge 输出必须是合法 JSON，并经过 schema normalize；超时、模型不可用、JSON 无效时会自动 fallback 到本地 heuristic。
+默认情况下，手动 `/compact` 和自动压缩会按 `compaction.medium` 路由到 `moonshotai-cn/kimi-k3#high`。compaction 不是高频动作，但摘要质量会直接影响后续开发，所以最终 summary 仍使用 compaction route 选中的强模型。前置 profile judge / active-task extraction 是小型 JSON 判断任务，默认优先 `deepseek/deepseek-v4-flash`，再 fallback 到 `moonshotai-cn/kimi-k3`，不会继承当前主模型的 max variant。judge 只接收截断后的判断上下文，不会把完整超大历史再喂给模型。judge 输出必须是合法 JSON，并经过 schema normalize；超时、模型不可用、JSON 无效时会自动 fallback 到本地 heuristic。
 
 ### 8. LSP 开关
 
@@ -348,7 +347,7 @@ Slash command 入口：
 /tmp/openchinacode/ocr
 ```
 
-TUI 输入框支持从文件管理器复制文件再 `Ctrl+V` 粘贴。文档类附件会自动走 OCR；普通截图/设计图/UI 图片仍按视觉模型处理。只有当你明确要求“提取文字、OCR、表格、转 Markdown、解析文档”时，图片才会优先走 OCR。
+TUI 输入框支持从文件管理器复制文件再 `Ctrl+V` 粘贴。文档类附件会自动走 OCR；普通截图/设计图/UI 图片默认永远按视觉模型处理，不靠自然语言关键词切到 OCR。图片 OCR 必须显式使用 `/ocr`，可以先粘贴图片文件再输入 `/ocr`，OpenChinaCode 会把已粘贴文件带入 OCR 向导。
 
 ## 当前内置任务路由表
 
@@ -645,12 +644,12 @@ Playwright MCP 产物默认写入系统临时目录，避免截图、snapshot、
 
 - 剪贴板图片会保存到 `/tmp/openchinacode/attachments`
 - 对非视觉主模型，先运行 `zhipuai-pay2go/glm-5v-turbo`
-- GLM-5V 会输出图片内容、相关 UI/布局/颜色/状态判断、OCR 和不确定点
+- GLM-5V 会输出图片内容、相关 UI/布局/颜色/状态判断、可见文字和不确定点
 - 当前主模型随后基于“原始 prompt + GLM-5V 视觉结论 + 图片路径”继续处理
 
 这条链路不依赖关键词触发；只要普通 prompt 里有粘贴图片就会按模型能力自动选择直传或视觉预处理。Slash command 暂不启用该自动预处理，避免影响媒体生成命令把图片作为参考素材。
 
-如果粘贴的是 PDF/OFD/DOC/DOCX/PPT/PPTX/WPS/TXT 等文档文件，会走百度 Unlimited-OCR 的 `ocr_extract`，而不是直接发给当前 LLM provider。图片只有在用户明确要求 OCR、提取文字、解析表格、转 Markdown/JSON 时才切到 OCR；普通 UI/截图理解仍走视觉模型。
+如果粘贴的是 PDF/OFD/DOC/DOCX/PPT/PPTX/WPS/TXT 等文档文件，会走百度 Unlimited-OCR 的 `ocr_extract`，而不是直接发给当前 LLM provider。图片不会靠自然语言自动切到 OCR；普通 UI/截图/参考图理解仍走当前多模态模型或 visual subtask。图片 OCR 必须显式使用 `/ocr`。
 
 ### `/media-auth`
 
@@ -709,7 +708,7 @@ export BAIDU_OCR_SECRET_KEY="your-baidu-ocr-secret-key"
 
 ### `/ocr`
 
-打开百度 Unlimited-OCR 文档解析向导。支持无参数 wizard，也支持把 slash 后面的路径作为初始文件列表。
+打开百度 Unlimited-OCR 文档解析向导。支持无参数 wizard，也支持把 slash 后面的路径作为初始文件列表；如果输入框里已经粘贴了图片或文档文件，直接输入 `/ocr` 会把这些粘贴文件带入 OCR 向导。
 
 ```text
 /ocr
@@ -740,7 +739,7 @@ export BAIDU_OCR_SECRET_KEY="your-baidu-ocr-secret-key"
 把这个文档转成 Markdown 并总结表格
 ```
 
-普通图片不会默认走 OCR。截图/UI/颜色/布局/按钮状态这类视觉任务仍走 Kimi K3 直传或 GLM-5V visual subtask。只有明确要求 OCR、提取文字、解析表格、转 Markdown/JSON 时，图片才会路由到 `ocr_extract`。
+普通图片不会默认走 OCR。截图/UI/颜色/布局/按钮状态/参考图这类视觉任务仍走 Kimi K3 直传或 GLM-5V visual subtask。图片只有在显式 `/ocr` 时才会路由到 `ocr_extract`。
 
 ### `/image-generate`
 

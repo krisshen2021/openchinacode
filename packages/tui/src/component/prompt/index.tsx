@@ -78,7 +78,6 @@ import {
   isOcrDocumentFilePart,
   ocrFilePartReference,
   ocrPreprocessUserText,
-  shouldRouteImageToOcr,
 } from "./ocr-route"
 import { FILE_LIST_MIME } from "../../clipboard"
 import {
@@ -2395,8 +2394,7 @@ export function Prompt(props: PromptProps) {
     // Filter out text parts (pasted content) since they're now expanded inline
     const nonTextParts = store.prompt.parts.filter((part) => part.type !== "text")
     const ocrParts = nonTextParts.filter(
-      (part): part is Omit<FilePart, "id" | "messageID" | "sessionID"> =>
-        isOcrDocumentFilePart(part) || (isImageFilePart(part) && shouldRouteImageToOcr({ part, prompt: inputText })),
+      (part): part is Omit<FilePart, "id" | "messageID" | "sessionID"> => isOcrDocumentFilePart(part),
     )
     const ocrPartSet = new Set<PromptInfo["parts"][number]>(ocrParts)
     const ocrFiles = ocrParts.map(ocrFilePartReference)
@@ -2752,8 +2750,12 @@ export function Prompt(props: PromptProps) {
       return true
     }
     if (parsed.command === "ocr" || parsed.command === "ocr-extract") {
+      const pastedFiles = store.prompt.parts
+        .filter((part): part is Omit<FilePart, "id" | "messageID" | "sessionID"> => part.type === "file")
+        .map(ocrFilePartReference)
+        .filter(Boolean)
       clearPrompt()
-      void runOcrWizard(parsed.args)
+      void runOcrWizard(parsed.args || pastedFiles.join("\n"))
       return true
     }
     if (parsed.command === "ocr-auth" || parsed.command === "baidu-ocr-auth") {
