@@ -116,12 +116,23 @@ export function createTuiAttention(input: {
   config: Pick<TuiConfig.Resolved, "attention">
   kv?: TuiKV
   audio?: Pick<typeof TuiAudio, "loadSoundFile" | "play">
+  terminalBell?: () => boolean
 }): TuiAttentionHost {
   let focus: FocusState = "unknown"
   let disposed = false
   let activePackID: string | undefined
   const packs = new Map<string, RegisteredSoundPack>([[BUILTIN_PACK.id, BUILTIN_PACK]])
   const audio = input.audio ?? TuiAudio
+  const terminalBell =
+    input.terminalBell ??
+    (() => {
+      try {
+        return process.stdout.write("\x07")
+      } catch (error) {
+        console.debug("failed to trigger terminal bell", { error })
+        return false
+      }
+    })
 
   const onFocus = () => {
     focus = "focused"
@@ -150,6 +161,7 @@ export function createTuiAttention(input: {
 
   async function playSound(name: TuiAttentionSoundName, volume: number) {
     try {
+      if (input.config.attention.terminal_bell) return terminalBell()
       for (const file of soundCandidates(name)) {
         const current = await audio.loadSoundFile(file).catch((error) => {
           console.debug("failed to load attention sound", { file, error })

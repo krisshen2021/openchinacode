@@ -743,7 +743,7 @@ OpenChinaCode 不再用自然语言关键词判断图片 OCR。图片默认属�
 
 注意：当前面板展示的是内置默认策略表，不是用户配置覆盖后的 effective policy。运行时会尊重用户配置，subagent footer 的 `source` 会显示来源。
 
-`status/on/off/extra-on/off/status` 是本地 TUI command。`on/off` 控制整个 task policy 和 `task` subagent 入口；`extra-on/off` 只控制普通 prompt 前的 fast judge auto-delegation。
+`status/on/off/extra-on/off/status` 是本地 TUI command。`on/off` 控制 OpenChinaCode task policy 的智能路由和模型改派，不关闭原生 `task` subagent 入口；`extra-on/off` 只控制普通 prompt 前的 fast judge auto-delegation。
 
 Slash command 会先写入全局配置用于持久化：
 
@@ -794,8 +794,8 @@ TUI 状态 part 约定：
 
 - `task_policy.enabled === false` 时：
   - 普通任务的 `TaskPolicy.select` 返回 `undefined`。
-  - `SystemPrompt.provider` 不注入完整 `china-tools.txt`，避免模型被提示做普通委派。
-  - `TaskTool` 执行层兜底拒绝普通 subagent。
+  - `SystemPrompt.provider` 不注入完整 `china-tools.txt`，避免 OpenChinaCode 主动提示模型做智能委派。
+  - `TaskTool` 仍允许普通 subagent；这些 subagent 不走 OpenChinaCode route table，使用父模型或 agent 默认模型。
   - 例外：`task_kind=visual_check` 仍允许，并继续路由到内置视觉模型。非视觉主模型读取/生成图片后仍可用 GLM-5V 看图。
 - `task_policy.extra_router.enabled !== true` 时不运行。
 - `noReply`、显式 `subtask`、显式 `agent`、file attachment、slash-like prompt、subagent 自己的 prompt 都跳过。
@@ -1128,7 +1128,7 @@ TUI subagent 行应显示：
 
 ## Build 模式
 
-默认情况下，build 模式不做额外代码级自动实施路由。用户在 build 模式里确认“可以开始”“继续执行”时，primary build agent 会按正常对话执行；是否调用 `task` 由模型根据 `china-tools.txt` 的 task routing contract 自行决定。当 `/task-policy off` 或 `task_policy.enabled === false` 时，不注入完整 `china-tools.txt`，普通 build turn 会只由当前主模型处理。视觉能力是例外：`task` tool 仍可用于 `task_kind=visual_check`，让 GLM-5.2 / DeepSeek 这类非视觉主模型在读取截图或图片后路由到 GLM-5V。
+默认情况下，build 模式不做额外代码级自动实施路由。用户在 build 模式里确认“可以开始”“继续执行”时，primary build agent 会按正常对话执行；是否调用 `task` 由模型根据 `china-tools.txt` 的 task routing contract 自行决定。当 `/task-policy off` 或 `task_policy.enabled === false` 时，不注入完整 `china-tools.txt`，普通 build turn 不会被 OpenChinaCode 智能路由改派；如果主模型自己使用原生 `task` subagent，该 subagent 会继承父模型或使用 agent 默认模型。视觉能力是例外：`task` tool 仍可用于 `task_kind=visual_check`，让 GLM-5.2 / DeepSeek 这类非视觉主模型在读取截图或图片后路由到 GLM-5V。
 
 如果启用 `task_policy.extra_router.enabled`，普通 build/plan prompt 会先经过 `TaskRouterJudge`。当 judge 判断应委派时，runtime 会直接插入 `subtask` part，而不是只提示主模型“应该调用 task”。这条路径用于让 implement/refactor/debug/test_fix 等不常主动触发 tool call 的任务也能进入 task policy。
 
@@ -1262,6 +1262,36 @@ TUI 状态：
 - `CHINA` 部分使用粉色。
 - 版本显示为 `openchinacode: <version>`。
 - terminal title 为 `OpenChinaCode`。
+- TUI attention 默认开启，session done / permission / question / error 会触发提醒。
+- 默认声音后端为 terminal bell：`attention.terminal_bell: true` 时写出 BEL 字符 `\x07`，Kitty 等终端按自身 audible bell 设置播放声音。
+
+实现入口：
+
+- `packages/tui/src/config/index.tsx`：`attention.enabled` 与 `attention.terminal_bell` 默认开启。
+- `packages/tui/src/attention.ts`：统一处理 notification、sound pack、terminal bell。
+- `packages/tui/src/feature-plugins/system/notifications.ts`：监听 `session.status`、`permission.asked`、`question.asked`、`session.error` 并调用 attention。
+
+用户配置示例：
+
+```jsonc
+{
+  "attention": {
+    "enabled": true,
+    "sound": true,
+    "terminal_bell": true,
+  },
+}
+```
+
+关闭响铃：
+
+```jsonc
+{
+  "attention": {
+    "terminal_bell": false,
+  },
+}
+```
 
 ## 常用调试
 

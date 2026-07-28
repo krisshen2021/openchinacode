@@ -26,11 +26,12 @@ import { PermissionV1 } from "@opencode-ai/core/v1/permission"
 const PROMPT_CHINA_VISUAL_FALLBACK = [
   "# OpenChinaCode Visual Fallback",
   "",
-  "Task policy routing may be disabled for ordinary subagents, but visual_check remains available as a model capability fallback.",
+  "OpenChinaCode task policy routing is disabled, so ordinary task subagents do not receive OpenChinaCode model/variant routing.",
+  "Native task/subagent use remains available when genuinely useful; those subagents use inherited or agent-default model behavior.",
+  "visual_check remains available as a model capability fallback.",
   "If the current model can inspect images/screenshots directly, inspect pasted, read, captured, or generated image attachments yourself. Do not delegate to visual_check only because an image exists or was read.",
   "If the current model cannot inspect a pasted, read, captured, or generated screenshot/image directly, do not ask the user to inspect it manually.",
   'Call the task tool with subagent_type="general", task_kind="visual_check", task_complexity="quick" or "medium", and include the image path/name plus the user\'s exact visual question.',
-  "Do not use task for ordinary planning, refactor, implementation, review, debug, or exploration while task policy is disabled; handle those with the current main model.",
 ].join("\n")
 
 export function provider(model: Provider.Model, options: { soul?: string; taskPolicyEnabled?: boolean } = {}) {

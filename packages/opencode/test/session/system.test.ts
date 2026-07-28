@@ -111,8 +111,11 @@ describe("session.system", () => {
 
     expect(prompts).toHaveLength(2)
     expect(prompts[1]).toContain("OpenChinaCode Visual Fallback")
+    expect(prompts[1]).toContain("ordinary task subagents do not receive OpenChinaCode model/variant routing")
+    expect(prompts[1]).toContain("Native task/subagent use remains available")
     expect(prompts[1]).toContain("If the current model can inspect images/screenshots directly")
     expect(prompts[1]).toContain("Do not delegate to visual_check only because an image exists or was read.")
+    expect(prompts[1]).not.toContain("Do not use task for ordinary")
   })
 
   test("inserts selected OpenChinaCode soul before China tool instructions", () => {

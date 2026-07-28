@@ -45,9 +45,10 @@ test("resolves host-neutral defaults", () => {
   const config = resolve({}, { terminalSuspend: true })
 
   expect(config.attention).toEqual({
-    enabled: false,
+    enabled: true,
     notifications: true,
     sound: true,
+    terminal_bell: true,
     volume: 0.4,
     sound_pack: "opencode.default",
     sounds: {},
@@ -67,6 +68,7 @@ test("resolves overrides without mutating input", () => {
       enabled: true,
       notifications: false,
       sound: false,
+      terminal_bell: false,
       volume: 0.8,
       sound_pack: "custom.pack",
       sounds: { question: "/sounds/question.wav" },

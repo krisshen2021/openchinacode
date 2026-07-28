@@ -88,6 +88,7 @@ function config(attention: Partial<AttentionConfig["attention"]> = {}): Attentio
       enabled: true,
       notifications: true,
       sound: true,
+      terminal_bell: false,
       volume: 0.4,
       sound_pack: "opencode.default",
       sounds: {},
@@ -109,6 +110,30 @@ describe("createTuiAttention", () => {
     })
     expect(renderer.notifications).toHaveLength(0)
     expect(audio.playCalls).toBe(1)
+  })
+
+  test("can use terminal bell for attention sounds", async () => {
+    const renderer = new FakeRenderer()
+    const audio = new FakeAudioEngine()
+    let bells = 0
+    const attention = createTuiAttention({
+      renderer,
+      config: config({ terminal_bell: true }),
+      audio,
+      terminalBell: () => {
+        bells += 1
+        return true
+      },
+    })
+
+    expect(await attention.notify({ message: "done" })).toEqual({
+      ok: true,
+      notification: false,
+      sound: true,
+    })
+    expect(bells).toBe(1)
+    expect(audio.loadCalls).toBe(0)
+    expect(audio.playCalls).toBe(0)
   })
 
   test("supports blurred-only requests", async () => {

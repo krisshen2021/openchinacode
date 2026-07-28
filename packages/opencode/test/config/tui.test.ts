@@ -148,9 +148,10 @@ it.instance("resolves attention config defaults and overrides", () =>
       const test = yield* TestInstance
 
       expect((yield* getTuiConfig(test.directory)).attention).toEqual({
-        enabled: false,
+        enabled: true,
         notifications: true,
         sound: true,
+        terminal_bell: true,
         volume: 0.4,
         sound_pack: "opencode.default",
         sounds: {},
@@ -161,6 +162,7 @@ it.instance("resolves attention config defaults and overrides", () =>
           enabled: false,
           notifications: false,
           sound: false,
+          terminal_bell: false,
           volume: 0.7,
           sound_pack: "acme.soft",
           sounds: {
@@ -176,6 +178,7 @@ it.instance("resolves attention config defaults and overrides", () =>
         enabled: false,
         notifications: false,
         sound: false,
+        terminal_bell: false,
         volume: 0.7,
         sound_pack: "acme.soft",
         sounds: {

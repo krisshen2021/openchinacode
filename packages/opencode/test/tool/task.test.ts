@@ -501,34 +501,40 @@ describe("tool.task", () => {
   )
 
   it.instance(
-    "rejects ordinary subagents when task_policy is disabled",
+    "allows ordinary subagents without OpenChinaCode routing when task_policy is disabled",
     () =>
       Effect.gen(function* () {
         const { chat, assistant } = yield* seed()
         const tool = yield* TaskTool
         const def = yield* tool.init()
+        let seen: SessionPrompt.PromptInput | undefined
+        const promptOps = stubOps({ text: "ordinary result", onPrompt: (input) => (seen = input) })
 
-        const exit = yield* def
-          .execute(
-            {
-              description: "inspect bug",
-              prompt: "debug the failing cache invalidation path",
-              subagent_type: "general",
-            },
-            {
-              sessionID: chat.id,
-              messageID: assistant.id,
-              agent: "build",
-              abort: new AbortController().signal,
-              extra: { promptOps: stubOps() },
-              messages: [],
-              metadata: () => Effect.void,
-              ask: () => Effect.void,
-            },
-          )
-          .pipe(Effect.exit)
+        const result = yield* def.execute(
+          {
+            description: "inspect bug",
+            prompt: "debug the failing cache invalidation path",
+            subagent_type: "general",
+            task_kind: "debug",
+            task_complexity: "medium",
+          },
+          {
+            sessionID: chat.id,
+            messageID: assistant.id,
+            agent: "build",
+            abort: new AbortController().signal,
+            extra: { promptOps },
+            messages: [],
+            metadata: () => Effect.void,
+            ask: () => Effect.void,
+          },
+        )
 
-        expect(Exit.isFailure(exit)).toBe(true)
+        expect(seen?.model).toEqual(ref)
+        expect(seen?.variant).toBe("xhigh")
+        expect(result.metadata.modelSource).toBe("parent")
+        expect(result.metadata.taskPolicy).toBeUndefined()
+        expect(result.output).toContain("ordinary result")
       }),
     {
       config: {

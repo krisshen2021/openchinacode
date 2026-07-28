@@ -37,6 +37,9 @@ export const Attention = Schema.Struct({
   enabled: Schema.optional(Schema.Boolean),
   notifications: Schema.optional(Schema.Boolean),
   sound: Schema.optional(Schema.Boolean),
+  terminal_bell: Schema.optional(Schema.Boolean).annotate({
+    description: "Use the terminal bell character for attention sounds. Kitty and many terminals can play an audible bell for this.",
+  }),
   volume: Schema.optional(Schema.Number.check(Schema.isGreaterThanOrEqualTo(0), Schema.isLessThanOrEqualTo(1))),
   sound_pack: Schema.optional(Schema.String),
   sounds: Schema.optional(AttentionSounds),
@@ -71,6 +74,7 @@ export type Resolved = Omit<Info, "attention" | "keybinds" | "leader_timeout" | 
     enabled: boolean
     notifications: boolean
     sound: boolean
+    terminal_bell: boolean
     volume: number
     sound_pack: string
     sounds: AttentionSoundPaths
@@ -100,9 +104,10 @@ export function resolve(input: Info, options: ResolveOptions): Resolved {
   return {
     ...input,
     attention: {
-      enabled: input.attention?.enabled ?? false,
+      enabled: input.attention?.enabled ?? true,
       notifications: input.attention?.notifications ?? true,
       sound: input.attention?.sound ?? true,
+      terminal_bell: input.attention?.terminal_bell ?? true,
       volume: input.attention?.volume ?? 0.4,
       sound_pack: input.attention?.sound_pack ?? "opencode.default",
       sounds: input.attention?.sounds ?? {},
