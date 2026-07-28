@@ -228,6 +228,7 @@ export function playwrightMcpConfig(input: { enabled?: boolean; headless?: boole
       "mcp",
       "playwright",
       input.headless === false ? "--headed" : "--headless",
+      "--isolated",
       "--browser=chrome",
       "--caps=default",
     ],

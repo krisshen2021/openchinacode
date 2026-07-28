@@ -454,7 +454,7 @@ agent defaults/config -> runtime project policy -> current-session Allow always
   "mcp": {
     "playwright": {
       "type": "local",
-      "command": ["openchinacode", "mcp", "playwright", "--headless", "--browser=chrome", "--caps=default"],
+      "command": ["openchinacode", "mcp", "playwright", "--headless", "--isolated", "--browser=chrome", "--caps=default"],
       "enabled": true,
       "timeout": 30000,
     },
@@ -465,6 +465,10 @@ agent defaults/config -> runtime project policy -> current-session Allow always
 `/test-mcp on/headless/headed` 会先写入全局配置，再通过 runtime MCP API 立即 hot-connect 内置 Playwright MCP；`/test-mcp off` 会写入 disabled 并立即 disconnect。CLI 里的 `openchinacode test mcp` 保留给脚本、自动化或 TUI 外部使用；日常新用户优先用 `/test-mcp on`。
 
 默认浏览器是系统 Google Chrome。TUI 的 `/test-mcp on/headless/headed` 会先检查 Chrome 是否存在；底层 `openchinacode mcp playwright --browser=chrome` 也会做同样的硬预检。缺失时会立即给出安装提示，避免开发到一半才在 Playwright tool call 阶段失败。
+
+默认配置显式包含 `--isolated`。这是因为 `@playwright/mcp` 的 API `createConnection()` 在未显式 isolated 时会走 persistent profile，而 OpenChinaCode 早期 wrapper 容易留下 `mcp-chrome-<hash>` / `SingletonLock`。现在 wrapper 仍使用编译版兼容的 API 入口，但强制默认 isolated，并在 wrapper 退出、MCP disconnect、hot reconnect、finalizer 阶段清理本地 stdio 子进程树。需要复用登录态时，用户可以手动移除 `--isolated` 并配置 `--user-data-dir <path>`。
+
+实测底层 `browser_close` tool call 本身不会结束 `createConnection()` 启动的 Chrome 子进程；Chrome 会一直挂在 MCP wrapper 下面，直到 MCP client close。因此 OpenChinaCode 在执行 `playwright_browser_close` 后会自动 `disconnect -> connect` 对应 MCP server。这个 restart 通过 `Effect.ensuring` 执行，即使 `browser_close` tool 自己失败，也会尝试清理并恢复后续 Playwright 工具可用性。
 
 ### `/sessions`
 
@@ -516,10 +520,10 @@ Playwright MCP 默认产物目录：
 内置 Playwright MCP 入口：
 
 ```text
-openchinacode mcp playwright --headless --browser=chrome --caps=default
+openchinacode mcp playwright --headless --isolated --browser=chrome --caps=default
 ```
 
-`--caps=default` 在 OpenChinaCode 中展开为 `config,network,storage,testing,pdf,vision`。默认不启用 `devtools`，避免模型看到高成本录屏工具后误用。高级用户可以手动改成 `--caps=all` 来启用 `devtools`。
+`--caps=default` 在 OpenChinaCode 中展开为 `config,network,storage,testing,pdf,vision`。默认不启用 `devtools`，避免模型看到高成本录屏工具后误用。高级用户可以手动改成 `--caps=all` 来启用 `devtools`。`--isolated` 是默认值，避免多个 OpenChinaCode session 复用同一个 persistent browser profile。
 
 动画/过渡/播放状态检查的目标链路是：
 
@@ -926,7 +930,7 @@ TUI 新用户优先使用：
   "mcp": {
     "playwright": {
       "type": "local",
-      "command": ["openchinacode", "mcp", "playwright", "--headless", "--browser=chrome", "--caps=default"],
+      "command": ["openchinacode", "mcp", "playwright", "--headless", "--isolated", "--browser=chrome", "--caps=default"],
       "enabled": true,
       "timeout": 30000,
     },

@@ -24,6 +24,7 @@ import { Filesystem } from "@/util/filesystem"
 import { Effect } from "effect"
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { which } from "@opencode-ai/core/util/which"
+import { execFileSync } from "child_process"
 
 function getAuthStatusIcon(status: MCP.AuthStatus): string {
   switch (status) {
@@ -173,6 +174,34 @@ function browserConfig(value: McpPlaywrightArgs["browser"]): {
   return { browserName: "chromium", channel: "chrome" }
 }
 
+function childPids(pid: number) {
+  if (process.platform === "win32") return [] as number[]
+  const result: number[] = []
+  const queue = [pid]
+  for (let index = 0; index < queue.length; index++) {
+    let text = ""
+    try {
+      text = execFileSync("pgrep", ["-P", String(queue[index])], { encoding: "utf8" })
+    } catch {}
+    for (const tok of text.split("\n")) {
+      const child = parseInt(tok, 10)
+      if (!isNaN(child) && !result.includes(child)) {
+        result.push(child)
+        queue.push(child)
+      }
+    }
+  }
+  return result
+}
+
+function terminateChildPids(pids: number[]) {
+  for (const pid of [...new Set(pids)]) {
+    try {
+      process.kill(pid, "SIGTERM")
+    } catch {}
+  }
+}
+
 function absoluteBrowserCandidates(browser: PlaywrightBrowser) {
   if (process.platform === "darwin") {
     if (browser === "chrome") return ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"]
@@ -182,8 +211,10 @@ function absoluteBrowserCandidates(browser: PlaywrightBrowser) {
     const programFiles = [process.env.PROGRAMFILES, process.env["PROGRAMFILES(X86)"], process.env.LOCALAPPDATA].filter(
       (item): item is string => !!item,
     )
-    if (browser === "chrome") return programFiles.map((base) => path.join(base, "Google", "Chrome", "Application", "chrome.exe"))
-    if (browser === "msedge") return programFiles.map((base) => path.join(base, "Microsoft", "Edge", "Application", "msedge.exe"))
+    if (browser === "chrome")
+      return programFiles.map((base) => path.join(base, "Google", "Chrome", "Application", "chrome.exe"))
+    if (browser === "msedge")
+      return programFiles.map((base) => path.join(base, "Microsoft", "Edge", "Application", "msedge.exe"))
   }
   return []
 }
@@ -272,9 +303,21 @@ export const McpPlaywrightCommand = cmd<{}, McpPlaywrightArgs>({
       .option("timeout-action", { type: "number", describe: "default Playwright action timeout in milliseconds" })
       .option("timeout-navigation", { type: "number", describe: "default navigation timeout in milliseconds" })
       .option("user-data-dir", { type: "string", describe: "browser profile directory" })
-      .option("isolated", { type: "boolean", describe: "keep browser profile in memory" })
-      .option("image-responses", { type: "string", choices: ["allow", "omit"] as const, describe: "image response mode" })
-      .option("snapshot-mode", { type: "string", choices: ["full", "none"] as const, describe: "snapshot response mode" })
+      .option("isolated", {
+        type: "boolean",
+        default: true,
+        describe: "keep browser profile in memory; use --no-isolated with --user-data-dir for a persistent profile",
+      })
+      .option("image-responses", {
+        type: "string",
+        choices: ["allow", "omit"] as const,
+        describe: "image response mode",
+      })
+      .option("snapshot-mode", {
+        type: "string",
+        choices: ["full", "none"] as const,
+        describe: "snapshot response mode",
+      })
       .option("console-level", {
         type: "string",
         choices: ["error", "warning", "info", "debug"] as const,
@@ -296,13 +339,12 @@ export const McpPlaywrightCommand = cmd<{}, McpPlaywrightArgs>({
     const outputDir = path.resolve(startCwd, args.outputDir ?? DEFAULT_PLAYWRIGHT_OUTPUT_DIR)
     const userDataDir = args.userDataDir ? path.resolve(startCwd, args.userDataDir) : undefined
     await fs.promises.mkdir(outputDir, { recursive: true })
-    process.chdir(outputDir)
     const { browserName, channel } = browserConfig(args.browser)
     const headless = args.headed ? false : args.headless !== false
     const server = await createConnection({
       browser: {
         browserName,
-        isolated: args.isolated,
+        isolated: userDataDir ? false : args.isolated !== false,
         userDataDir,
         launchOptions: {
           headless,
@@ -337,7 +379,9 @@ export const McpPlaywrightCommand = cmd<{}, McpPlaywrightArgs>({
       process.once("SIGINT", done)
       process.once("SIGTERM", done)
     })
+    const pids = childPids(process.pid)
     await server.close()
+    terminateChildPids(pids)
   },
 })
 

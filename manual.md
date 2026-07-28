@@ -639,7 +639,7 @@ explicit task model
   "mcp": {
     "playwright": {
       "type": "local",
-      "command": ["openchinacode", "mcp", "playwright", "--headless", "--browser=chrome", "--caps=default"],
+      "command": ["openchinacode", "mcp", "playwright", "--headless", "--isolated", "--browser=chrome", "--caps=default"],
       "enabled": true,
       "timeout": 30000,
     },
@@ -649,6 +649,9 @@ explicit task model
 
 `/test-mcp on/headless/headed` 会写入配置并立即 hot-connect；`/test-mcp off` 会写入 disabled 并立即 disconnect。通常不需要重启。
 默认浏览器是系统 Google Chrome。执行 `/test-mcp on/headless/headed` 时会先做 Chrome 预检；如果没有安装，会直接提示安装方法，不会写入启用配置，也不会等开发任务跑到浏览器工具调用时才失败。
+
+OpenChinaCode 默认用 `--isolated` 启动内置 Playwright MCP。浏览器 profile 保存在内存隔离上下文里，不复用 `mcp-chrome-<hash>` 这类持久目录，减少 `Browser is already in use` / `SingletonLock` 残留问题。如果确实需要复用登录态，可以手动改配置，移除 `--isolated` 并增加 `--user-data-dir <path>`。
+当模型调用 `playwright_browser_close` 后，OpenChinaCode 会自动回收并重连对应 MCP server，确保底层 Chrome 子进程被清理，同时后续仍可继续使用 Playwright 工具。
 内置 Playwright MCP 默认启用官方 `config/network/storage/testing/pdf/vision` 能力，因此模型可以看到官方的 screenshot、snapshot、evaluate 等工具，但默认不暴露 devtools 录屏工具。对于“是否在转、是否在动、动画是否生效”这类问题，OpenChinaCode 要求模型优先用 `getAnimations()`、computed transform 或裁剪区域像素差做确定性判断；截图和 `visual_check` 只用于理解用户可见外观。浏览器录屏默认不作为模型输入路径，除非用户明确要求生成视频证据。
 
 Playwright MCP 产物默认写入系统临时目录，避免截图、snapshot、console log 被丢到项目根目录：

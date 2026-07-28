@@ -405,6 +405,19 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
             { tool: key, sessionID: ctx.sessionID, callID: opts.toolCallId },
             { args },
           )
+          const mcpClientName = entry.clientName
+          const restartAfterBrowserClose =
+            entry.def.name === "browser_close" && mcpClientName
+              ? mcp.disconnect(mcpClientName).pipe(
+                  Effect.andThen(() => mcp.connect(mcpClientName)),
+                  Effect.catch((error: unknown) =>
+                    Effect.logWarning("failed to restart MCP server after browser_close", {
+                      clientName: mcpClientName,
+                      error: error instanceof Error ? error.message : String(error),
+                    }),
+                  ),
+                )
+              : Effect.void
           const result: Awaited<ReturnType<NonNullable<typeof execute>>> = yield* Effect.gen(function* () {
             yield* ctx.ask({ permission: key, metadata: {}, patterns: ["*"], always: ["*"] })
             return yield* Effect.promise(() => execute(args, opts))
@@ -417,6 +430,7 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
                 "message.id": input.processor.message.id,
               },
             }),
+            Effect.ensuring(restartAfterBrowserClose),
           )
           yield* plugin.trigger(
             "tool.execute.after",

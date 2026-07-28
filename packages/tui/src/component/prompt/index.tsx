@@ -74,11 +74,7 @@ import { usePromptWorkspace } from "./workspace"
 import { usePromptMove } from "./move"
 import { readLocalAttachment } from "./local-attachment"
 import { shouldUseVisualPreprocess } from "./visual-preprocess"
-import {
-  isOcrDocumentFilePart,
-  ocrFilePartReference,
-  ocrPreprocessUserText,
-} from "./ocr-route"
+import { isOcrDocumentFilePart, ocrFilePartReference, ocrPreprocessUserText } from "./ocr-route"
 import { FILE_LIST_MIME } from "../../clipboard"
 import {
   parseAutoMaxTokensSlashAction,
@@ -318,6 +314,7 @@ function playwrightMcpConfig(input: { enabled: boolean; headless?: boolean }) {
       "mcp",
       "playwright",
       input.headless === false ? "--headed" : "--headless",
+      "--isolated",
       "--browser=chrome",
       "--caps=default",
     ],
@@ -2393,8 +2390,8 @@ export function Prompt(props: PromptProps) {
 
     // Filter out text parts (pasted content) since they're now expanded inline
     const nonTextParts = store.prompt.parts.filter((part) => part.type !== "text")
-    const ocrParts = nonTextParts.filter(
-      (part): part is Omit<FilePart, "id" | "messageID" | "sessionID"> => isOcrDocumentFilePart(part),
+    const ocrParts = nonTextParts.filter((part): part is Omit<FilePart, "id" | "messageID" | "sessionID"> =>
+      isOcrDocumentFilePart(part),
     )
     const ocrPartSet = new Set<PromptInfo["parts"][number]>(ocrParts)
     const ocrFiles = ocrParts.map(ocrFilePartReference)

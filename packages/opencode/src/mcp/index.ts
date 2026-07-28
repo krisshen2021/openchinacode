@@ -157,6 +157,8 @@ export interface ServerInstructions {
 export interface McpTool {
   /** Shared cached definition; consumers must copy rather than mutate it. */
   readonly def: MCPToolDef
+  /** MCP server name; optional for older tests/mocks. */
+  readonly clientName?: string
   readonly client: MCPClient
   readonly timeout?: number
 }
@@ -210,6 +212,67 @@ const layer = Layer.effect(
 
     type Transport = StdioClientTransport | StreamableHTTPClientTransport | SSEClientTransport
 
+    const descendants = Effect.fnUntraced(
+      function* (pid: number) {
+        if (process.platform === "win32") return [] as number[]
+        const pids: number[] = []
+        const queue = [pid]
+        for (let index = 0; index < queue.length; index++) {
+          const current = queue[index]
+          const handle = yield* spawner.spawn(ChildProcess.make("pgrep", ["-P", String(current)], { stdin: "ignore" }))
+          const text = yield* Stream.mkString(Stream.decodeText(handle.stdout))
+          yield* handle.exitCode
+          for (const tok of text.split("\n")) {
+            const cpid = parseInt(tok, 10)
+            if (!isNaN(cpid) && !pids.includes(cpid)) {
+              pids.push(cpid)
+              queue.push(cpid)
+            }
+          }
+        }
+        return pids
+      },
+      Effect.scoped,
+      Effect.catch(() => Effect.succeed([] as number[])),
+    )
+
+    function localTransportPid(transport: unknown) {
+      return transport instanceof StdioClientTransport && typeof transport.pid === "number" ? transport.pid : undefined
+    }
+
+    const terminatePids = Effect.fnUntraced(function* (name: string, pids: number[]) {
+      if (process.platform === "win32") return
+      const unique = [...new Set(pids)]
+      if (!unique.length) return
+      for (const pid of unique) {
+        try {
+          process.kill(pid, "SIGTERM")
+        } catch {}
+      }
+      yield* Effect.sleep("250 millis")
+      for (const pid of unique) {
+        try {
+          process.kill(pid, 0)
+          process.kill(pid, "SIGKILL")
+          yield* Effect.logWarning("force-killed orphaned MCP child process", { server: name, pid })
+        } catch {}
+      }
+    })
+
+    const closeTransport = Effect.fnUntraced(function* (name: string, transport: Transport) {
+      const pid = localTransportPid(transport)
+      const childPids = typeof pid === "number" ? yield* descendants(pid) : []
+      yield* Effect.tryPromise(() => transport.close()).pipe(Effect.ignore)
+      yield* terminatePids(name, childPids)
+    })
+
+    const closeMcpClient = Effect.fnUntraced(function* (name: string, client: MCPClient) {
+      const pid = localTransportPid(client.transport)
+      const childPids = typeof pid === "number" ? yield* descendants(pid) : []
+      yield* Effect.tryPromise(() => client.close()).pipe(Effect.ignore)
+      yield* terminatePids(name, childPids)
+    })
+
     /**
      * Connect a client via the given transport with resource safety:
      * on failure the transport is closed; on success the caller owns it.
@@ -226,7 +289,7 @@ const layer = Layer.effect(
             },
             catch: (e) => (e instanceof Error ? e : new Error(String(e))),
           }),
-        (t, exit) => (Exit.isFailure(exit) ? Effect.tryPromise(() => t.close()).pipe(Effect.ignore) : Effect.void),
+        (t, exit) => (Exit.isFailure(exit) ? closeTransport("connect-failed", t) : Effect.void),
       )
     })
 
@@ -398,9 +461,7 @@ const layer = Layer.effect(
             instructions: mcpClient.getInstructions()?.trim(),
           } satisfies CreateResult
         }).pipe(
-          Effect.catchCause((cause) =>
-            Effect.tryPromise(() => mcpClient.close()).pipe(Effect.ignore, Effect.andThen(Effect.failCause(cause))),
-          ),
+          Effect.catchCause((cause) => closeMcpClient(key, mcpClient).pipe(Effect.andThen(Effect.failCause(cause)))),
         )
       },
       Effect.map((result): CreateResult => result),
@@ -413,30 +474,6 @@ const layer = Layer.effect(
       }),
     )
     const cfgSvc = yield* Config.Service
-
-    const descendants = Effect.fnUntraced(
-      function* (pid: number) {
-        if (process.platform === "win32") return [] as number[]
-        const pids: number[] = []
-        const queue = [pid]
-        for (let index = 0; index < queue.length; index++) {
-          const current = queue[index]
-          const handle = yield* spawner.spawn(ChildProcess.make("pgrep", ["-P", String(current)], { stdin: "ignore" }))
-          const text = yield* Stream.mkString(Stream.decodeText(handle.stdout))
-          yield* handle.exitCode
-          for (const tok of text.split("\n")) {
-            const cpid = parseInt(tok, 10)
-            if (!isNaN(cpid) && !pids.includes(cpid)) {
-              pids.push(cpid)
-              queue.push(cpid)
-            }
-          }
-        }
-        return pids
-      },
-      Effect.scoped,
-      Effect.catch(() => Effect.succeed([] as number[])),
-    )
 
     function watch(s: State, name: string, client: MCPClient, bridge: EffectBridge.Shape, timeout?: number) {
       client.onclose = () => {
@@ -529,27 +566,13 @@ const layer = Layer.effect(
 
         yield* Effect.addFinalizer(() =>
           Effect.gen(function* () {
-            const clients = Object.values(s.clients)
+            const clients = Object.entries(s.clients)
             s.clients = {}
             s.defs = {}
             s.instructions = {}
-            yield* Effect.forEach(
-              clients,
-              (client) =>
-                Effect.gen(function* () {
-                  const pid = client.transport instanceof StdioClientTransport ? client.transport.pid : null
-                  if (typeof pid === "number") {
-                    const pids = yield* descendants(pid)
-                    for (const dpid of pids) {
-                      try {
-                        process.kill(dpid, "SIGTERM")
-                      } catch {}
-                    }
-                  }
-                  yield* Effect.tryPromise(() => client.close()).pipe(Effect.ignore)
-                }),
-              { concurrency: "unbounded" },
-            )
+            yield* Effect.forEach(clients, ([name, client]) => closeMcpClient(name, client), {
+              concurrency: "unbounded",
+            })
             pendingOAuthTransports.clear()
           }),
         )
@@ -564,7 +587,7 @@ const layer = Layer.effect(
       delete s.defs[name]
       delete s.instructions[name]
       if (!client) return Effect.void
-      return Effect.tryPromise(() => client.close()).pipe(Effect.ignore)
+      return closeMcpClient(name, client)
     }
 
     const storeClient = Effect.fnUntraced(function* (
@@ -583,7 +606,7 @@ const layer = Layer.effect(
       if (instructions) s.instructions[name] = instructions
       else delete s.instructions[name]
       watch(s, name, client, bridge, timeout)
-      if (previous) yield* Effect.tryPromise(() => previous.close()).pipe(Effect.ignore)
+      if (previous) yield* closeMcpClient(name, previous)
       return s.status[name]
     })
 
@@ -680,7 +703,7 @@ const layer = Layer.effect(
         }
         const timeout = requestTimeout(s, clientName, mcpConfig, defaultTimeout)
         for (const def of listed) {
-          result[McpCatalog.toolName(clientName, def.name)] = { def, client, timeout }
+          result[McpCatalog.toolName(clientName, def.name)] = { def, clientName, client, timeout }
         }
       }
       return result

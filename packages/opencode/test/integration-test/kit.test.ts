@@ -66,6 +66,7 @@ describe("OpenChinaCode integration test kit", () => {
       "mcp",
       "playwright",
       "--headless",
+      "--isolated",
       "--browser=chrome",
       "--caps=default",
     ])
