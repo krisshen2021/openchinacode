@@ -828,7 +828,7 @@ const layer = Layer.effect(
           ),
         )
         const decision = judged?.decision
-        if (!decision || !TaskRouterJudge.shouldDelegate(decision, extra)) return
+        if (!decision || !TaskRouterJudge.shouldDelegate(decision, extra, { currentModel: current })) return
 
         const subagent = yield* agents
           .get(decision.subagent_type)

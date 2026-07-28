@@ -44,6 +44,21 @@ describe("TaskRouterJudge", () => {
     expect(TaskRouterJudge.shouldDelegate(decision, { enabled: true, allow: ["review"] })).toBe(false)
   })
 
+  test("does not delegate visual checks when the current model can inspect images directly", () => {
+    const decision = {
+      action: "delegate",
+      task_kind: "visual_check",
+      task_complexity: "quick",
+      subagent_type: "general",
+      confidence: 0.95,
+      description: "Inspect image",
+      reason: "visual request",
+    } as const
+
+    expect(TaskRouterJudge.shouldDelegate(decision, { enabled: true }, { supportsDirectImageInput: true })).toBe(false)
+    expect(TaskRouterJudge.shouldDelegate(decision, { enabled: true }, { supportsDirectImageInput: false })).toBe(true)
+  })
+
   test("builds read-only delegated prompt for plan mode", () => {
     const prompt = TaskRouterJudge.buildSubtaskPrompt({
       planReadonly: true,

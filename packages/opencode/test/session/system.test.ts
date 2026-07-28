@@ -88,7 +88,7 @@ describe("session.system", () => {
     const model = {
       providerID: "moonshotai-cn",
       api: {
-        id: "kimi-k2.7-code-highspeed",
+        id: "kimi-k3",
       },
     } as Provider.Model
     const prompts = SystemPrompt.provider(model)
@@ -96,6 +96,23 @@ describe("session.system", () => {
     expect(prompts).toHaveLength(2)
     expect(prompts[0]).toContain("You are opencode, an interactive CLI tool")
     expect(prompts[1]).toContain("OpenChinaCode Tool Safety Contract")
+    expect(prompts[1]).toContain("If the current model can inspect images/screenshots directly")
+    expect(prompts[1]).not.toContain("If a screenshot/image was captured or read and the user asked about its visual state")
+  })
+
+  test("keeps visual fallback capability-aware when task policy is disabled", () => {
+    const model = {
+      providerID: "moonshotai-cn",
+      api: {
+        id: "kimi-k3",
+      },
+    } as Provider.Model
+    const prompts = SystemPrompt.provider(model, { taskPolicyEnabled: false })
+
+    expect(prompts).toHaveLength(2)
+    expect(prompts[1]).toContain("OpenChinaCode Visual Fallback")
+    expect(prompts[1]).toContain("If the current model can inspect images/screenshots directly")
+    expect(prompts[1]).toContain("Do not delegate to visual_check only because an image exists or was read.")
   })
 
   test("inserts selected OpenChinaCode soul before China tool instructions", () => {

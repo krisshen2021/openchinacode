@@ -36,6 +36,10 @@ const DEFAULT_DENY = new Set<ConfigTaskPolicy.TaskKind>(["general", "summarize",
 const KIND_SET = new Set<string>(ConfigTaskPolicy.TaskKinds)
 const COMPLEXITY_SET = new Set<string>(ConfigTaskPolicy.TaskComplexities)
 
+export function supportsDirectImageInput(model: Provider.Model | undefined) {
+  return model?.capabilities?.attachment === true && model.capabilities.input?.image === true
+}
+
 function isTaskKind(value: unknown): value is ConfigTaskPolicy.TaskKind {
   return typeof value === "string" && KIND_SET.has(value)
 }
@@ -116,7 +120,9 @@ function judgeMessages(input: {
         "You are OpenChinaCode's fast extra task router judge.",
         "Decide whether the current user request should be delegated to a subagent before the primary model answers.",
         "Return one compact JSON object only. Do not include Markdown or explanations.",
-        "Delegate when the request is project-dependent and benefits from a focused subagent: planning, architecture, refactor, review, implementation, exploration, debugging, failing tests, or visual inspection.",
+        "Delegate when the request is project-dependent and benefits from a focused subagent: planning, architecture, refactor, review, implementation, exploration, debugging, failing tests, or visual inspection that the current model cannot perform directly.",
+        "If current_model_supports_image_input is true, do not delegate pure screenshot/image inspection to visual_check; let the primary model inspect the image directly.",
+        "If current_model_supports_image_input is false and image/screenshot inspection is required, delegate to visual_check.",
         "Do not delegate simple factual questions, status checks, tiny one-step edits, pure chat, slash-command help, compaction requests, or generic summaries.",
         "If the request is mixed, choose the dominant coding task that should run first.",
         "Schema:",
@@ -129,6 +135,7 @@ function judgeMessages(input: {
       role: "user",
       content: JSON.stringify({
         current_model: `${input.currentModel.providerID}/${input.currentModel.id}`,
+        current_model_supports_image_input: supportsDirectImageInput(input.currentModel),
         agent: { name: input.agent.name, mode: input.agent.mode },
         local_assignment: input.localAssignment,
         part_summary: input.partSummary,
@@ -144,9 +151,16 @@ function configuredSet(values: ConfigTaskPolicy.TaskKind[] | undefined, fallback
   return new Set(values)
 }
 
-export function shouldDelegate(decision: Decision, config: ConfigTaskPolicy.ExtraRouter | undefined) {
+export function shouldDelegate(
+  decision: Decision,
+  config: ConfigTaskPolicy.ExtraRouter | undefined,
+  options: { currentModel?: Provider.Model; supportsDirectImageInput?: boolean } = {},
+) {
   if (config?.enabled !== true) return false
   if (decision.action !== "delegate") return false
+  const directImage =
+    options.supportsDirectImageInput ?? (options.currentModel ? supportsDirectImageInput(options.currentModel) : false)
+  if (decision.task_kind === "visual_check" && directImage) return false
   const threshold = config.confidence_threshold ?? DEFAULT_CONFIDENCE_THRESHOLD
   if (decision.confidence < threshold) return false
   const deny = configuredSet(config.deny, DEFAULT_DENY)

@@ -27,6 +27,7 @@ const PROMPT_CHINA_VISUAL_FALLBACK = [
   "# OpenChinaCode Visual Fallback",
   "",
   "Task policy routing may be disabled for ordinary subagents, but visual_check remains available as a model capability fallback.",
+  "If the current model can inspect images/screenshots directly, inspect pasted, read, captured, or generated image attachments yourself. Do not delegate to visual_check only because an image exists or was read.",
   "If the current model cannot inspect a pasted, read, captured, or generated screenshot/image directly, do not ask the user to inspect it manually.",
   'Call the task tool with subagent_type="general", task_kind="visual_check", task_complexity="quick" or "medium", and include the image path/name plus the user\'s exact visual question.',
   "Do not use task for ordinary planning, refactor, implementation, review, debug, or exploration while task policy is disabled; handle those with the current main model.",

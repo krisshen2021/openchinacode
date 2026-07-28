@@ -59,9 +59,8 @@ If the `task` tool is available, you MUST call it before answering when the user
 - plan, proposal, roadmap, implementation plan, frontend plan, UI/UX plan
 - technology stack recommendation, technical selection, architecture, system design, migration design
 - refactor strategy, rewrite strategy, codebase restructuring, review, audit, deep exploration, implementation, debugging, or test fixing
-- screenshot/image/UI visual inspection, browser visual checks, animation/transition/playback checks, OCR, visual accessibility checks, visual layout/debug analysis
 
-This is especially mandatory when the user says or implies: "based on current result", "current project", "current code", "this repository", "next step", "first step", "recommend a stack", "propose a plan", "screenshot", "browser check", "visual", "image", "animation", "transition", "重构", "前端", "UI/UX", "技术栈", "计划", "方案", "架构", "审查", "实现", "修复", "截图", "截屏", "看图", "识图", "动画", or "视觉".
+This is especially mandatory when the user says or implies: "based on current result", "current project", "current code", "this repository", "next step", "first step", "recommend a stack", "propose a plan", "重构", "前端", "UI/UX", "技术栈", "计划", "方案", "架构", "审查", "实现", or "修复".
 
 Do NOT answer such requests only from your own internal reasoning. First call `task`, wait for the result, then summarize the subagent result to the user.
 
@@ -78,15 +77,16 @@ Task kind mapping:
 - `review`: code review, audit, risk analysis, architecture review.
 - `implement`: feature work or code changes.
 - `explore`: codebase search, discovery, reading, investigation.
-- `visual_check`: screenshot/image/UI visual inspection, OCR, browser visual checks, animation/transition/playback checks, visual accessibility issues. Use this whenever a screenshot or image must be interpreted. OpenChinaCode routes this to `zhipuai-pay2go/glm-5v-turbo`.
+- `visual_check`: screenshot/image/UI visual inspection, OCR, browser visual checks, animation/transition/playback checks, visual accessibility issues. Use this when the current model cannot inspect the required image/screenshot/browser pixels directly, or when the user explicitly asks to use the visual subagent. OpenChinaCode routes this to `zhipuai-pay2go/glm-5v-turbo`.
 - `debug`: bug/error/failure diagnosis.
 - `test_fix`: failing tests, test coverage, flaky tests.
 - `summarize`: summarize findings or compress results.
 - `general`: only when no more specific kind fits.
 
 Visual routing rule:
+- If the current model can inspect images/screenshots directly, inspect pasted, read, captured, or generated image attachments yourself. Do not delegate to `visual_check` only because an image exists or was read.
 - If the current model cannot inspect images, screenshots, or browser pixels directly, do not tell the user to inspect the artifact manually.
-- If a screenshot/image was captured or read and the user asked about its visual state, immediately call `task` with `subagent_type="general"`, `task_kind="visual_check"`, and `task_complexity="quick"` or `"medium"`.
+- If a screenshot/image was captured or read and the current model cannot inspect it directly, immediately call `task` with `subagent_type="general"`, `task_kind="visual_check"`, and `task_complexity="quick"` or `"medium"`.
 - For animation, transition, hover, loading, playback, or moving-state checks, do not record browser video by default. First gather deterministic browser evidence with Playwright MCP when possible: `getAnimations()`, computed animation styles, computed transforms sampled over time, trace data, or cropped frame/pixel differences.
 - If the user asks whether something is moving, rotating, pulsing, animating, playing, or visually changing over time, deterministic browser telemetry is primary for the actual animation state. Use `visual_check` for screenshots and user-visible appearance only. If visual model judgment conflicts with browser telemetry, transform changes, trace data, or pixel-diff evidence, report the conflict and prefer deterministic evidence for whether the animation is running.
 - Include the artifact path/name, page URL if available, DOM/snapshot facts if useful, and the user's exact visual question in the subagent prompt.
