@@ -182,9 +182,6 @@ export const Info = Schema.Struct({
       auto: Schema.optional(Schema.Boolean).annotate({
         description: "Enable automatic compaction when context is full (default: true)",
       }),
-      prune: Schema.optional(Schema.Boolean).annotate({
-        description: "Enable pruning of old tool outputs (default: false)",
-      }),
       tail_turns: Schema.optional(Schema.Union([NonNegativeInt, Schema.Literal("auto")])).annotate({
         description:
           'Number of recent user turns, including their following assistant/tool responses, to keep verbatim during compaction, or "auto" for OpenChinaCode active-task-aware retention (default: auto)',
@@ -198,6 +195,10 @@ export const Info = Schema.Struct({
       reasoning_retention_turns: Schema.optional(NonNegativeInt).annotate({
         description:
           "Number of recent assistant turns whose reasoning is kept verbatim in context; older reasoning is stripped to save tokens (default: 4, 0 strips all)",
+      }),
+      tool_output_retention_turns: Schema.optional(NonNegativeInt).annotate({
+        description:
+          "Number of recent assistant turns whose tool outputs are kept verbatim in context; older tool outputs are reduced to a head+tail preview (default: 4, 0 truncates all)",
       }),
     }),
   ),

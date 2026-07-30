@@ -90,15 +90,16 @@ import { llmClient } from "../../effect/app-node-platform"
  */
 
 const DEFAULT_REASONING_RETENTION_TURNS = 4
+const DEFAULT_TOOL_OUTPUT_RETENTION_TURNS = 4
 
-const reasoningRetentionTurns = (documents: readonly Config.Entry[]) => {
+const retentionTurns = (documents: readonly Config.Entry[], key: "reasoning_retention_turns" | "tool_output_retention_turns", fallback: number) => {
   for (let i = documents.length - 1; i >= 0; i--) {
     const entry = documents[i]
     if (entry.type !== "document") continue
-    const turns = entry.info.compaction?.reasoning_retention_turns
+    const turns = entry.info.compaction?.[key]
     if (turns !== undefined) return turns
   }
-  return DEFAULT_REASONING_RETENTION_TURNS
+  return fallback
 }
 
 const layer = Layer.effect(
@@ -218,7 +219,12 @@ const layer = Layer.effect(
           .map(SystemPart.make),
         messages: [
           ...toLLMMessages(context, model, {
-            reasoningRetention: reasoningRetentionTurns(configEntries),
+            reasoningRetention: retentionTurns(configEntries, "reasoning_retention_turns", DEFAULT_REASONING_RETENTION_TURNS),
+            toolOutputRetention: retentionTurns(
+              configEntries,
+              "tool_output_retention_turns",
+              DEFAULT_TOOL_OUTPUT_RETENTION_TURNS,
+            ),
           }),
           ...(isLastStep ? [Message.assistant(MAX_STEPS_PROMPT)] : []),
         ],

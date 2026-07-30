@@ -58,11 +58,12 @@ export function migrate(info: typeof ConfigV1.Info.Type) {
     mcp: mcp(info),
     compaction: info.compaction && {
       auto: info.compaction.auto,
-      prune: info.compaction.prune,
       keep: {
         tokens: info.compaction.preserve_recent_tokens,
       },
       buffer: info.compaction.reserved,
+      reasoning_retention_turns: info.compaction.reasoning_retention_turns,
+      tool_output_retention_turns: info.compaction.tool_output_retention_turns,
     },
     skills: info.skills && [...(info.skills.paths ?? []), ...(info.skills.urls ?? [])],
     commands: info.command,

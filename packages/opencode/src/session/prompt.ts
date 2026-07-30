@@ -1535,6 +1535,7 @@ const layer = Layer.effect(
               sys.mcp(agent, session.permission),
               MessageV2.toModelMessagesEffect(msgs, model, {
                 reasoningRetention: cfg.compaction?.reasoning_retention_turns ?? 4,
+                toolOutputRetention: cfg.compaction?.tool_output_retention_turns ?? 4,
               }),
             ])
             const system = [
@@ -1611,7 +1612,6 @@ const layer = Layer.effect(
           continue
         }
 
-        yield* compaction.prune({ sessionID }).pipe(Effect.ignore, Effect.forkIn(scope))
         return yield* lastAssistant(sessionID)
       },
     )

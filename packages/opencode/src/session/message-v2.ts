@@ -52,6 +52,16 @@ function truncateToolOutput(text: string, maxChars?: number) {
   return `${text.slice(0, maxChars)}\n[Tool output truncated for compaction: omitted ${omitted} chars]`
 }
 
+// Old tool outputs keep a head+tail preview: headers/errors at the start and
+// trailing failures at the end are the most useful parts of long outputs.
+const TOOL_OUTPUT_PREVIEW_CHARS = 1_000
+
+function truncateToolOutputPreview(text: string) {
+  if (text.length <= TOOL_OUTPUT_PREVIEW_CHARS * 2) return text
+  const omitted = text.length - TOOL_OUTPUT_PREVIEW_CHARS * 2
+  return `${text.slice(0, TOOL_OUTPUT_PREVIEW_CHARS)}\n[... ${omitted} chars omitted from old tool output; re-run the tool or read the file if the full result is needed ...]\n${text.slice(-TOOL_OUTPUT_PREVIEW_CHARS)}`
+}
+
 export const Event = {
   Updated: SessionV1.Event.MessageUpdated,
   Removed: SessionV1.Event.MessageRemoved,
@@ -131,20 +141,37 @@ function providerMeta(metadata: Record<string, any> | undefined) {
 export const toModelMessagesEffect = Effect.fnUntraced(function* (
   input: WithParts[],
   model: Provider.Model,
-  options?: { stripMedia?: boolean; toolOutputMaxChars?: number; reasoningRetention?: number },
+  options?: {
+    stripMedia?: boolean
+    toolOutputMaxChars?: number
+    reasoningRetention?: number
+    toolOutputRetention?: number
+  },
 ) {
   const result: UIMessage[] = []
   const toolNames = new Set<string>()
-  // When reasoningRetention is set, strip reasoning parts from assistant turns
-  // beyond the last N turns. Count assistant turns from the end of input.
-  const stripReasoningFor = new Set<string>()
-  const reasoningRetention = options?.reasoningRetention
-  if (reasoningRetention !== undefined && reasoningRetention >= 0) {
+  // Count assistant turns from the end of input. Turns beyond the reasoning
+  // retention window have reasoning parts stripped; turns beyond the tool
+  // output retention window have tool outputs reduced to a head+tail preview.
+  const assistantTurnIndex = new Map<string, number>()
+  {
     let assistantTurns = 0
     for (let i = input.length - 1; i >= 0; i--) {
       if (input[i].info.role !== "assistant") continue
       assistantTurns++
-      if (assistantTurns > reasoningRetention) stripReasoningFor.add(input[i].info.id)
+      assistantTurnIndex.set(input[i].info.id, assistantTurns)
+    }
+  }
+  const stripReasoningFor = new Set<string>()
+  if (options?.reasoningRetention !== undefined && options.reasoningRetention >= 0) {
+    for (const [id, turn] of assistantTurnIndex) {
+      if (turn > options.reasoningRetention) stripReasoningFor.add(id)
+    }
+  }
+  const truncateToolOutputFor = new Set<string>()
+  if (options?.toolOutputRetention !== undefined && options.toolOutputRetention >= 0) {
+    for (const [id, turn] of assistantTurnIndex) {
+      if (turn > options.toolOutputRetention) truncateToolOutputFor.add(id)
     }
   }
   // Track media from tool results that need to be injected as user messages
@@ -305,10 +332,14 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
         if (part.type === "tool") {
           toolNames.add(part.tool)
           if (part.state.status === "completed") {
+            const ageTruncate = truncateToolOutputFor.has(msg.info.id)
             const outputText = part.state.time.compacted
               ? "[Old tool result content cleared]"
-              : truncateToolOutput(part.state.output, options?.toolOutputMaxChars)
-            const attachments = part.state.time.compacted || options?.stripMedia ? [] : (part.state.attachments ?? [])
+              : ageTruncate
+                ? truncateToolOutputPreview(part.state.output)
+                : truncateToolOutput(part.state.output, options?.toolOutputMaxChars)
+            const attachments =
+              part.state.time.compacted || ageTruncate || options?.stripMedia ? [] : (part.state.attachments ?? [])
 
             // For providers that don't support media in tool results, extract media files
             // (images, PDFs) to be sent as a separate user message
@@ -433,7 +464,12 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
 export function toModelMessages(
   input: WithParts[],
   model: Provider.Model,
-  options?: { stripMedia?: boolean; toolOutputMaxChars?: number; reasoningRetention?: number },
+  options?: {
+    stripMedia?: boolean
+    toolOutputMaxChars?: number
+    reasoningRetention?: number
+    toolOutputRetention?: number
+  },
 ): Promise<ModelMessage[]> {
   return Effect.runPromise(toModelMessagesEffect(input, model, options))
 }

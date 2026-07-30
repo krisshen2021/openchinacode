@@ -1346,6 +1346,108 @@ describe("session.message-v2.toModelMessage", () => {
     const assistant = result.find((m) => m.role === "assistant")!
     expect((assistant.content as any[]).filter((p) => p.type === "reasoning")).toHaveLength(1)
   })
+
+  test("truncates tool output to head+tail preview beyond retention window", async () => {
+    const bigOutput = "H".repeat(1500) + "M".repeat(2000) + "T".repeat(1500)
+    const input: SessionV1.WithParts[] = [
+      {
+        info: userInfo("m-user-1"),
+        parts: [{ ...basePart("m-user-1", "u1"), type: "text", text: "first" }] as SessionV1.Part[],
+      },
+      {
+        info: assistantInfo("m-asst-1", "m-user-1"),
+        parts: [
+          {
+            ...basePart("m-asst-1", "a1"),
+            type: "tool",
+            callID: "call-1",
+            tool: "bash",
+            state: {
+              status: "completed",
+              input: { cmd: "ls" },
+              output: bigOutput,
+              title: "Bash",
+              metadata: {},
+              time: { start: 0, end: 1 },
+            },
+          },
+        ] as SessionV1.Part[],
+      },
+      {
+        info: userInfo("m-user-2"),
+        parts: [{ ...basePart("m-user-2", "u2"), type: "text", text: "second" }] as SessionV1.Part[],
+      },
+      {
+        info: assistantInfo("m-asst-2", "m-user-2"),
+        parts: [
+          {
+            ...basePart("m-asst-2", "a2"),
+            type: "tool",
+            callID: "call-2",
+            tool: "bash",
+            state: {
+              status: "completed",
+              input: { cmd: "ls" },
+              output: bigOutput,
+              title: "Bash",
+              metadata: {},
+              time: { start: 0, end: 1 },
+            },
+          },
+        ] as SessionV1.Part[],
+      },
+    ]
+
+    const result = await MessageV2.toModelMessages(input, model, { toolOutputRetention: 1 })
+
+    const outputs = result
+      .filter((m) => m.role === "tool")
+      .flatMap((m) => (m.content as any[]).filter((p) => p.type === "tool-result").map((p) => p.output.value))
+
+    // Old turn (call-1): truncated to head+tail preview with omission marker.
+    const oldOutput = outputs[0] as string
+    expect(oldOutput).toContain("omitted")
+    expect(oldOutput.startsWith("H".repeat(1000))).toBe(true)
+    expect(oldOutput.endsWith("T".repeat(1000))).toBe(true)
+    expect(oldOutput.length).toBeLessThan(bigOutput.length)
+
+    // Recent turn (call-2): full output preserved.
+    expect(outputs[1]).toBe(bigOutput)
+  })
+
+  test("retains full tool output when toolOutputRetention is undefined", async () => {
+    const bigOutput = "x".repeat(5000)
+    const input: SessionV1.WithParts[] = [
+      {
+        info: userInfo("m-user-1"),
+        parts: [{ ...basePart("m-user-1", "u1"), type: "text", text: "first" }] as SessionV1.Part[],
+      },
+      {
+        info: assistantInfo("m-asst-1", "m-user-1"),
+        parts: [
+          {
+            ...basePart("m-asst-1", "a1"),
+            type: "tool",
+            callID: "call-1",
+            tool: "bash",
+            state: {
+              status: "completed",
+              input: { cmd: "ls" },
+              output: bigOutput,
+              title: "Bash",
+              metadata: {},
+              time: { start: 0, end: 1 },
+            },
+          },
+        ] as SessionV1.Part[],
+      },
+    ]
+
+    const result = await MessageV2.toModelMessages(input, model)
+    const toolMsg = result.find((m) => m.role === "tool")!
+    const output = (toolMsg.content as any[]).find((p) => p.type === "tool-result")!
+    expect(output.output.value).toBe(bigOutput)
+  })
 })
 
 describe("session.message-v2.fromError", () => {

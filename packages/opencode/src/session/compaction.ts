@@ -28,10 +28,7 @@ import { JsonJudge } from "./judge/json-judge"
 
 export const Event = SessionCompactionEvent
 
-export const PRUNE_MINIMUM = 20_000
-export const PRUNE_PROTECT = 40_000
 const TOOL_OUTPUT_MAX_CHARS = 2_000
-const PRUNE_PROTECTED_TOOLS = ["skill"]
 const DEFAULT_TAIL_TURNS = 2
 const MIN_PRESERVE_RECENT_TOKENS = 2_000
 const MAX_PRESERVE_RECENT_TOKENS = 8_000
@@ -196,7 +193,6 @@ export interface Interface {
     tokens: SessionV1.Assistant["tokens"]
     model: Provider.Model
   }) => Effect.Effect<boolean>
-  readonly prune: (input: { sessionID: SessionID }) => Effect.Effect<void>
   readonly process: (input: {
     parentID: MessageID
     messages: SessionV1.WithParts[]
@@ -504,54 +500,6 @@ const layer = Layer.effect(
         elapsedMs: result.elapsedMs,
         error: result.error,
       } satisfies ActiveTaskExtractResult
-    })
-
-    // goes backwards through parts until there are PRUNE_PROTECT tokens worth of tool
-    // calls, then erases output of older tool calls to free context space
-    const prune = Effect.fn("SessionCompaction.prune")(function* (input: { sessionID: SessionID }) {
-      const cfg = yield* config.get()
-      if (!cfg.compaction?.prune) return
-      yield* Effect.logInfo("pruning")
-
-      const msgs = yield* session
-        .messages({ sessionID: input.sessionID })
-        .pipe(Effect.catchIf(NotFoundError.isInstance, () => Effect.succeed(undefined)))
-      if (!msgs) return
-
-      let total = 0
-      let pruned = 0
-      const toPrune: SessionV1.ToolPart[] = []
-      let turns = 0
-
-      loop: for (let msgIndex = msgs.length - 1; msgIndex >= 0; msgIndex--) {
-        const msg = msgs[msgIndex]
-        if (msg.info.role === "user") turns++
-        if (turns < 2) continue
-        if (msg.info.role === "assistant" && msg.info.summary) break loop
-        for (let partIndex = msg.parts.length - 1; partIndex >= 0; partIndex--) {
-          const part = msg.parts[partIndex]
-          if (part.type !== "tool") continue
-          if (part.state.status !== "completed") continue
-          if (PRUNE_PROTECTED_TOOLS.includes(part.tool)) continue
-          if (part.state.time.compacted) break loop
-          const estimate = Token.estimate(part.state.output)
-          total += estimate
-          if (total <= PRUNE_PROTECT) continue
-          pruned += estimate
-          toPrune.push(part)
-        }
-      }
-
-      yield* Effect.logInfo("found", { pruned, total })
-      if (pruned > PRUNE_MINIMUM) {
-        for (const part of toPrune) {
-          if (part.state.status === "completed") {
-            part.state.time.compacted = Date.now()
-            yield* session.updatePart(part)
-          }
-        }
-        yield* Effect.logInfo("pruned", { count: toPrune.length })
-      }
     })
 
     const processCompaction = Effect.fn("SessionCompaction.process")(function* (input: {
@@ -985,7 +933,6 @@ const layer = Layer.effect(
 
     return Service.of({
       isOverflow,
-      prune,
       process: processCompaction,
       create,
     })
