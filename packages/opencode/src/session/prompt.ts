@@ -1539,10 +1539,13 @@ const layer = Layer.effect(
               }),
             ])
             const system = [
-              ...env,
+              // Volatile content (env block contains today's date) goes last so the
+              // static prefix (instructions, MCP, skills) stays byte-identical across
+              // days and keeps hitting provider prompt caches (GLM/DeepSeek).
               ...instructions,
               ...(mcpInstructions ? [mcpInstructions] : []),
               ...(skills ? [skills] : []),
+              ...env,
             ]
             const format = lastUser.format ?? { type: "text" as const }
             if (format.type === "json_schema") system.push(STRUCTURED_OUTPUT_SYSTEM_PROMPT)
