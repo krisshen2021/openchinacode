@@ -1811,6 +1811,18 @@ describe("util.token.estimate", () => {
   test("returns 0 for empty string", () => {
     expect(Token.estimate("")).toBe(0)
   })
+
+  test("weights CJK characters at ~1 token per char", () => {
+    // 1000 CJK chars should estimate close to 1000 (not 250).
+    const text = "中".repeat(1000)
+    expect(Token.estimate(text)).toBe(1000)
+  })
+
+  test("mixes CJK and ASCII weighting", () => {
+    // 1000 CJK (~1000) + 4000 ASCII (~1000) = ~2000
+    const text = "中".repeat(1000) + "x".repeat(4000)
+    expect(Token.estimate(text)).toBe(2000)
+  })
 })
 
 describe("SessionNs.getUsage", () => {
