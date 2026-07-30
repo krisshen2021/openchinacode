@@ -200,6 +200,10 @@ export const Info = Schema.Struct({
         description:
           "Number of recent assistant turns whose tool outputs are kept verbatim in context; older tool outputs are reduced to a head+tail preview (default: 4, 0 truncates all)",
       }),
+      attachment_retention_turns: Schema.optional(NonNegativeInt).annotate({
+        description:
+          "Number of recent assistant turns whose tool-result attachments (images, files) are kept in context; older attachments are dropped while text output is kept (default: 4, 0 drops all)",
+      }),
     }),
   ),
   experimental: Schema.optional(

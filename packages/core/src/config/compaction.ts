@@ -13,4 +13,5 @@ export class Info extends Schema.Class<Info>("ConfigV2.Compaction")({
   buffer: NonNegativeInt.pipe(Schema.optional),
   reasoning_retention_turns: NonNegativeInt.pipe(Schema.optional),
   tool_output_retention_turns: NonNegativeInt.pipe(Schema.optional),
+  attachment_retention_turns: NonNegativeInt.pipe(Schema.optional),
 }) {}

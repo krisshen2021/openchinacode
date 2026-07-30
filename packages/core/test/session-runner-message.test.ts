@@ -612,4 +612,54 @@ Recent work
     const result = (toolMessage?.content as ReadonlyArray<{ result: { type: string; value: unknown } }>)[0]?.result
     expect(result?.type === "text" ? result.value : undefined).toBe(bigOutput)
   })
+
+  test("drops file content from old turns but keeps text when attachment retention is exceeded", () => {
+    const turn = (value: string, output: string): SessionMessage.Assistant =>
+      SessionMessage.Assistant.make({
+        id: id(value),
+        type: "assistant",
+        agent: "build",
+        model: { id: ModelV2.ID.make("model"), providerID: ProviderV2.ID.make("provider") },
+        content: [
+          SessionMessage.AssistantTool.make({
+            type: "tool",
+            id: `tool-${value}`,
+            name: "bash",
+            provider: { executed: false },
+            state: SessionMessage.ToolStateCompleted.make({
+              status: "completed",
+              input: { cmd: "ls" },
+              content: [
+                { type: "text", text: output },
+                { type: "file", uri: "data:image/png;base64,Zm9v", mime: "image/png" },
+              ],
+              structured: {},
+            }),
+            time: { created, completed: created },
+          }),
+        ],
+        time: { created, completed: created },
+      })
+
+    const messages = toLLMMessages([turn("old", "output-old"), turn("recent", "output-recent")], model, {
+      attachmentRetention: 1,
+    })
+
+    const toolResultValue = (value: string) => {
+      const toolMessage = messages.find(
+        (message) =>
+          message.role === "tool" &&
+          (message.content as ReadonlyArray<{ id?: string }>).some((part) => part.id === `tool-${value}`),
+      )
+      return (toolMessage?.content as ReadonlyArray<{ result: { type: string; value: unknown } }>)[0]?.result
+    }
+
+    // Old turn: file dropped, only the text content remains.
+    const oldResult = toolResultValue("old")
+    expect(oldResult?.type).toBe("text")
+    expect(oldResult?.type === "text" ? oldResult.value : undefined).toBe("output-old")
+    // Recent turn: file kept, so the result stays in content form.
+    const recentResult = toolResultValue("recent")
+    expect(recentResult?.type).toBe("content")
+  })
 })

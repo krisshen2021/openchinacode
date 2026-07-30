@@ -1536,6 +1536,7 @@ const layer = Layer.effect(
               MessageV2.toModelMessagesEffect(msgs, model, {
                 reasoningRetention: cfg.compaction?.reasoning_retention_turns ?? 4,
                 toolOutputRetention: cfg.compaction?.tool_output_retention_turns ?? 4,
+                attachmentRetention: cfg.compaction?.attachment_retention_turns ?? 4,
               }),
             ])
             const system = [

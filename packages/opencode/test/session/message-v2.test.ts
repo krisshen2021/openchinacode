@@ -1448,6 +1448,105 @@ describe("session.message-v2.toModelMessage", () => {
     const output = (toolMsg.content as any[]).find((p) => p.type === "tool-result")!
     expect(output.output.value).toBe(bigOutput)
   })
+
+  test("drops tool-result attachments beyond attachment retention window but keeps text output", async () => {
+    const attachment = (messageID: string, partID: string) => ({
+      ...basePart(messageID, partID),
+      type: "file" as const,
+      mime: "image/png",
+      filename: "shot.png",
+      url: "data:image/png;base64,Zm9v",
+    })
+    const toolPart = (messageID: string, partID: string, callID: string) =>
+      ({
+        ...basePart(messageID, partID),
+        type: "tool",
+        callID,
+        tool: "bash",
+        state: {
+          status: "completed",
+          input: { cmd: "ls" },
+          output: `output-${callID}`,
+          title: "Bash",
+          metadata: {},
+          time: { start: 0, end: 1 },
+          attachments: [attachment(messageID, `${partID}-file`)],
+        },
+      }) as SessionV1.Part
+
+    const input: SessionV1.WithParts[] = [
+      {
+        info: userInfo("m-user-1"),
+        parts: [{ ...basePart("m-user-1", "u1"), type: "text", text: "first" }] as SessionV1.Part[],
+      },
+      {
+        info: assistantInfo("m-asst-1", "m-user-1"),
+        parts: [toolPart("m-asst-1", "a1", "call-old")],
+      },
+      {
+        info: userInfo("m-user-2"),
+        parts: [{ ...basePart("m-user-2", "u2"), type: "text", text: "second" }] as SessionV1.Part[],
+      },
+      {
+        info: assistantInfo("m-asst-2", "m-user-2"),
+        parts: [toolPart("m-asst-2", "a2", "call-recent")],
+      },
+    ]
+
+    const result = await MessageV2.toModelMessages(input, model, { attachmentRetention: 1 })
+
+    const toolOutputs = result
+      .filter((m) => m.role === "tool")
+      .flatMap((m) => (m.content as any[]).filter((p) => p.type === "tool-result").map((p) => p.output))
+
+    // Old turn: attachment dropped, text output kept as plain text.
+    expect(toolOutputs[0]).toStrictEqual({ type: "text", value: "output-call-old" })
+    // Recent turn: attachment kept (output becomes content with media).
+    const recent = toolOutputs[1] as { type: string; value: Array<{ type: string }> }
+    expect(recent.type).toBe("content")
+    expect(recent.value.some((part) => part.type === "media")).toBe(true)
+  })
+
+  test("keeps attachments when attachmentRetention is undefined", async () => {
+    const input: SessionV1.WithParts[] = [
+      {
+        info: userInfo("m-user-1"),
+        parts: [{ ...basePart("m-user-1", "u1"), type: "text", text: "first" }] as SessionV1.Part[],
+      },
+      {
+        info: assistantInfo("m-asst-1", "m-user-1"),
+        parts: [
+          {
+            ...basePart("m-asst-1", "a1"),
+            type: "tool",
+            callID: "call-1",
+            tool: "bash",
+            state: {
+              status: "completed",
+              input: { cmd: "ls" },
+              output: "ok",
+              title: "Bash",
+              metadata: {},
+              time: { start: 0, end: 1 },
+              attachments: [
+                {
+                  ...basePart("m-asst-1", "file-1"),
+                  type: "file",
+                  mime: "image/png",
+                  filename: "shot.png",
+                  url: "data:image/png;base64,Zm9v",
+                },
+              ],
+            },
+          },
+        ] as SessionV1.Part[],
+      },
+    ]
+
+    const result = await MessageV2.toModelMessages(input, model)
+    const output = (result.find((m) => m.role === "tool")!.content as any[]).find((p) => p.type === "tool-result")!
+    expect(output.output.type).toBe("content")
+  })
 })
 
 describe("session.message-v2.fromError", () => {

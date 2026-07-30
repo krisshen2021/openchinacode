@@ -146,13 +146,16 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
     toolOutputMaxChars?: number
     reasoningRetention?: number
     toolOutputRetention?: number
+    attachmentRetention?: number
   },
 ) {
   const result: UIMessage[] = []
   const toolNames = new Set<string>()
   // Count assistant turns from the end of input. Turns beyond the reasoning
   // retention window have reasoning parts stripped; turns beyond the tool
-  // output retention window have tool outputs reduced to a head+tail preview.
+  // output retention window have tool outputs reduced to a head+tail preview;
+  // turns beyond the attachment retention window lose tool-result media
+  // (screenshots lose value fast and dominate token cost).
   const assistantTurnIndex = new Map<string, number>()
   {
     let assistantTurns = 0
@@ -172,6 +175,12 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
   if (options?.toolOutputRetention !== undefined && options.toolOutputRetention >= 0) {
     for (const [id, turn] of assistantTurnIndex) {
       if (turn > options.toolOutputRetention) truncateToolOutputFor.add(id)
+    }
+  }
+  const stripAttachmentsFor = new Set<string>()
+  if (options?.attachmentRetention !== undefined && options.attachmentRetention >= 0) {
+    for (const [id, turn] of assistantTurnIndex) {
+      if (turn > options.attachmentRetention) stripAttachmentsFor.add(id)
     }
   }
   // Track media from tool results that need to be injected as user messages
@@ -339,7 +348,9 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
                 ? truncateToolOutputPreview(part.state.output)
                 : truncateToolOutput(part.state.output, options?.toolOutputMaxChars)
             const attachments =
-              part.state.time.compacted || ageTruncate || options?.stripMedia ? [] : (part.state.attachments ?? [])
+              part.state.time.compacted || ageTruncate || options?.stripMedia || stripAttachmentsFor.has(msg.info.id)
+                ? []
+                : (part.state.attachments ?? [])
 
             // For providers that don't support media in tool results, extract media files
             // (images, PDFs) to be sent as a separate user message
@@ -469,6 +480,7 @@ export function toModelMessages(
     toolOutputMaxChars?: number
     reasoningRetention?: number
     toolOutputRetention?: number
+    attachmentRetention?: number
   },
 ): Promise<ModelMessage[]> {
   return Effect.runPromise(toModelMessagesEffect(input, model, options))

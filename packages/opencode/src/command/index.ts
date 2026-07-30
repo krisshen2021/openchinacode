@@ -52,6 +52,7 @@ export const Default = {
   BROWSER_CHECK: "browser-check",
   REASONING_RETENTION_TURNS: "reasoning-retention-turns",
   TOOL_OUTPUT_TRUNCATE: "tool-output-truncate",
+  ATTACHMENT_RETENTION: "attachment-retention",
 } as const
 
 const PROMPT_TASK_POLICY = [
@@ -146,6 +147,23 @@ const PROMPT_TOOL_OUTPUT_TRUNCATE = [
   "Behavior depends on the argument:",
   "- `status` (or no argument): Read the config file and report the effective `tool_output_retention_turns` value. If the key is absent, report the default (4). Do not modify any file.",
   "- A non-negative integer (e.g. `6`): Set `compaction.tool_output_retention_turns` to that integer by editing the config file. Preserve existing JSON structure and formatting; create the `compaction` object if missing. After editing, confirm the new value. Reject negative numbers and non-integers with a clear error message and make no changes.",
+  "",
+  "Use the available file tools (read/glob/edit) to locate, read, and modify the config file. Do not guess the value; always read the file first.",
+  "",
+  "Argument: $ARGUMENTS",
+].join("\n")
+
+const PROMPT_ATTACHMENT_RETENTION = [
+  "Manage the `compaction.attachment_retention_turns` OpenChinaCode config value.",
+  "",
+  "This value controls how many recent assistant turns keep tool-result attachments (images, screenshots, files) in model context; attachments from older turns are dropped while the text output is kept, saving significant tokens in media-heavy sessions. Default is 4 when unset; 0 drops all attachments.",
+  "",
+  "Config is stored in `openchinacode.json` or `openchinacode.jsonc` at the project root (or `~/.config/openchinacode/openchinacode.json` for global). The key lives under the `compaction` object, e.g.:",
+  '{ "compaction": { "attachment_retention_turns": 4 } }',
+  "",
+  "Behavior depends on the argument:",
+  "- `status` (or no argument): Read the config file and report the effective `attachment_retention_turns` value. If the key is absent, report the default (4). Do not modify any file.",
+  "- A non-negative integer (e.g. `2`): Set `compaction.attachment_retention_turns` to that integer by editing the config file. Preserve existing JSON structure and formatting; create the `compaction` object if missing. After editing, confirm the new value. Reject negative numbers and non-integers with a clear error message and make no changes.",
   "",
   "Use the available file tools (read/glob/edit) to locate, read, and modify the config file. Do not guess the value; always read the file first.",
   "",
@@ -269,6 +287,15 @@ const layer = Layer.effect(
           return PROMPT_TOOL_OUTPUT_TRUNCATE
         },
         hints: hints(PROMPT_TOOL_OUTPUT_TRUNCATE),
+      }
+      commands[Default.ATTACHMENT_RETENTION] = {
+        name: Default.ATTACHMENT_RETENTION,
+        description: "Usage: /attachment-retention [status|<number>] - show or set the attachment retention turns config",
+        source: "command",
+        get template() {
+          return PROMPT_ATTACHMENT_RETENTION
+        },
+        hints: hints(PROMPT_ATTACHMENT_RETENTION),
       }
 
       for (const [name, command] of Object.entries(cfg.command ?? {})) {

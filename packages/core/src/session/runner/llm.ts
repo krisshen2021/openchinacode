@@ -91,8 +91,13 @@ import { llmClient } from "../../effect/app-node-platform"
 
 const DEFAULT_REASONING_RETENTION_TURNS = 4
 const DEFAULT_TOOL_OUTPUT_RETENTION_TURNS = 4
+const DEFAULT_ATTACHMENT_RETENTION_TURNS = 4
 
-const retentionTurns = (documents: readonly Config.Entry[], key: "reasoning_retention_turns" | "tool_output_retention_turns", fallback: number) => {
+const retentionTurns = (
+  documents: readonly Config.Entry[],
+  key: "reasoning_retention_turns" | "tool_output_retention_turns" | "attachment_retention_turns",
+  fallback: number,
+) => {
   for (let i = documents.length - 1; i >= 0; i--) {
     const entry = documents[i]
     if (entry.type !== "document") continue
@@ -224,6 +229,11 @@ const layer = Layer.effect(
               configEntries,
               "tool_output_retention_turns",
               DEFAULT_TOOL_OUTPUT_RETENTION_TURNS,
+            ),
+            attachmentRetention: retentionTurns(
+              configEntries,
+              "attachment_retention_turns",
+              DEFAULT_ATTACHMENT_RETENTION_TURNS,
             ),
           }),
           ...(isLastStep ? [Message.assistant(MAX_STEPS_PROMPT)] : []),

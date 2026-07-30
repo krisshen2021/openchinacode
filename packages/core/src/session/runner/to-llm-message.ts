@@ -49,15 +49,23 @@ const previewText = (text: string) => {
 const previewContent = (content: ReadonlyArray<{ type: "text"; text: string } | { type: "file" }>) =>
   content.flatMap((item) => (item.type === "text" ? [{ type: "text" as const, text: previewText(item.text) }] : []))
 
+const dropFiles = (content: ReadonlyArray<{ type: "text"; text: string } | { type: "file" }>) =>
+  content.flatMap((item) => (item.type === "text" ? [item] : []))
+
 const toolResult = (
   tool: SessionMessage.AssistantTool,
   providerMetadata: ProviderMetadata | undefined,
   truncateOutput = false,
+  stripAttachments = false,
 ) => {
   if (tool.state.status === "completed") {
     // TODO: Materialize remote and managed URIs before provider-history lowering.
     // ToolOutput.toResultValue rejects unresolved URIs rather than treating them as media bytes.
-    const content = truncateOutput ? previewContent(tool.state.content) : tool.state.content
+    const content = truncateOutput
+      ? previewContent(tool.state.content)
+      : stripAttachments
+        ? dropFiles(tool.state.content)
+        : tool.state.content
     const result =
       tool.provider?.executed === true && tool.state.result !== undefined
         ? tool.state.result
@@ -71,7 +79,11 @@ const toolResult = (
     })
   }
   if (tool.state.status === "error") {
-    const content = truncateOutput ? previewContent(tool.state.content) : tool.state.content
+    const content = truncateOutput
+      ? previewContent(tool.state.content)
+      : stripAttachments
+        ? dropFiles(tool.state.content)
+        : tool.state.content
     return ToolResultPart.make({
       id: tool.id,
       name: tool.name,
@@ -86,7 +98,13 @@ const toolResult = (
   }
 }
 
-const assistant = (message: SessionMessage.Assistant, model: Model, stripReasoning: boolean, truncateOutput: boolean) => {
+const assistant = (
+  message: SessionMessage.Assistant,
+  model: Model,
+  stripReasoning: boolean,
+  truncateOutput: boolean,
+  stripAttachments: boolean,
+) => {
   const sameModel =
     String(message.model.providerID) === String(model.provider) && String(message.model.id) === String(model.id)
   const reuseProviderMetadata = sameModel && message.error === undefined
@@ -112,6 +130,7 @@ const assistant = (message: SessionMessage.Assistant, model: Model, stripReasoni
       item,
       reuseProviderMetadata ? (item.provider.resultMetadata ?? item.provider.metadata) : undefined,
       truncateOutput,
+      stripAttachments,
     )
     return result ? [call, result] : [call]
   })
@@ -127,6 +146,7 @@ const assistant = (message: SessionMessage.Assistant, model: Model, stripReasoni
         item,
         reuseProviderMetadata ? (item.provider?.resultMetadata ?? item.provider?.metadata) : undefined,
         truncateOutput,
+        stripAttachments,
       ),
     )
     .filter((message) => message !== undefined)
@@ -143,6 +163,7 @@ function toLLMMessage(
   model: Model,
   stripReasoning: boolean,
   truncateOutput: boolean,
+  stripAttachments: boolean,
 ): Message[] {
   switch (message.type) {
     case "agent-switched":
@@ -174,7 +195,7 @@ function toLLMMessage(
         }),
       ]
     case "assistant":
-      return assistant(message, model, stripReasoning, truncateOutput)
+      return assistant(message, model, stripReasoning, truncateOutput, stripAttachments)
     case "compaction":
       return [
         Message.make({
@@ -197,10 +218,11 @@ ${message.recent}
   }
 }
 
-/** Retain reasoning parts / full tool outputs only on the last N assistant turns; older ones are stripped / previewed. */
+/** Retain reasoning parts / full tool outputs / tool attachments only on the last N assistant turns. */
 export type ToLLMMessageOptions = {
   reasoningRetention?: number
   toolOutputRetention?: number
+  attachmentRetention?: number
 }
 
 /** Translate projected V2 Session history into canonical @opencode-ai/llm context. */
@@ -211,14 +233,17 @@ export const toLLMMessages = (
 ) => {
   const reasoningRetention = options?.reasoningRetention
   const toolOutputRetention = options?.toolOutputRetention
+  const attachmentRetention = options?.attachmentRetention
   if (
     (reasoningRetention === undefined || reasoningRetention < 0) &&
-    (toolOutputRetention === undefined || toolOutputRetention < 0)
+    (toolOutputRetention === undefined || toolOutputRetention < 0) &&
+    (attachmentRetention === undefined || attachmentRetention < 0)
   )
-    return messages.flatMap((message) => toLLMMessage(message, model, false, false))
+    return messages.flatMap((message) => toLLMMessage(message, model, false, false, false))
   // Count assistant turns from the end; turns beyond each retention window are degraded.
   const stripReasoningFor = new Set<string>()
   const truncateOutputFor = new Set<string>()
+  const stripAttachmentsFor = new Set<string>()
   let assistantTurns = 0
   for (let i = messages.length - 1; i >= 0; i--) {
     if (messages[i].type !== "assistant") continue
@@ -227,8 +252,16 @@ export const toLLMMessages = (
       stripReasoningFor.add(messages[i].id)
     if (toolOutputRetention !== undefined && toolOutputRetention >= 0 && assistantTurns > toolOutputRetention)
       truncateOutputFor.add(messages[i].id)
+    if (attachmentRetention !== undefined && attachmentRetention >= 0 && assistantTurns > attachmentRetention)
+      stripAttachmentsFor.add(messages[i].id)
   }
   return messages.flatMap((message) =>
-    toLLMMessage(message, model, stripReasoningFor.has(message.id), truncateOutputFor.has(message.id)),
+    toLLMMessage(
+      message,
+      model,
+      stripReasoningFor.has(message.id),
+      truncateOutputFor.has(message.id),
+      stripAttachmentsFor.has(message.id),
+    ),
   )
 }
