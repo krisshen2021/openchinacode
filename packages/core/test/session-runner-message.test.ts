@@ -498,4 +498,118 @@ Recent work
       },
     ])
   })
+
+  test("strips reasoning and truncates tool output beyond retention windows", () => {
+    const turn = (
+      value: string,
+      content: SessionMessage.Assistant["content"],
+    ): SessionMessage.Assistant =>
+      SessionMessage.Assistant.make({
+        id: id(value),
+        type: "assistant",
+        agent: "build",
+        model: { id: ModelV2.ID.make("model"), providerID: ProviderV2.ID.make("provider") },
+        content,
+        time: { created, completed: created },
+      })
+    const reasoning = (value: string) =>
+      SessionMessage.AssistantReasoning.make({ type: "reasoning", id: `reasoning-${value}`, text: `think-${value}` })
+    const text = (value: string) =>
+      SessionMessage.AssistantText.make({ type: "text", id: `text-${value}`, text: `answer-${value}` })
+    const bigOutput = "H".repeat(1500) + "M".repeat(2000) + "T".repeat(1500)
+    const tool = (value: string, output: string) =>
+      SessionMessage.AssistantTool.make({
+        type: "tool",
+        id: `tool-${value}`,
+        name: "bash",
+        provider: { executed: false },
+        state: SessionMessage.ToolStateCompleted.make({
+          status: "completed",
+          input: { cmd: "ls" },
+          content: [{ type: "text", text: output }],
+          structured: {},
+        }),
+        time: { created, completed: created },
+      })
+
+    const messages = toLLMMessages(
+      [
+        turn("old", [reasoning("old"), text("old"), tool("old", bigOutput)]),
+        turn("recent", [reasoning("recent"), text("recent"), tool("recent", bigOutput)]),
+      ],
+      model,
+      { reasoningRetention: 1, toolOutputRetention: 1 },
+    )
+
+    const oldAssistant = messages.find((message) => message.id === id("old"))
+    const recentAssistant = messages.find((message) => message.id === id("recent"))
+    // Old turn: reasoning stripped, text kept.
+    expect(oldAssistant?.content).toEqual([
+      { type: "text", text: "answer-old" },
+      {
+        type: "tool-call",
+        id: "tool-old",
+        name: "bash",
+        input: { cmd: "ls" },
+        providerExecuted: false,
+        providerMetadata: undefined,
+      },
+    ])
+    // Recent turn: reasoning kept verbatim.
+    expect((recentAssistant?.content ?? []).some((part) => part.type === "reasoning")).toBe(true)
+
+    const toolResultText = (messageID: string) => {
+      const toolMessage = messages.find(
+        (message) =>
+          message.role === "tool" &&
+          (message.content as ReadonlyArray<{ id?: string }>).some((part) => part.id === `tool-${messageID}`),
+      )
+      const result = (toolMessage?.content as ReadonlyArray<{ result: { type: string; value: unknown } }>)[0]?.result
+      return result?.type === "text" ? (result.value as string) : undefined
+    }
+    // Old turn tool output: head+tail preview with omission marker.
+    const oldOutput = toolResultText("old")
+    expect(oldOutput).toContain("omitted")
+    expect(oldOutput?.startsWith("H".repeat(1000))).toBe(true)
+    expect(oldOutput?.endsWith("T".repeat(1000))).toBe(true)
+    // Recent turn tool output: full output preserved.
+    expect(toolResultText("recent")).toBe(bigOutput)
+  })
+
+  test("retains reasoning and tool output when retention options are undefined", () => {
+    const bigOutput = "x".repeat(5000)
+    const messages = toLLMMessages(
+      [
+        SessionMessage.Assistant.make({
+          id: id("assistant-full"),
+          type: "assistant",
+          agent: "build",
+          model: { id: ModelV2.ID.make("model"), providerID: ProviderV2.ID.make("provider") },
+          content: [
+            SessionMessage.AssistantReasoning.make({ type: "reasoning", id: "reasoning-full", text: "keep me" }),
+            SessionMessage.AssistantTool.make({
+              type: "tool",
+              id: "tool-full",
+              name: "bash",
+              provider: { executed: false },
+              state: SessionMessage.ToolStateCompleted.make({
+                status: "completed",
+                input: { cmd: "ls" },
+                content: [{ type: "text", text: bigOutput }],
+                structured: {},
+              }),
+              time: { created, completed: created },
+            }),
+          ],
+          time: { created, completed: created },
+        }),
+      ],
+      model,
+    )
+
+    expect((messages[0]?.content ?? []).some((part) => part.type === "reasoning")).toBe(true)
+    const toolMessage = messages.find((message) => message.role === "tool")
+    const result = (toolMessage?.content as ReadonlyArray<{ result: { type: string; value: unknown } }>)[0]?.result
+    expect(result?.type === "text" ? result.value : undefined).toBe(bigOutput)
+  })
 })
