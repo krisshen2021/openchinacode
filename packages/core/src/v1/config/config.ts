@@ -195,6 +195,10 @@ export const Info = Schema.Struct({
       reserved: Schema.optional(NonNegativeInt).annotate({
         description: "Token buffer for compaction. Leaves enough window to avoid overflow during compaction.",
       }),
+      reasoning_retention_turns: Schema.optional(NonNegativeInt).annotate({
+        description:
+          "Number of recent assistant turns whose reasoning is kept verbatim in context; older reasoning is stripped to save tokens (default: 4, 0 strips all)",
+      }),
     }),
   ),
   experimental: Schema.optional(

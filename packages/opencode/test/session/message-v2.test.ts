@@ -1288,6 +1288,64 @@ describe("session.message-v2.toModelMessage", () => {
     const texts = (result[0].content as any[]).filter((p) => p.type === "text")
     expect(texts.map((t) => t.text)).toStrictEqual(["", "hello"])
   })
+
+  test("strips reasoning from assistant turns beyond retention window", async () => {
+    // 3 assistant turns, retention=1 → only the last keeps reasoning.
+    const input: SessionV1.WithParts[] = [
+      {
+        info: userInfo("m-user-1"),
+        parts: [{ ...basePart("m-user-1", "u1"), type: "text", text: "first" }] as SessionV1.Part[],
+      },
+      {
+        info: assistantInfo("m-asst-1", "m-user-1"),
+        parts: [
+          { ...basePart("m-asst-1", "a1"), type: "reasoning", text: "old-thinking" },
+          { ...basePart("m-asst-1", "a2"), type: "text", text: "old-answer" },
+        ] as SessionV1.Part[],
+      },
+      {
+        info: userInfo("m-user-2"),
+        parts: [{ ...basePart("m-user-2", "u2"), type: "text", text: "second" }] as SessionV1.Part[],
+      },
+      {
+        info: assistantInfo("m-asst-2", "m-user-2"),
+        parts: [
+          { ...basePart("m-asst-2", "a3"), type: "reasoning", text: "recent-thinking" },
+          { ...basePart("m-asst-2", "a4"), type: "text", text: "recent-answer" },
+        ] as SessionV1.Part[],
+      },
+    ]
+
+    const result = await MessageV2.toModelMessages(input, model, { reasoningRetention: 1 })
+
+    const firstAssistant = result.find((m) => m.role === "assistant" && (m.content as any[]).some((p) => p.text === "old-answer"))
+    const lastAssistant = result.find((m) => m.role === "assistant" && (m.content as any[]).some((p) => p.text === "recent-answer"))
+
+    // Old turn: reasoning stripped.
+    expect((firstAssistant!.content as any[]).filter((p) => p.type === "reasoning")).toHaveLength(0)
+    // Recent turn: reasoning kept.
+    expect((lastAssistant!.content as any[]).filter((p) => p.type === "reasoning")).toHaveLength(1)
+  })
+
+  test("retains all reasoning when reasoningRetention is undefined", async () => {
+    const input: SessionV1.WithParts[] = [
+      {
+        info: userInfo("m-user-1"),
+        parts: [{ ...basePart("m-user-1", "u1"), type: "text", text: "first" }] as SessionV1.Part[],
+      },
+      {
+        info: assistantInfo("m-asst-1", "m-user-1"),
+        parts: [
+          { ...basePart("m-asst-1", "a1"), type: "reasoning", text: "thinking" },
+          { ...basePart("m-asst-1", "a2"), type: "text", text: "answer" },
+        ] as SessionV1.Part[],
+      },
+    ]
+
+    const result = await MessageV2.toModelMessages(input, model)
+    const assistant = result.find((m) => m.role === "assistant")!
+    expect((assistant.content as any[]).filter((p) => p.type === "reasoning")).toHaveLength(1)
+  })
 })
 
 describe("session.message-v2.fromError", () => {

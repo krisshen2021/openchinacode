@@ -67,13 +67,14 @@ const toolResult = (tool: SessionMessage.AssistantTool, providerMetadata: Provid
   }
 }
 
-const assistant = (message: SessionMessage.Assistant, model: Model) => {
+const assistant = (message: SessionMessage.Assistant, model: Model, stripReasoning: boolean) => {
   const sameModel =
     String(message.model.providerID) === String(model.provider) && String(message.model.id) === String(model.id)
   const reuseProviderMetadata = sameModel && message.error === undefined
   const content = message.content.flatMap((item): ContentPart[] => {
     if (item.type === "text") return [{ type: "text", text: item.text }]
-    if (item.type === "reasoning")
+    if (item.type === "reasoning") {
+      if (stripReasoning) return []
       return sameModel
         ? [
             {
@@ -85,6 +86,7 @@ const assistant = (message: SessionMessage.Assistant, model: Model) => {
         : item.text.length > 0
           ? [{ type: "text", text: item.text }]
           : []
+    }
     const call = toolCall(item, reuseProviderMetadata ? item.provider?.metadata : undefined)
     if (item.provider?.executed !== true) return [call]
     const result = toolResult(
@@ -112,7 +114,7 @@ const assistant = (message: SessionMessage.Assistant, model: Model) => {
   ]
 }
 
-function toLLMMessage(message: SessionMessage.Message, model: Model): Message[] {
+function toLLMMessage(message: SessionMessage.Message, model: Model, stripReasoning: boolean): Message[] {
   switch (message.type) {
     case "agent-switched":
     case "model-switched":
@@ -143,7 +145,7 @@ function toLLMMessage(message: SessionMessage.Message, model: Model): Message[] 
         }),
       ]
     case "assistant":
-      return assistant(message, model)
+      return assistant(message, model, stripReasoning)
     case "compaction":
       return [
         Message.make({
@@ -166,6 +168,26 @@ ${message.recent}
   }
 }
 
+/** Retain reasoning parts only on the last N assistant turns; older reasoning is stripped to save tokens. */
+export type ToLLMMessageOptions = {
+  reasoningRetention?: number
+}
+
 /** Translate projected V2 Session history into canonical @opencode-ai/llm context. */
-export const toLLMMessages = (messages: readonly SessionMessage.Message[], model: Model) =>
-  messages.flatMap((message) => toLLMMessage(message, model))
+export const toLLMMessages = (
+  messages: readonly SessionMessage.Message[],
+  model: Model,
+  options?: ToLLMMessageOptions,
+) => {
+  const retention = options?.reasoningRetention
+  if (retention === undefined || retention < 0) return messages.flatMap((message) => toLLMMessage(message, model, false))
+  // Count assistant turns from the end; strip reasoning from turns beyond the retention window.
+  const stripFor = new Set<string>()
+  let assistantTurns = 0
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].type !== "assistant") continue
+    assistantTurns++
+    if (assistantTurns > retention) stripFor.add(messages[i].id)
+  }
+  return messages.flatMap((message) => toLLMMessage(message, model, stripFor.has(message.id)))
+}

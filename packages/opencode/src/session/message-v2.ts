@@ -131,10 +131,22 @@ function providerMeta(metadata: Record<string, any> | undefined) {
 export const toModelMessagesEffect = Effect.fnUntraced(function* (
   input: WithParts[],
   model: Provider.Model,
-  options?: { stripMedia?: boolean; toolOutputMaxChars?: number },
+  options?: { stripMedia?: boolean; toolOutputMaxChars?: number; reasoningRetention?: number },
 ) {
   const result: UIMessage[] = []
   const toolNames = new Set<string>()
+  // When reasoningRetention is set, strip reasoning parts from assistant turns
+  // beyond the last N turns. Count assistant turns from the end of input.
+  const stripReasoningFor = new Set<string>()
+  const reasoningRetention = options?.reasoningRetention
+  if (reasoningRetention !== undefined && reasoningRetention >= 0) {
+    let assistantTurns = 0
+    for (let i = input.length - 1; i >= 0; i--) {
+      if (input[i].info.role !== "assistant") continue
+      assistantTurns++
+      if (assistantTurns > reasoningRetention) stripReasoningFor.add(input[i].info.id)
+    }
+  }
   // Track media from tool results that need to be injected as user messages
   // for providers that don't support that media type in tool results.
   //
@@ -244,6 +256,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
     if (msg.info.role === "assistant") {
       const differentModel = `${model.providerID}/${model.id}` !== `${msg.info.providerID}/${msg.info.modelID}`
       const media: Array<{ mime: string; url: string; filename?: string }> = []
+      const stripReasoning = stripReasoningFor.has(msg.info.id)
 
       if (
         msg.info.error &&
@@ -270,10 +283,12 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
       // here is the only safe replay point we have.
       // Use a single space so the separator survives replay without changing
       // the neighboring signed reasoning blocks.
-      const hasSignedReasoning = msg.parts.some((part) => {
-        if (part.type !== "reasoning") return false
-        return part.metadata?.anthropic?.signature != null
-      })
+      const hasSignedReasoning =
+        !stripReasoning &&
+        msg.parts.some((part) => {
+          if (part.type !== "reasoning") return false
+          return part.metadata?.anthropic?.signature != null
+        })
       for (const part of msg.parts) {
         if (part.type === "text") {
           const text = part.text === "" && hasSignedReasoning ? " " : part.text
@@ -360,6 +375,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
             })
         }
         if (part.type === "reasoning") {
+          if (stripReasoning) continue
           if (differentModel) {
             if (part.text.trim().length > 0)
               assistantMessage.parts.push({
@@ -417,7 +433,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
 export function toModelMessages(
   input: WithParts[],
   model: Provider.Model,
-  options?: { stripMedia?: boolean; toolOutputMaxChars?: number },
+  options?: { stripMedia?: boolean; toolOutputMaxChars?: number; reasoningRetention?: number },
 ): Promise<ModelMessage[]> {
   return Effect.runPromise(toModelMessagesEffect(input, model, options))
 }
