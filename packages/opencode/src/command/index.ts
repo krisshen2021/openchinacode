@@ -50,6 +50,7 @@ export const Default = {
   TASK_CLASSIFY: "task-classify",
   INTEGRATION_TEST: "integration-test",
   BROWSER_CHECK: "browser-check",
+  REASONING_RETENTION_TURNS: "reasoning-retention-turns",
 } as const
 
 const PROMPT_TASK_POLICY = [
@@ -114,6 +115,23 @@ const PROMPT_INTEGRATION_TEST = [
   "",
   "User focus:",
   "$ARGUMENTS",
+].join("\n")
+
+const PROMPT_REASONING_RETENTION_TURNS = [
+  "Manage the `compaction.reasoning_retention_turns` OpenChinaCode config value.",
+  "",
+  "This value controls how many recent assistant turns keep their reasoning (chain-of-thought) verbatim in model context; reasoning from older turns is stripped to save tokens. Default is 4 when unset; 0 strips all reasoning.",
+  "",
+  "Config is stored in `openchinacode.json` or `openchinacode.jsonc` at the project root (or `~/.config/openchinacode/openchinacode.json` for global). The key lives under the `compaction` object, e.g.:",
+  '{ "compaction": { "reasoning_retention_turns": 4 } }',
+  "",
+  "Behavior depends on the argument:",
+  "- `status` (or no argument): Read the config file and report the effective `reasoning_retention_turns` value. If the key is absent, report the default (4). Do not modify any file.",
+  "- A non-negative integer (e.g. `6`): Set `compaction.reasoning_retention_turns` to that integer by editing the config file. Preserve existing JSON structure and formatting; create the `compaction` object if missing. After editing, confirm the new value. Reject negative numbers and non-integers with a clear error message and make no changes.",
+  "",
+  "Use the available file tools (read/glob/edit) to locate, read, and modify the config file. Do not guess the value; always read the file first.",
+  "",
+  "Argument: $ARGUMENTS",
 ].join("\n")
 
 const PROMPT_BROWSER_CHECK = [
@@ -214,6 +232,16 @@ const layer = Layer.effect(
           return PROMPT_BROWSER_CHECK
         },
         hints: hints(PROMPT_BROWSER_CHECK),
+      }
+      commands[Default.REASONING_RETENTION_TURNS] = {
+        name: Default.REASONING_RETENTION_TURNS,
+        description:
+          "Usage: /reasoning-retention-turns [status|<number>] - show or set the reasoning retention turns config",
+        source: "command",
+        get template() {
+          return PROMPT_REASONING_RETENTION_TURNS
+        },
+        hints: hints(PROMPT_REASONING_RETENTION_TURNS),
       }
 
       for (const [name, command] of Object.entries(cfg.command ?? {})) {
