@@ -157,7 +157,10 @@ export const Info = Schema.Struct({
   }),
   layout: Schema.optional(ConfigLayoutV1.Layout).annotate({ description: "@deprecated Always uses stretch layout." }),
   permission: Schema.optional(ConfigPermissionV1.Info),
-  tools: Schema.optional(Schema.Record(Schema.String, Schema.Boolean)),
+  tools: Schema.optional(Schema.Record(Schema.String, Schema.Boolean)).annotate({
+    description:
+      "Per-tool enable switches keyed by tool id (e.g. image_generate, ocr_extract, playwright_browser_click). false removes the tool definition from model requests; unset means enabled",
+  }),
   attachment: Schema.optional(ConfigAttachmentV1.Info).annotate({
     description: "Attachment processing configuration, including image size limits and resizing behavior",
   }),
