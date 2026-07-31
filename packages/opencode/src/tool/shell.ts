@@ -13,6 +13,7 @@ import { fileURLToPath } from "url"
 import { Config } from "@/config/config"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { Shell } from "@opencode-ai/core/shell"
+import { ShellSafety } from "@opencode-ai/core/tool/shell-safety"
 import { ShellID } from "./shell/id"
 
 import * as Truncate from "./truncate"
@@ -252,71 +253,6 @@ function tail(text: string, maxLines: number, maxBytes: number) {
     text: out.join("\n"),
     cut: true,
   }
-}
-
-const normalizeCommand = (command: string) => command.replace(/\s+/g, " ").trim()
-
-const hasBroadKill = (command: string) => {
-  const normalized = normalizeCommand(command)
-  if (/\bpkill\b(?=[^;&|]*\s-f\b)(?=[^;&|]*(?:node|npm|bun|tsx|vite|next|nuxt|python|uvicorn|server|dev))/i.test(normalized))
-    return true
-  if (/\bkillall\s+(?:node|npm|bun|tsx|vite|next|nuxt|python|uvicorn)\b/i.test(normalized)) return true
-  if (/\|\s*xargs\s+kill(?:\s+-9)?\b/i.test(normalized)) return true
-  return false
-}
-
-const startsLongRunningService = (command: string) => {
-  const normalized = normalizeCommand(command)
-  return (
-    /\b(?:npm|pnpm|yarn|bun)\s+(?:run\s+)?(?:dev|start|serve|preview)\b/i.test(normalized) ||
-    /\bnpx\s+tsx\b/i.test(normalized) ||
-    /\btsx\s+\S+/i.test(normalized) ||
-    /\b(?:vite|next\s+dev|nuxt\s+dev|uvicorn|flask|fastapi|python\s+-m\s+http\.server)\b/i.test(normalized)
-  )
-}
-
-const hasSingleBackgroundAmpersand = (command: string) => {
-  for (let i = 0; i < command.length; i++) {
-    if (command[i] !== "&") continue
-    if (command[i - 1] === "&" || command[i + 1] === "&") continue
-    if (command[i + 1] === ">" || command[i - 1] === ">") continue
-    return true
-  }
-  return false
-}
-
-const hasRawBackgroundLaunch = (command: string) =>
-  /\b(?:nohup|setsid|disown)\b/i.test(command) || hasSingleBackgroundAmpersand(command)
-
-const safetyBlock = (command: string) => {
-  if (hasBroadKill(command)) {
-    return [
-      "Command blocked by OpenChinaCode shell safety policy.",
-      "",
-      "Reason: broad process-kill patterns such as pkill -f, killall, or xargs kill can terminate unrelated user processes and have caused unstable tool runs.",
-      "",
-      "Use process_stop for OpenChinaCode-managed processes. For an unmanaged external process, inspect exact PIDs first and stop only the specific PID.",
-    ].join("\n")
-  }
-  if (startsLongRunningService(command) || (hasRawBackgroundLaunch(command) && startsLongRunningService(command))) {
-    return [
-      "Command blocked by OpenChinaCode shell safety policy.",
-      "",
-      "Reason: this looks like a long-running server, watcher, preview, or background launch. Running it through bash makes the tool wait until timeout or lose ownership of the child process.",
-      "",
-      "Use process_start with workdir/name/log/readiness options, then process_status, process_logs, and process_stop for lifecycle control.",
-    ].join("\n")
-  }
-  if (hasRawBackgroundLaunch(command)) {
-    return [
-      "Command blocked by OpenChinaCode shell safety policy.",
-      "",
-      "Reason: raw background launches with &, nohup, setsid, or disown are not observable or stoppable by the bash tool.",
-      "",
-      "Use process_start for managed background work, or run a short foreground command that exits.",
-    ].join("\n")
-  }
-  return
 }
 
 const parse = Effect.fn("ShellTool.parse")(function* (command: string, ps: boolean) {
@@ -684,7 +620,7 @@ export const ShellTool = Tool.define(
                 throw new Error(`Invalid timeout value: ${params.timeout}. Timeout must be a positive number.`)
               }
               const timeout = params.timeout ?? defaultTimeoutMs
-              const blocked = safetyBlock(params.command)
+              const blocked = ShellSafety.safetyBlock(params.command)
               if (blocked) {
                 return {
                   title: params.command,

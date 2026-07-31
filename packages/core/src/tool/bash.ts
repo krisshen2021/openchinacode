@@ -12,6 +12,7 @@ import { AppProcess } from "../process"
 import { PermissionV2 } from "../permission"
 import { PositiveInt } from "../schema"
 import { ToolRegistry } from "./registry"
+import { ShellSafety } from "./shell-safety"
 import { Tool } from "./tool"
 import { Tools } from "./tools"
 
@@ -80,62 +81,6 @@ const isTimeout = (error: AppProcess.AppProcessError) =>
 const shellTokens = (command: string) => command.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g) ?? []
 const unquote = (value: string) => value.replace(/^(['"])(.*)\1$/, "$2")
 
-const normalizeCommand = (command: string) => command.replace(/\s+/g, " ").trim()
-const hasBroadKill = (command: string) => {
-  const normalized = normalizeCommand(command)
-  if (/\bpkill\b(?=[^;&|]*\s-f\b)(?=[^;&|]*(?:node|npm|bun|tsx|vite|next|nuxt|python|uvicorn|server|dev))/i.test(normalized))
-    return true
-  if (/\bkillall\s+(?:node|npm|bun|tsx|vite|next|nuxt|python|uvicorn)\b/i.test(normalized)) return true
-  if (/\|\s*xargs\s+kill(?:\s+-9)?\b/i.test(normalized)) return true
-  return false
-}
-const startsLongRunningService = (command: string) => {
-  const normalized = normalizeCommand(command)
-  return /\b(?:npm|pnpm|yarn|bun)\s+(?:run\s+)?(?:dev|start|serve|preview)\b/i.test(normalized) ||
-    /\bnpx\s+tsx\b/i.test(normalized) ||
-    /\btsx\s+\S+/i.test(normalized) ||
-    /\b(?:vite|next\s+dev|nuxt\s+dev|uvicorn|flask|fastapi|python\s+-m\s+http\.server)\b/i.test(normalized)
-}
-const hasSingleAmpersand = (command: string) => {
-  for (let i = 0; i < command.length; i++) {
-    if (command[i] !== "&") continue
-    if (command[i - 1] === "&" || command[i + 1] === "&") continue
-    return true
-  }
-  return false
-}
-const hasRawBackgroundLaunch = (command: string) => /\b(?:nohup|setsid)\b/i.test(command) || hasSingleAmpersand(command)
-const safetyBlock = (command: string) => {
-  if (hasBroadKill(command)) {
-    return [
-      "Command blocked by OpenChinaCode shell safety policy.",
-      "",
-      "Reason: broad process-kill patterns such as pkill -f, killall, or xargs kill can terminate unrelated user processes and have caused unstable tool runs.",
-      "",
-      "Use process_stop for OpenChinaCode-managed processes. For an unmanaged external process, inspect exact PIDs first and stop only the specific PID.",
-    ].join("\n")
-  }
-  if (startsLongRunningService(command) || (hasRawBackgroundLaunch(command) && startsLongRunningService(command))) {
-    return [
-      "Command blocked by OpenChinaCode shell safety policy.",
-      "",
-      "Reason: this looks like a long-running server, watcher, preview, or background launch. Running it through bash makes the tool wait until timeout or lose ownership of the child process.",
-      "",
-      "Use process_start with workdir/name/log/readiness options, then process_status, process_logs, and process_stop for lifecycle control.",
-    ].join("\n")
-  }
-  if (hasRawBackgroundLaunch(command)) {
-    return [
-      "Command blocked by OpenChinaCode shell safety policy.",
-      "",
-      "Reason: raw background launches with &, nohup, or setsid are not observable or stoppable by the bash tool.",
-      "",
-      "Use process_start for managed background work, or run a short foreground command that exits.",
-    ].join("\n")
-  }
-  return
-}
-
 const externalCommandDirectories = Effect.fn("BashTool.externalCommandDirectories")(function* (
   fs: FSUtil.Interface,
   command: string,
@@ -183,7 +128,7 @@ const layer = Layer.effectDiscard(
                 ],
           execute: (input, context) =>
             Effect.gen(function* () {
-              const blocked = safetyBlock(input.command)
+              const blocked = ShellSafety.safetyBlock(input.command)
               if (blocked)
                 return {
                   output: blocked,
