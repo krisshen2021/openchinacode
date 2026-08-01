@@ -139,6 +139,7 @@ type McpPlaywrightArgs = {
   testIdAttribute?: string
   saveSession?: boolean
   sharedBrowserContext?: boolean
+  idleTimeout?: number
 }
 
 type PlaywrightBrowser = NonNullable<McpPlaywrightArgs["browser"]>
@@ -331,7 +332,12 @@ export const McpPlaywrightCommand = cmd<{}, McpPlaywrightArgs>({
       .option("block-service-workers", { type: "boolean", describe: "block service workers" })
       .option("test-id-attribute", { type: "string", describe: "attribute used for test ids" })
       .option("save-session", { type: "boolean", describe: "save Playwright MCP session into the output directory" })
-      .option("shared-browser-context", { type: "boolean", describe: "reuse context between connected clients" }),
+      .option("shared-browser-context", { type: "boolean", describe: "reuse context between connected clients" })
+      .option("idle-timeout", {
+        type: "number",
+        default: 10,
+        describe: "exit after N minutes without client activity, freeing the browser; 0 disables",
+      }),
   async handler(args) {
     assertPlaywrightBrowserReady(args.browser ?? "chrome")
     const { createConnection } = await import("@playwright/mcp")
@@ -348,6 +354,9 @@ export const McpPlaywrightCommand = cmd<{}, McpPlaywrightArgs>({
         userDataDir,
         launchOptions: {
           headless,
+          // Headless Chrome composites via SwiftShader on CPU; prefer-reduced-motion
+          // keeps animated pages from pegging a core while the browser stays open.
+          args: ["--force-prefers-reduced-motion"],
           ...(channel ? { channel } : {}),
         },
         contextOptions: {
@@ -372,8 +381,30 @@ export const McpPlaywrightCommand = cmd<{}, McpPlaywrightArgs>({
       },
     })
     await server.connect(new StdioServerTransport())
+    const parentPid = process.ppid
+    const idleMs = Math.max(0, (args.idleTimeout ?? 10) * 60_000)
+    let lastActivity = Date.now()
+    process.stdin.on("data", () => {
+      lastActivity = Date.now()
+    })
     await new Promise<void>((resolve) => {
-      const done = () => resolve()
+      const done = () => {
+        clearInterval(watchdog)
+        resolve()
+      }
+      const watchdog = setInterval(() => {
+        if (idleMs > 0 && Date.now() - lastActivity >= idleMs) {
+          console.error(`[playwright-mcp] idle for ${Math.round(idleMs / 60_000)}m, shutting down to free the browser`)
+          return done()
+        }
+        try {
+          process.kill(parentPid, 0)
+        } catch {
+          console.error("[playwright-mcp] parent process gone, shutting down")
+          done()
+        }
+      }, 30_000)
+      watchdog.unref()
       process.stdin.once("end", done)
       process.stdin.once("close", done)
       process.once("SIGINT", done)

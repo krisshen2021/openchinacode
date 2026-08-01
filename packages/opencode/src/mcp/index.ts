@@ -660,6 +660,39 @@ const layer = Layer.effect(
       return yield* storeClient(s, name, result.mcpClient, result.defs!, result.instructions, mcp.timeout)
     })
 
+    const respawnAt = new Map<string, number>()
+
+    // Servers that closed cleanly (idle shutdown, parent exit) are restarted on
+    // demand here; config-level failures keep their original error and are not
+    // retried.
+    const respawnClosed = Effect.fnUntraced(function* (s: State) {
+      const cfg = yield* cfgSvc.get()
+      const now = Date.now()
+      const names = [...new Set([...Object.keys(cfg.mcp ?? {}), ...Object.keys(s.config)])]
+      yield* Effect.forEach(
+        names,
+        (name) =>
+          Effect.gen(function* () {
+            const st = s.status[name]
+            if (st?.status !== "failed" || st.error !== "Connection closed") return
+            const mcp = yield* getMcpConfig(name)
+            if (!mcp || mcp.type !== "local" || mcp.enabled === false) return
+            if (now - (respawnAt.get(name) ?? 0) < 60_000) return
+            respawnAt.set(name, now)
+            yield* Effect.logInfo("respawning closed MCP server", { server: name })
+            yield* createAndStore(name, mcp).pipe(
+              Effect.catch((error: unknown) =>
+                Effect.logWarning("failed to respawn MCP server", {
+                  server: name,
+                  error: error instanceof Error ? error.message : String(error),
+                }),
+              ),
+            )
+          }),
+        { concurrency: "unbounded" },
+      )
+    })
+
     const add = Effect.fn("MCP.add")(function* (name: string, mcp: ConfigMCPV1.Info) {
       const s = yield* InstanceState.get(state)
       s.config[name] = mcp
@@ -688,6 +721,7 @@ const layer = Layer.effect(
     const tools = Effect.fn("MCP.tools")(function* () {
       const result: Record<string, McpTool> = {}
       const s = yield* InstanceState.get(state)
+      yield* respawnClosed(s)
 
       const cfg = yield* cfgSvc.get()
       const config = cfg.mcp ?? {}

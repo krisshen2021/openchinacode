@@ -628,6 +628,95 @@ it.instance(
 )
 
 // ========================================================================
+// Test: tools() respawns servers whose connection closed
+// ========================================================================
+
+it.instance(
+  "respawns a local server whose connection closed, on demand",
+  () =>
+    MCP.Service.use((mcp: MCPNS.Interface) =>
+      Effect.gen(function* () {
+        lastCreatedClientName = "idle-server"
+        getOrCreateClientState("idle-server")
+
+        yield* mcp.add("idle-server", {
+          type: "local",
+          command: ["echo", "test"],
+        })
+        expect((yield* mcp.status())["idle-server"]?.status).toBe("connected")
+
+        const createdBefore = clientCreateCount
+        const clients = yield* mcp.clients()
+        clients["idle-server"]?.onclose?.()
+
+        expect((yield* mcp.status())["idle-server"]).toEqual({ status: "failed", error: "Connection closed" })
+
+        lastCreatedClientName = "idle-server"
+        const tools = yield* mcp.tools()
+        expect(clientCreateCount).toBe(createdBefore + 1)
+        expect((yield* mcp.status())["idle-server"]?.status).toBe("connected")
+        expect(Object.keys(tools)).toContain("idle-server_test_tool")
+      }),
+    ),
+  { config: { mcp: {} } },
+)
+
+it.instance(
+  "does not auto-respawn servers that failed at connect time",
+  () =>
+    MCP.Service.use((mcp: MCPNS.Interface) =>
+      Effect.gen(function* () {
+        lastCreatedClientName = "bad-server"
+        getOrCreateClientState("bad-server")
+        connectShouldFail = true
+        connectError = "spawn echo ENOENT"
+
+        yield* mcp.add("bad-server", {
+          type: "local",
+          command: ["echo", "test"],
+        })
+        const createdBefore = clientCreateCount
+
+        yield* mcp.tools()
+        yield* mcp.tools()
+        expect(clientCreateCount).toBe(createdBefore)
+        expect((yield* mcp.status())["bad-server"]?.status).toBe("failed")
+      }),
+    ),
+  { config: { mcp: {} } },
+)
+
+it.instance(
+  "a failed respawn attempt is not retried on every tools() call",
+  () =>
+    MCP.Service.use((mcp: MCPNS.Interface) =>
+      Effect.gen(function* () {
+        lastCreatedClientName = "flaky-server"
+        getOrCreateClientState("flaky-server")
+
+        yield* mcp.add("flaky-server", {
+          type: "local",
+          command: ["echo", "test"],
+        })
+        const clients = yield* mcp.clients()
+        clients["flaky-server"]?.onclose?.()
+        expect((yield* mcp.status())["flaky-server"]).toEqual({ status: "failed", error: "Connection closed" })
+
+        connectShouldFail = true
+        connectError = "spawn echo ENOENT"
+        const createdBefore = clientCreateCount
+
+        lastCreatedClientName = "flaky-server"
+        yield* mcp.tools()
+        expect(clientCreateCount).toBe(createdBefore + 1)
+        yield* mcp.tools()
+        expect(clientCreateCount).toBe(createdBefore + 1)
+      }),
+    ),
+  { config: { mcp: {} } },
+)
+
+// ========================================================================
 // Test: add() closes existing client before replacing
 // ========================================================================
 
