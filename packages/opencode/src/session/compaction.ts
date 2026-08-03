@@ -40,10 +40,12 @@ const MAX_PRESERVE_RECENT_TOKENS = 8_000
 // failures still fall back to deterministic local inference.
 const PROFILE_JUDGE_TIMEOUT_MS = 60_000
 const PROFILE_JUDGE_FALLBACKS = ["deepseek/deepseek-v4-flash", "moonshotai-cn/kimi-k3"]
-const PROFILE_JUDGE_MAX_OUTPUT_TOKENS = 8_192
+// DeepSeek V4 defaults to thinking mode (effort high): reasoning burns most of the
+// budget before any content is emitted, so small caps truncate to empty output.
+const PROFILE_JUDGE_MAX_OUTPUT_TOKENS = 32_768
 const ACTIVE_TASK_EXTRACT_TIMEOUT_MS = 90_000
 const ACTIVE_TASK_EXTRACT_FALLBACKS = PROFILE_JUDGE_FALLBACKS
-const ACTIVE_TASK_EXTRACT_MAX_OUTPUT_TOKENS = 16_384
+const ACTIVE_TASK_EXTRACT_MAX_OUTPUT_TOKENS = 65_536
 type ProgressData = typeof Event.Progress.data.Type
 type ProgressStage = ProgressData["stage"]
 type ProgressModel = ProgressData["model"]
