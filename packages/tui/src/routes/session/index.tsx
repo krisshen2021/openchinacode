@@ -237,9 +237,12 @@ export function Session() {
   const disabled = createMemo(() => permissions().length > 0 || questions().length > 0)
 
   const pending = createMemo(() => {
-    const completed = messages().findLast((x) => x.role === "assistant" && x.time.completed)?.id
-    return messages().findLast((x) => x.role === "assistant" && !x.time.completed && (!completed || x.id > completed))
-      ?.id
+    // Compare by created time, not raw ID: IDs created before the 2026-08-14
+    // 48-bit wrap sort after newer IDs.
+    const completed = messages().findLast((x) => x.role === "assistant" && x.time.completed)
+    return messages().findLast(
+      (x) => x.role === "assistant" && !x.time.completed && (!completed || x.time.created > completed.time.created),
+    )?.id
   })
   const compactionProgress = createMemo(() => sync.data.compaction_progress[route.sessionID] ?? [])
 
@@ -616,7 +619,15 @@ export function Session() {
         const status = sync.data.session_status?.[route.sessionID]
         if (status?.type !== "idle") await sdk.client.session.abort({ sessionID: route.sessionID }).catch(() => {})
         const revert = session()?.revert?.messageID
-        const message = messages().findLast((x) => (!revert || x.id < revert) && x.role === "user")
+        // messages() is (time, id)-sorted; compare positions, not raw IDs
+        // (pre-2026-08-14 IDs sort after newer ones).
+        const revertIndex = revert ? messages().findIndex((x) => x.id === revert) : -1
+        const message = messages().findLast((x, i) => {
+          if (x.role !== "user") return false
+          if (!revert) return true
+          if (revertIndex !== -1) return i < revertIndex
+          return x.id < revert
+        })
         if (!message) return
         void sdk.client.session
           .revert({
@@ -654,7 +665,10 @@ export function Session() {
         dialog.clear()
         const messageID = session()?.revert?.messageID
         if (!messageID) return
-        const message = messages().find((x) => x.role === "user" && x.id > messageID)
+        const revertIndex = messages().findIndex((x) => x.id === messageID)
+        const message = messages().find(
+          (x, i) => x.role === "user" && (revertIndex === -1 ? x.id > messageID : i > revertIndex),
+        )
         if (!message) {
           void sdk.client.session.unrevert({
             sessionID: route.sessionID,

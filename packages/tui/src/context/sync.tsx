@@ -61,6 +61,34 @@ function search<T>(items: T[], target: string, key: (item: T) => string) {
   return { found: false, index: left }
 }
 
+// Message arrays are chronological (server order), not ID-sorted: message IDs
+// created before the 2026-08-14 48-bit time-field wrap sort after newer IDs,
+// so binary search by ID misplaced inserts and new messages became invisible.
+// Linear scans are fine at the 100-message cap.
+function findById<T extends { id: string }>(items: T[], target: string) {
+  const index = items.findIndex((item) => item.id === target)
+  return { found: index !== -1, index }
+}
+
+function compareMessages(a: Message, b: Message) {
+  if (a.time.created !== b.time.created) return a.time.created - b.time.created
+  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0
+}
+
+function messageInsertIndex(items: Message[], message: Message) {
+  for (let i = 0; i < items.length; i++) {
+    if (compareMessages(items[i], message) > 0) return i
+  }
+  return items.length
+}
+
+function partInsertIndex<T extends { id: string }>(items: T[], id: string) {
+  for (let i = 0; i < items.length; i++) {
+    if (items[i].id > id) return i
+  }
+  return items.length
+}
+
 export const {
   context: SyncContext,
   use: useSync,
@@ -363,7 +391,7 @@ export const {
             setStore("message", event.properties.info.sessionID, [event.properties.info])
             break
           }
-          const result = search(messages, event.properties.info.id, (m) => m.id)
+          const result = findById(messages, event.properties.info.id)
           if (result.found) {
             setStore("message", event.properties.info.sessionID, result.index, reconcile(event.properties.info))
             break
@@ -372,7 +400,7 @@ export const {
             "message",
             event.properties.info.sessionID,
             produce((draft) => {
-              draft.splice(result.index, 0, event.properties.info)
+              draft.splice(messageInsertIndex(draft, event.properties.info), 0, event.properties.info)
             }),
           )
           const updated = store.message[event.properties.info.sessionID]
@@ -399,7 +427,7 @@ export const {
         case "message.removed": {
           touchMessage(event.properties.sessionID, event.properties.messageID)
           const messages = store.message[event.properties.sessionID]
-          const result = search(messages, event.properties.messageID, (m) => m.id)
+          const result = findById(messages, event.properties.messageID)
           if (result.found) {
             setStore(
               "message",
@@ -418,7 +446,7 @@ export const {
             setStore("part", event.properties.part.messageID, [event.properties.part])
             break
           }
-          const result = search(parts, event.properties.part.id, (p) => p.id)
+          const result = findById(parts, event.properties.part.id)
           if (result.found) {
             setStore("part", event.properties.part.messageID, result.index, reconcile(event.properties.part))
             break
@@ -427,7 +455,7 @@ export const {
             "part",
             event.properties.part.messageID,
             produce((draft) => {
-              draft.splice(result.index, 0, event.properties.part)
+              draft.splice(partInsertIndex(draft, event.properties.part.id), 0, event.properties.part)
             }),
           )
           break
@@ -436,7 +464,7 @@ export const {
         case "message.part.delta": {
           const parts = store.part[event.properties.messageID]
           if (!parts) break
-          const result = search(parts, event.properties.partID, (p) => p.id)
+          const result = findById(parts, event.properties.partID)
           if (!result.found) break
           touchPart(event.properties.sessionID, event.properties.partID)
           setStore(
@@ -455,7 +483,7 @@ export const {
         case "message.part.removed": {
           touchPart(event.properties.sessionID, event.properties.partID)
           const parts = store.part[event.properties.messageID]
-          const result = search(parts, event.properties.partID, (p) => p.id)
+          const result = findById(parts, event.properties.partID)
           if (result.found) {
             setStore(
               "part",
@@ -659,6 +687,11 @@ export const {
                     (message) => tracker.messages.has(message.id) && !infos.some((item) => item.id === message.id),
                   ),
                 )
+                // Server order is chronological, but tracked local messages were
+                // appended at the end; re-sort so the visible window keeps the
+                // actual newest messages (IDs are not chronological since the
+                // 2026-08-14 48-bit wrap).
+                infos.sort(compareMessages)
                 const removed = infos.slice(0, -100)
                 const visible = infos.slice(-100)
                 const visibleIDs = new Set(visible.map((message) => message.id))
@@ -687,6 +720,7 @@ export const {
                       (part) => tracker.parts.has(part.id) && !parts.some((item) => item.id === part.id),
                     ),
                   )
+                  parts.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
                   draft.part[message.info.id] = parts
                 }
                 for (const message of removed) delete draft.part[message.id]
