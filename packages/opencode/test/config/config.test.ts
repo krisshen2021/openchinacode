@@ -1242,13 +1242,36 @@ it.instance("migrates mixed legacy tools config", () =>
       $schema: "https://opencode.ai/config.json",
       agent: { test: { tools: { bash: true, write: true, read: false, webfetch: true } } },
     })
-
     const config = yield* Config.use.get()
     expect(config.agent?.["test"]?.permission).toEqual({
       bash: "allow",
       edit: "allow",
       read: "deny",
       webfetch: "allow",
+    })
+  }),
+)
+
+it.instance("converts root-level tools switches into global permission rules", () =>
+  Effect.gen(function* () {
+    const test = yield* TestInstance
+    // NOTE: written as openchinacode.json because the loader ignores opencode.json;
+    // the sibling legacy-tools tests above share the pre-existing filename bug.
+    yield* writeConfigEffect(
+      test.directory,
+      {
+        $schema: "https://opencode.ai/config.json",
+        tools: { image_generate: false, video_generate: false, ocr_extract: false, bash: true },
+      },
+      "openchinacode.json",
+    )
+
+    const config = yield* Config.use.get()
+    expect(config.permission).toMatchObject({
+      image_generate: "deny",
+      video_generate: "deny",
+      ocr_extract: "deny",
+      bash: "allow",
     })
   }),
 )

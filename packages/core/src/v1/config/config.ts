@@ -157,7 +157,10 @@ export const Info = Schema.Struct({
   }),
   layout: Schema.optional(ConfigLayoutV1.Layout).annotate({ description: "@deprecated Always uses stretch layout." }),
   permission: Schema.optional(ConfigPermissionV1.Info),
-  tools: Schema.optional(Schema.Record(Schema.String, Schema.Boolean)),
+  tools: Schema.optional(Schema.Record(Schema.String, Schema.Boolean)).annotate({
+    description:
+      "Per-tool enable switches keyed by tool id (e.g. image_generate, ocr_extract, playwright_browser_click). false removes the tool definition from model requests; unset means enabled",
+  }),
   attachment: Schema.optional(ConfigAttachmentV1.Info).annotate({
     description: "Attachment processing configuration, including image size limits and resizing behavior",
   }),
@@ -182,9 +185,6 @@ export const Info = Schema.Struct({
       auto: Schema.optional(Schema.Boolean).annotate({
         description: "Enable automatic compaction when context is full (default: true)",
       }),
-      prune: Schema.optional(Schema.Boolean).annotate({
-        description: "Enable pruning of old tool outputs (default: false)",
-      }),
       tail_turns: Schema.optional(Schema.Union([NonNegativeInt, Schema.Literal("auto")])).annotate({
         description:
           'Number of recent user turns, including their following assistant/tool responses, to keep verbatim during compaction, or "auto" for OpenChinaCode active-task-aware retention (default: auto)',
@@ -194,6 +194,22 @@ export const Info = Schema.Struct({
       }),
       reserved: Schema.optional(NonNegativeInt).annotate({
         description: "Token buffer for compaction. Leaves enough window to avoid overflow during compaction.",
+      }),
+      retention_enabled: Schema.optional(Schema.Boolean).annotate({
+        description:
+          "Master switch for the three *_retention_turns windows (default: true). When false, all retention settings are inert but preserved; re-enable to apply them again.",
+      }),
+      reasoning_retention_turns: Schema.optional(NonNegativeInt).annotate({
+        description:
+          "Number of recent assistant turns whose reasoning is kept verbatim in context; older reasoning is stripped to save tokens (default: off — keeps everything; 0 strips all)",
+      }),
+      tool_output_retention_turns: Schema.optional(NonNegativeInt).annotate({
+        description:
+          "Number of recent assistant turns whose tool outputs are kept verbatim in context; older tool outputs are reduced to a head+tail preview (default: off — keeps everything; 0 truncates all)",
+      }),
+      attachment_retention_turns: Schema.optional(NonNegativeInt).annotate({
+        description:
+          "Number of recent assistant turns whose tool-result attachments (images, files) are kept in context; older attachments are dropped while text output is kept (default: off — keeps everything; 0 drops all)",
       }),
     }),
   ),

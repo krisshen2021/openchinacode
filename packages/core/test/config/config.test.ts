@@ -451,7 +451,6 @@ describe("Config", () => {
             })
             expect(documents[0]?.info.compaction).toEqual({
               auto: true,
-              prune: false,
               keep: { tokens: 2000 },
               buffer: 10000,
             })
@@ -667,7 +666,6 @@ describe("Config", () => {
             })
             expect(documents[0]?.info.compaction).toEqual({
               auto: true,
-              prune: undefined,
               keep: { tokens: 2000 },
               buffer: 10000,
             })

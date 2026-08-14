@@ -1288,6 +1288,265 @@ describe("session.message-v2.toModelMessage", () => {
     const texts = (result[0].content as any[]).filter((p) => p.type === "text")
     expect(texts.map((t) => t.text)).toStrictEqual(["", "hello"])
   })
+
+  test("strips reasoning from assistant turns beyond retention window", async () => {
+    // 3 assistant turns, retention=1 → only the last keeps reasoning.
+    const input: SessionV1.WithParts[] = [
+      {
+        info: userInfo("m-user-1"),
+        parts: [{ ...basePart("m-user-1", "u1"), type: "text", text: "first" }] as SessionV1.Part[],
+      },
+      {
+        info: assistantInfo("m-asst-1", "m-user-1"),
+        parts: [
+          { ...basePart("m-asst-1", "a1"), type: "reasoning", text: "old-thinking" },
+          { ...basePart("m-asst-1", "a2"), type: "text", text: "old-answer" },
+        ] as SessionV1.Part[],
+      },
+      {
+        info: userInfo("m-user-2"),
+        parts: [{ ...basePart("m-user-2", "u2"), type: "text", text: "second" }] as SessionV1.Part[],
+      },
+      {
+        info: assistantInfo("m-asst-2", "m-user-2"),
+        parts: [
+          { ...basePart("m-asst-2", "a3"), type: "reasoning", text: "recent-thinking" },
+          { ...basePart("m-asst-2", "a4"), type: "text", text: "recent-answer" },
+        ] as SessionV1.Part[],
+      },
+    ]
+
+    const result = await MessageV2.toModelMessages(input, model, { reasoningRetention: 1 })
+
+    const firstAssistant = result.find((m) => m.role === "assistant" && (m.content as any[]).some((p) => p.text === "old-answer"))
+    const lastAssistant = result.find((m) => m.role === "assistant" && (m.content as any[]).some((p) => p.text === "recent-answer"))
+
+    // Old turn: reasoning stripped.
+    expect((firstAssistant!.content as any[]).filter((p) => p.type === "reasoning")).toHaveLength(0)
+    // Recent turn: reasoning kept.
+    expect((lastAssistant!.content as any[]).filter((p) => p.type === "reasoning")).toHaveLength(1)
+  })
+
+  test("retains all reasoning when reasoningRetention is undefined", async () => {
+    const input: SessionV1.WithParts[] = [
+      {
+        info: userInfo("m-user-1"),
+        parts: [{ ...basePart("m-user-1", "u1"), type: "text", text: "first" }] as SessionV1.Part[],
+      },
+      {
+        info: assistantInfo("m-asst-1", "m-user-1"),
+        parts: [
+          { ...basePart("m-asst-1", "a1"), type: "reasoning", text: "thinking" },
+          { ...basePart("m-asst-1", "a2"), type: "text", text: "answer" },
+        ] as SessionV1.Part[],
+      },
+    ]
+
+    const result = await MessageV2.toModelMessages(input, model)
+    const assistant = result.find((m) => m.role === "assistant")!
+    expect((assistant.content as any[]).filter((p) => p.type === "reasoning")).toHaveLength(1)
+  })
+
+  test("truncates tool output to head+tail preview beyond retention window", async () => {
+    const bigOutput = "H".repeat(1500) + "M".repeat(2000) + "T".repeat(1500)
+    const input: SessionV1.WithParts[] = [
+      {
+        info: userInfo("m-user-1"),
+        parts: [{ ...basePart("m-user-1", "u1"), type: "text", text: "first" }] as SessionV1.Part[],
+      },
+      {
+        info: assistantInfo("m-asst-1", "m-user-1"),
+        parts: [
+          {
+            ...basePart("m-asst-1", "a1"),
+            type: "tool",
+            callID: "call-1",
+            tool: "bash",
+            state: {
+              status: "completed",
+              input: { cmd: "ls" },
+              output: bigOutput,
+              title: "Bash",
+              metadata: {},
+              time: { start: 0, end: 1 },
+            },
+          },
+        ] as SessionV1.Part[],
+      },
+      {
+        info: userInfo("m-user-2"),
+        parts: [{ ...basePart("m-user-2", "u2"), type: "text", text: "second" }] as SessionV1.Part[],
+      },
+      {
+        info: assistantInfo("m-asst-2", "m-user-2"),
+        parts: [
+          {
+            ...basePart("m-asst-2", "a2"),
+            type: "tool",
+            callID: "call-2",
+            tool: "bash",
+            state: {
+              status: "completed",
+              input: { cmd: "ls" },
+              output: bigOutput,
+              title: "Bash",
+              metadata: {},
+              time: { start: 0, end: 1 },
+            },
+          },
+        ] as SessionV1.Part[],
+      },
+    ]
+
+    const result = await MessageV2.toModelMessages(input, model, { toolOutputRetention: 1 })
+
+    const outputs = result
+      .filter((m) => m.role === "tool")
+      .flatMap((m) => (m.content as any[]).filter((p) => p.type === "tool-result").map((p) => p.output.value))
+
+    // Old turn (call-1): truncated to head+tail preview with omission marker.
+    const oldOutput = outputs[0] as string
+    expect(oldOutput).toContain("omitted")
+    expect(oldOutput.startsWith("H".repeat(1000))).toBe(true)
+    expect(oldOutput.endsWith("T".repeat(1000))).toBe(true)
+    expect(oldOutput.length).toBeLessThan(bigOutput.length)
+
+    // Recent turn (call-2): full output preserved.
+    expect(outputs[1]).toBe(bigOutput)
+  })
+
+  test("retains full tool output when toolOutputRetention is undefined", async () => {
+    const bigOutput = "x".repeat(5000)
+    const input: SessionV1.WithParts[] = [
+      {
+        info: userInfo("m-user-1"),
+        parts: [{ ...basePart("m-user-1", "u1"), type: "text", text: "first" }] as SessionV1.Part[],
+      },
+      {
+        info: assistantInfo("m-asst-1", "m-user-1"),
+        parts: [
+          {
+            ...basePart("m-asst-1", "a1"),
+            type: "tool",
+            callID: "call-1",
+            tool: "bash",
+            state: {
+              status: "completed",
+              input: { cmd: "ls" },
+              output: bigOutput,
+              title: "Bash",
+              metadata: {},
+              time: { start: 0, end: 1 },
+            },
+          },
+        ] as SessionV1.Part[],
+      },
+    ]
+
+    const result = await MessageV2.toModelMessages(input, model)
+    const toolMsg = result.find((m) => m.role === "tool")!
+    const output = (toolMsg.content as any[]).find((p) => p.type === "tool-result")!
+    expect(output.output.value).toBe(bigOutput)
+  })
+
+  test("drops tool-result attachments beyond attachment retention window but keeps text output", async () => {
+    const attachment = (messageID: string, partID: string) => ({
+      ...basePart(messageID, partID),
+      type: "file" as const,
+      mime: "image/png",
+      filename: "shot.png",
+      url: "data:image/png;base64,Zm9v",
+    })
+    const toolPart = (messageID: string, partID: string, callID: string) =>
+      ({
+        ...basePart(messageID, partID),
+        type: "tool",
+        callID,
+        tool: "bash",
+        state: {
+          status: "completed",
+          input: { cmd: "ls" },
+          output: `output-${callID}`,
+          title: "Bash",
+          metadata: {},
+          time: { start: 0, end: 1 },
+          attachments: [attachment(messageID, `${partID}-file`)],
+        },
+      }) as SessionV1.Part
+
+    const input: SessionV1.WithParts[] = [
+      {
+        info: userInfo("m-user-1"),
+        parts: [{ ...basePart("m-user-1", "u1"), type: "text", text: "first" }] as SessionV1.Part[],
+      },
+      {
+        info: assistantInfo("m-asst-1", "m-user-1"),
+        parts: [toolPart("m-asst-1", "a1", "call-old")],
+      },
+      {
+        info: userInfo("m-user-2"),
+        parts: [{ ...basePart("m-user-2", "u2"), type: "text", text: "second" }] as SessionV1.Part[],
+      },
+      {
+        info: assistantInfo("m-asst-2", "m-user-2"),
+        parts: [toolPart("m-asst-2", "a2", "call-recent")],
+      },
+    ]
+
+    const result = await MessageV2.toModelMessages(input, model, { attachmentRetention: 1 })
+
+    const toolOutputs = result
+      .filter((m) => m.role === "tool")
+      .flatMap((m) => (m.content as any[]).filter((p) => p.type === "tool-result").map((p) => p.output))
+
+    // Old turn: attachment dropped, text output kept as plain text.
+    expect(toolOutputs[0]).toStrictEqual({ type: "text", value: "output-call-old" })
+    // Recent turn: attachment kept (output becomes content with media).
+    const recent = toolOutputs[1] as { type: string; value: Array<{ type: string }> }
+    expect(recent.type).toBe("content")
+    expect(recent.value.some((part) => part.type === "media")).toBe(true)
+  })
+
+  test("keeps attachments when attachmentRetention is undefined", async () => {
+    const input: SessionV1.WithParts[] = [
+      {
+        info: userInfo("m-user-1"),
+        parts: [{ ...basePart("m-user-1", "u1"), type: "text", text: "first" }] as SessionV1.Part[],
+      },
+      {
+        info: assistantInfo("m-asst-1", "m-user-1"),
+        parts: [
+          {
+            ...basePart("m-asst-1", "a1"),
+            type: "tool",
+            callID: "call-1",
+            tool: "bash",
+            state: {
+              status: "completed",
+              input: { cmd: "ls" },
+              output: "ok",
+              title: "Bash",
+              metadata: {},
+              time: { start: 0, end: 1 },
+              attachments: [
+                {
+                  ...basePart("m-asst-1", "file-1"),
+                  type: "file",
+                  mime: "image/png",
+                  filename: "shot.png",
+                  url: "data:image/png;base64,Zm9v",
+                },
+              ],
+            },
+          },
+        ] as SessionV1.Part[],
+      },
+    ]
+
+    const result = await MessageV2.toModelMessages(input, model)
+    const output = (result.find((m) => m.role === "tool")!.content as any[]).find((p) => p.type === "tool-result")!
+    expect(output.output.type).toBe("content")
+  })
 })
 
 describe("session.message-v2.fromError", () => {

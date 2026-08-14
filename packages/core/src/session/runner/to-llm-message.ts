@@ -36,14 +36,40 @@ const toolCall = (tool: SessionMessage.AssistantTool, providerMetadata: Provider
     providerMetadata,
   })
 
-const toolResult = (tool: SessionMessage.AssistantTool, providerMetadata: ProviderMetadata | undefined) => {
+// Old tool outputs keep a head+tail preview: headers/errors at the start and
+// trailing failures at the end are the most useful parts of long outputs.
+const TOOL_OUTPUT_PREVIEW_CHARS = 1_000
+
+const previewText = (text: string) => {
+  if (text.length <= TOOL_OUTPUT_PREVIEW_CHARS * 2) return text
+  const omitted = text.length - TOOL_OUTPUT_PREVIEW_CHARS * 2
+  return `${text.slice(0, TOOL_OUTPUT_PREVIEW_CHARS)}\n[... ${omitted} chars omitted from old tool output; re-run the tool or read the file if the full result is needed ...]\n${text.slice(-TOOL_OUTPUT_PREVIEW_CHARS)}`
+}
+
+const previewContent = (content: ReadonlyArray<{ type: "text"; text: string } | { type: "file" }>) =>
+  content.flatMap((item) => (item.type === "text" ? [{ type: "text" as const, text: previewText(item.text) }] : []))
+
+const dropFiles = (content: ReadonlyArray<{ type: "text"; text: string } | { type: "file" }>) =>
+  content.flatMap((item) => (item.type === "text" ? [item] : []))
+
+const toolResult = (
+  tool: SessionMessage.AssistantTool,
+  providerMetadata: ProviderMetadata | undefined,
+  truncateOutput = false,
+  stripAttachments = false,
+) => {
   if (tool.state.status === "completed") {
     // TODO: Materialize remote and managed URIs before provider-history lowering.
     // ToolOutput.toResultValue rejects unresolved URIs rather than treating them as media bytes.
+    const content = truncateOutput
+      ? previewContent(tool.state.content)
+      : stripAttachments
+        ? dropFiles(tool.state.content)
+        : tool.state.content
     const result =
       tool.provider?.executed === true && tool.state.result !== undefined
         ? tool.state.result
-        : ToolOutput.toResultValue({ structured: tool.state.structured, content: tool.state.content })
+        : ToolOutput.toResultValue({ structured: tool.state.structured, content })
     return ToolResultPart.make({
       id: tool.id,
       name: tool.name,
@@ -53,13 +79,18 @@ const toolResult = (tool: SessionMessage.AssistantTool, providerMetadata: Provid
     })
   }
   if (tool.state.status === "error") {
+    const content = truncateOutput
+      ? previewContent(tool.state.content)
+      : stripAttachments
+        ? dropFiles(tool.state.content)
+        : tool.state.content
     return ToolResultPart.make({
       id: tool.id,
       name: tool.name,
       result:
         tool.provider?.executed === true && tool.state.result !== undefined
           ? tool.state.result
-          : { error: tool.state.error, content: tool.state.content, structured: tool.state.structured },
+          : { error: tool.state.error, content, structured: tool.state.structured },
       resultType: "error",
       providerExecuted: tool.provider?.executed,
       providerMetadata,
@@ -67,13 +98,20 @@ const toolResult = (tool: SessionMessage.AssistantTool, providerMetadata: Provid
   }
 }
 
-const assistant = (message: SessionMessage.Assistant, model: Model) => {
+const assistant = (
+  message: SessionMessage.Assistant,
+  model: Model,
+  stripReasoning: boolean,
+  truncateOutput: boolean,
+  stripAttachments: boolean,
+) => {
   const sameModel =
     String(message.model.providerID) === String(model.provider) && String(message.model.id) === String(model.id)
   const reuseProviderMetadata = sameModel && message.error === undefined
   const content = message.content.flatMap((item): ContentPart[] => {
     if (item.type === "text") return [{ type: "text", text: item.text }]
-    if (item.type === "reasoning")
+    if (item.type === "reasoning") {
+      if (stripReasoning) return []
       return sameModel
         ? [
             {
@@ -85,11 +123,14 @@ const assistant = (message: SessionMessage.Assistant, model: Model) => {
         : item.text.length > 0
           ? [{ type: "text", text: item.text }]
           : []
+    }
     const call = toolCall(item, reuseProviderMetadata ? item.provider?.metadata : undefined)
     if (item.provider?.executed !== true) return [call]
     const result = toolResult(
       item,
       reuseProviderMetadata ? (item.provider.resultMetadata ?? item.provider.metadata) : undefined,
+      truncateOutput,
+      stripAttachments,
     )
     return result ? [call, result] : [call]
   })
@@ -101,7 +142,12 @@ const assistant = (message: SessionMessage.Assistant, model: Model) => {
   const results = message.content
     .filter((item): item is SessionMessage.AssistantTool => item.type === "tool" && item.provider?.executed !== true)
     .map((item) =>
-      toolResult(item, reuseProviderMetadata ? (item.provider?.resultMetadata ?? item.provider?.metadata) : undefined),
+      toolResult(
+        item,
+        reuseProviderMetadata ? (item.provider?.resultMetadata ?? item.provider?.metadata) : undefined,
+        truncateOutput,
+        stripAttachments,
+      ),
     )
     .filter((message) => message !== undefined)
     .map(Message.tool)
@@ -112,7 +158,13 @@ const assistant = (message: SessionMessage.Assistant, model: Model) => {
   ]
 }
 
-function toLLMMessage(message: SessionMessage.Message, model: Model): Message[] {
+function toLLMMessage(
+  message: SessionMessage.Message,
+  model: Model,
+  stripReasoning: boolean,
+  truncateOutput: boolean,
+  stripAttachments: boolean,
+): Message[] {
   switch (message.type) {
     case "agent-switched":
     case "model-switched":
@@ -143,7 +195,7 @@ function toLLMMessage(message: SessionMessage.Message, model: Model): Message[] 
         }),
       ]
     case "assistant":
-      return assistant(message, model)
+      return assistant(message, model, stripReasoning, truncateOutput, stripAttachments)
     case "compaction":
       return [
         Message.make({
@@ -166,6 +218,50 @@ ${message.recent}
   }
 }
 
+/** Retain reasoning parts / full tool outputs / tool attachments only on the last N assistant turns. */
+export type ToLLMMessageOptions = {
+  reasoningRetention?: number
+  toolOutputRetention?: number
+  attachmentRetention?: number
+}
+
 /** Translate projected V2 Session history into canonical @opencode-ai/llm context. */
-export const toLLMMessages = (messages: readonly SessionMessage.Message[], model: Model) =>
-  messages.flatMap((message) => toLLMMessage(message, model))
+export const toLLMMessages = (
+  messages: readonly SessionMessage.Message[],
+  model: Model,
+  options?: ToLLMMessageOptions,
+) => {
+  const reasoningRetention = options?.reasoningRetention
+  const toolOutputRetention = options?.toolOutputRetention
+  const attachmentRetention = options?.attachmentRetention
+  if (
+    (reasoningRetention === undefined || reasoningRetention < 0) &&
+    (toolOutputRetention === undefined || toolOutputRetention < 0) &&
+    (attachmentRetention === undefined || attachmentRetention < 0)
+  )
+    return messages.flatMap((message) => toLLMMessage(message, model, false, false, false))
+  // Count assistant turns from the end; turns beyond each retention window are degraded.
+  const stripReasoningFor = new Set<string>()
+  const truncateOutputFor = new Set<string>()
+  const stripAttachmentsFor = new Set<string>()
+  let assistantTurns = 0
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].type !== "assistant") continue
+    assistantTurns++
+    if (reasoningRetention !== undefined && reasoningRetention >= 0 && assistantTurns > reasoningRetention)
+      stripReasoningFor.add(messages[i].id)
+    if (toolOutputRetention !== undefined && toolOutputRetention >= 0 && assistantTurns > toolOutputRetention)
+      truncateOutputFor.add(messages[i].id)
+    if (attachmentRetention !== undefined && attachmentRetention >= 0 && assistantTurns > attachmentRetention)
+      stripAttachmentsFor.add(messages[i].id)
+  }
+  return messages.flatMap((message) =>
+    toLLMMessage(
+      message,
+      model,
+      stripReasoningFor.has(message.id),
+      truncateOutputFor.has(message.id),
+      stripAttachmentsFor.has(message.id),
+    ),
+  )
+}

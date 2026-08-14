@@ -50,6 +50,10 @@ export const Default = {
   TASK_CLASSIFY: "task-classify",
   INTEGRATION_TEST: "integration-test",
   BROWSER_CHECK: "browser-check",
+  REASONING_RETENTION_TURNS: "reasoning-retention-turns",
+  TOOL_OUTPUT_RETENTION_TURNS: "tool-output-retention-turns",
+  ATTACHMENT_RETENTION: "attachment-retention",
+  TOKEN_OPTIMIZATION: "token-optimization",
 } as const
 
 const PROMPT_TASK_POLICY = [
@@ -114,6 +118,87 @@ const PROMPT_INTEGRATION_TEST = [
   "",
   "User focus:",
   "$ARGUMENTS",
+].join("\n")
+
+const MASTER_SWITCH_NOTE =
+  "A master switch `compaction.retention_enabled` gates all three retention windows: while it is false, every retention setting is inert but preserved. These per-feature commands never modify the master switch; /token-optimization manages it."
+
+const PROMPT_REASONING_RETENTION_TURNS = [
+  "Manage the `compaction.reasoning_retention_turns` OpenChinaCode config value.",
+  "",
+  "This value controls how many recent assistant turns keep their reasoning (chain-of-thought) verbatim in model context; reasoning from older turns is stripped to save tokens. The feature is OFF when the key is unset (all reasoning is kept, matching upstream default behavior); 0 strips all reasoning.",
+  "",
+  MASTER_SWITCH_NOTE,
+  "",
+  "Config is stored in `openchinacode.json` or `openchinacode.jsonc` at the project root (or `~/.config/openchinacode/openchinacode.json` for global). The key lives under the `compaction` object, e.g.:",
+  '{ "compaction": { "reasoning_retention_turns": 4 } }',
+  "",
+  "Behavior depends on the argument:",
+  "- `status` (or no argument): Read the config file and report the current state: whether the key is set and its value, or OFF when unset. Also report whether the feature is effectively active right now — it stays inert while `compaction.retention_enabled` is false even when a value is configured. Do not modify any file.",
+  "- A non-negative integer (e.g. `6`): Set `compaction.reasoning_retention_turns` to that integer by editing the config file. Preserve existing JSON structure and formatting; create the `compaction` object if missing. After editing, confirm the new value. Reject negative numbers and non-integers with a clear error message and make no changes.",
+  "- `off`: Remove the `reasoning_retention_turns` key from the `compaction` object, leaving other keys untouched (remove `compaction` entirely if it becomes empty). This disables the feature so all reasoning is kept. Confirm the change.",
+  "",
+  "Use the available file tools (read/glob/edit) to locate, read, and modify the config file. Do not guess the value; always read the file first.",
+  "",
+  "Argument: $ARGUMENTS",
+].join("\n")
+
+const PROMPT_TOOL_OUTPUT_RETENTION_TURNS = [
+  "Manage the `compaction.tool_output_retention_turns` OpenChinaCode config value.",
+  "",
+  "This value controls how many recent assistant turns keep their tool outputs verbatim in model context; tool outputs from older turns are reduced to a head+tail preview to save tokens. The feature is OFF when the key is unset (all tool outputs are kept, matching upstream default behavior); 0 truncates all tool outputs.",
+  "",
+  MASTER_SWITCH_NOTE,
+  "",
+  "Config is stored in `openchinacode.json` or `openchinacode.jsonc` at the project root (or `~/.config/openchinacode/openchinacode.json` for global). The key lives under the `compaction` object, e.g.:",
+  '{ "compaction": { "tool_output_retention_turns": 4 } }',
+  "",
+  "Behavior depends on the argument:",
+  "- `status` (or no argument): Read the config file and report the current state: whether the key is set and its value, or OFF when unset. Also report whether the feature is effectively active right now — it stays inert while `compaction.retention_enabled` is false even when a value is configured. Do not modify any file.",
+  "- A non-negative integer (e.g. `6`): Set `compaction.tool_output_retention_turns` to that integer by editing the config file. Preserve existing JSON structure and formatting; create the `compaction` object if missing. After editing, confirm the new value. Reject negative numbers and non-integers with a clear error message and make no changes.",
+  "- `off`: Remove the `tool_output_retention_turns` key from the `compaction` object, leaving other keys untouched (remove `compaction` entirely if it becomes empty). This disables the feature so all tool outputs are kept verbatim. Confirm the change.",
+  "",
+  "Use the available file tools (read/glob/edit) to locate, read, and modify the config file. Do not guess the value; always read the file first.",
+  "",
+  "Argument: $ARGUMENTS",
+].join("\n")
+
+const PROMPT_ATTACHMENT_RETENTION = [
+  "Manage the `compaction.attachment_retention_turns` OpenChinaCode config value.",
+  "",
+  "This value controls how many recent assistant turns keep tool-result attachments (images, screenshots, files) in model context; attachments from older turns are dropped while the text output is kept, saving significant tokens in media-heavy sessions. The feature is OFF when the key is unset (all attachments are kept, matching upstream default behavior); 0 drops all attachments.",
+  "",
+  MASTER_SWITCH_NOTE,
+  "",
+  "Config is stored in `openchinacode.json` or `openchinacode.jsonc` at the project root (or `~/.config/openchinacode/openchinacode.json` for global). The key lives under the `compaction` object, e.g.:",
+  '{ "compaction": { "attachment_retention_turns": 4 } }',
+  "",
+  "Behavior depends on the argument:",
+  "- `status` (or no argument): Read the config file and report the current state: whether the key is set and its value, or OFF when unset. Also report whether the feature is effectively active right now — it stays inert while `compaction.retention_enabled` is false even when a value is configured. Do not modify any file.",
+  "- A non-negative integer (e.g. `2`): Set `compaction.attachment_retention_turns` to that integer by editing the config file. Preserve existing JSON structure and formatting; create the `compaction` object if missing. After editing, confirm the new value. Reject negative numbers and non-integers with a clear error message and make no changes.",
+  "- `off`: Remove the `attachment_retention_turns` key from the `compaction` object, leaving other keys untouched (remove `compaction` entirely if it becomes empty). This disables the feature so all attachments are kept. Confirm the change.",
+  "",
+  "Use the available file tools (read/glob/edit) to locate, read, and modify the config file. Do not guess the value; always read the file first.",
+  "",
+  "Argument: $ARGUMENTS",
+].join("\n")
+
+const PROMPT_TOKEN_OPTIMIZATION = [
+  "Manage `compaction.retention_enabled`, the master switch for OpenChinaCode's three retention optimizations (reasoning, tool output, and attachment retention windows).",
+  "",
+  "The master switch is a lock around three independent settings (`compaction.reasoning_retention_turns`, `compaction.tool_output_retention_turns`, `compaction.attachment_retention_turns`). Locking it (false) makes all three inert WITHOUT deleting their configured values; unlocking it (true, or the key absent) lets each setting apply as configured. Default is unlocked when the key is absent. This command never reads or modifies the three retention values themselves — they are managed by /reasoning-retention-turns, /tool-output-retention-turns, and /attachment-retention.",
+  "",
+  "Config is stored in `openchinacode.json` or `openchinacode.jsonc` at the project root (or `~/.config/openchinacode/openchinacode.json` for global).",
+  "",
+  "Behavior depends on the argument:",
+  "- `status` (or no argument): Read the config file and report a full summary: the master switch state (locked or unlocked), each of the three retention keys (unset = off, or its turn count), and whether each feature is effectively active right now (active only when the master is unlocked AND its key is set). Do not modify any file.",
+  "- `on`: Unlock the master switch by removing `retention_enabled` from the `compaction` object (or setting it to true). Do not touch the three retention keys. Confirm the change.",
+  "- `off`: Lock the master switch by setting `compaction.retention_enabled` to false, creating the `compaction` object if missing. Do not touch the three retention keys. Confirm that all retention optimizations are now inert but their configured values are preserved.",
+  "- Any other argument: reject with a clear usage message (`/token-optimization [status|on|off]`) and make no changes.",
+  "",
+  "Use the available file tools (read/glob/edit) to locate, read, and modify the config file. Always read the file first.",
+  "",
+  "Argument: $ARGUMENTS",
 ].join("\n")
 
 const PROMPT_BROWSER_CHECK = [
@@ -214,6 +299,46 @@ const layer = Layer.effect(
           return PROMPT_BROWSER_CHECK
         },
         hints: hints(PROMPT_BROWSER_CHECK),
+      }
+      commands[Default.REASONING_RETENTION_TURNS] = {
+        name: Default.REASONING_RETENTION_TURNS,
+        description:
+          "Usage: /reasoning-retention-turns [status|<number>|off] - show, set, or disable the reasoning retention turns config",
+        source: "command",
+        get template() {
+          return PROMPT_REASONING_RETENTION_TURNS
+        },
+        hints: hints(PROMPT_REASONING_RETENTION_TURNS),
+      }
+      commands[Default.TOOL_OUTPUT_RETENTION_TURNS] = {
+        name: Default.TOOL_OUTPUT_RETENTION_TURNS,
+        description:
+          "Usage: /tool-output-retention-turns [status|<number>|off] - show, set, or disable the tool output retention turns config",
+        source: "command",
+        get template() {
+          return PROMPT_TOOL_OUTPUT_RETENTION_TURNS
+        },
+        hints: hints(PROMPT_TOOL_OUTPUT_RETENTION_TURNS),
+      }
+      commands[Default.ATTACHMENT_RETENTION] = {
+        name: Default.ATTACHMENT_RETENTION,
+        description:
+          "Usage: /attachment-retention [status|<number>|off] - show, set, or disable the attachment retention turns config",
+        source: "command",
+        get template() {
+          return PROMPT_ATTACHMENT_RETENTION
+        },
+        hints: hints(PROMPT_ATTACHMENT_RETENTION),
+      }
+      commands[Default.TOKEN_OPTIMIZATION] = {
+        name: Default.TOKEN_OPTIMIZATION,
+        description:
+          "Usage: /token-optimization [status|on|off] - master switch for all retention optimizations",
+        source: "command",
+        get template() {
+          return PROMPT_TOKEN_OPTIMIZATION
+        },
+        hints: hints(PROMPT_TOKEN_OPTIMIZATION),
       }
 
       for (const [name, command] of Object.entries(cfg.command ?? {})) {

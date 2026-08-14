@@ -89,6 +89,27 @@ import { llmClient } from "../../effect/app-node-platform"
  * explicit loop starts the next provider turn after local settlement. Configured agent step limits bound the loop.
  */
 
+// Retention windows are opt-in: unset keys mean "keep everything" (matching
+// upstream behavior). compaction.retention_enabled === false is a master gate
+// that makes every retention key inert without deleting it. Both the gate and
+// the per-feature keys resolve highest-priority-document-first.
+export const retentionTurns = (
+  documents: readonly Config.Entry[],
+  key: "reasoning_retention_turns" | "tool_output_retention_turns" | "attachment_retention_turns",
+): number | undefined => {
+  let master: boolean | undefined
+  let turns: number | undefined
+  for (let i = documents.length - 1; i >= 0 && (master === undefined || turns === undefined); i--) {
+    const entry = documents[i]
+    if (entry.type !== "document") continue
+    const compaction = entry.info.compaction
+    if (master === undefined && compaction?.retention_enabled !== undefined) master = compaction.retention_enabled
+    if (turns === undefined && compaction?.[key] !== undefined) turns = compaction[key]
+  }
+  if (master === false) return undefined
+  return turns
+}
+
 const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
@@ -105,7 +126,8 @@ const layer = Layer.effect(
     const config = yield* Config.Service
     const snapshots = yield* Snapshot.Service
     const db = (yield* Database.Service).db
-    const compaction = SessionCompaction.make({ events, llm, config: yield* config.entries() })
+    const configEntries = yield* config.entries()
+    const compaction = SessionCompaction.make({ events, llm, config: configEntries })
     const getSession = Effect.fn("SessionRunner.getSession")(function* (sessionID: SessionSchema.ID) {
       const session = yield* store.get(sessionID)
       if (!session) return yield* Effect.die(`Session not found: ${sessionID}`)
@@ -203,7 +225,14 @@ const layer = Layer.effect(
         system: [agent.info?.system, system.baseline]
           .filter((part): part is string => part !== undefined && part.length > 0)
           .map(SystemPart.make),
-        messages: [...toLLMMessages(context, model), ...(isLastStep ? [Message.assistant(MAX_STEPS_PROMPT)] : [])],
+        messages: [
+          ...toLLMMessages(context, model, {
+            reasoningRetention: retentionTurns(configEntries, "reasoning_retention_turns"),
+            toolOutputRetention: retentionTurns(configEntries, "tool_output_retention_turns"),
+            attachmentRetention: retentionTurns(configEntries, "attachment_retention_turns"),
+          }),
+          ...(isLastStep ? [Message.assistant(MAX_STEPS_PROMPT)] : []),
+        ],
         tools: toolMaterialization?.definitions ?? [],
         toolChoice: isLastStep ? "none" : undefined,
       })

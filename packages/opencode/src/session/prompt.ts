@@ -1533,13 +1533,32 @@ const layer = Layer.effect(
               sys.environment(model),
               instruction.system().pipe(Effect.orDie),
               sys.mcp(agent, session.permission),
-              MessageV2.toModelMessagesEffect(msgs, model),
+              MessageV2.toModelMessagesEffect(msgs, model, {
+                // Retention windows are opt-in (unset = keep everything);
+                // retention_enabled === false is a master gate that makes
+                // them all inert without deleting the configured values.
+                reasoningRetention:
+                  cfg.compaction?.retention_enabled === false
+                    ? undefined
+                    : cfg.compaction?.reasoning_retention_turns,
+                toolOutputRetention:
+                  cfg.compaction?.retention_enabled === false
+                    ? undefined
+                    : cfg.compaction?.tool_output_retention_turns,
+                attachmentRetention:
+                  cfg.compaction?.retention_enabled === false
+                    ? undefined
+                    : cfg.compaction?.attachment_retention_turns,
+              }),
             ])
             const system = [
-              ...env,
+              // Volatile content (env block contains today's date) goes last so the
+              // static prefix (instructions, MCP, skills) stays byte-identical across
+              // days and keeps hitting provider prompt caches (GLM/DeepSeek).
               ...instructions,
               ...(mcpInstructions ? [mcpInstructions] : []),
               ...(skills ? [skills] : []),
+              ...env,
             ]
             const format = lastUser.format ?? { type: "text" as const }
             if (format.type === "json_schema") system.push(STRUCTURED_OUTPUT_SYSTEM_PROMPT)
@@ -1609,7 +1628,6 @@ const layer = Layer.effect(
           continue
         }
 
-        yield* compaction.prune({ sessionID }).pipe(Effect.ignore, Effect.forkIn(scope))
         return yield* lastAssistant(sessionID)
       },
     )
