@@ -2206,13 +2206,16 @@ export type Config = {
   }
   compaction?: {
     auto?: boolean
-    prune?: boolean
     /**
      * Number of recent user turns, including their following assistant/tool responses, to keep verbatim during compaction, or "auto" for OpenChinaCode active-task-aware retention (default: auto)
      */
     tail_turns?: number | "auto"
     preserve_recent_tokens?: number
     reserved?: number
+    retention_enabled?: boolean
+    reasoning_retention_turns?: number
+    tool_output_retention_turns?: number
+    attachment_retention_turns?: number
   }
   experimental?: {
     disable_paste_summary?: boolean
@@ -7784,6 +7787,36 @@ export type ConfigUpdateResponses = {
 }
 
 export type ConfigUpdateResponse = ConfigUpdateResponses[keyof ConfigUpdateResponses]
+
+export type ConfigInvalidateData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/config/invalidate"
+}
+
+export type ConfigInvalidateErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type ConfigInvalidateError = ConfigInvalidateErrors[keyof ConfigInvalidateErrors]
+
+export type ConfigInvalidateResponses = {
+  /**
+   * Config cache invalidated
+   */
+  200: {
+    ok: boolean
+  }
+}
+
+export type ConfigInvalidateResponse = ConfigInvalidateResponses[keyof ConfigInvalidateResponses]
 
 export type ConfigProvidersData = {
   body?: never

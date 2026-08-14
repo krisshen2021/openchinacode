@@ -20,6 +20,8 @@ import type {
   Config as Config3,
   ConfigGetErrors,
   ConfigGetResponses,
+  ConfigInvalidateErrors,
+  ConfigInvalidateResponses,
   ConfigProvidersErrors,
   ConfigProvidersResponses,
   ConfigTaskPolicyRuntimeErrors,
@@ -1528,6 +1530,36 @@ export class Config2 extends HeyApiClient {
         ...options?.headers,
         ...params.headers,
       },
+    })
+  }
+
+  /**
+   * Invalidate configuration cache
+   *
+   * Invalidate the cached global configuration so the next request reloads it from disk, without disposing the instance.
+   */
+  public invalidate<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<ConfigInvalidateResponses, ConfigInvalidateErrors, ThrowOnError>({
+      url: "/config/invalidate",
+      ...options,
+      ...params,
     })
   }
 

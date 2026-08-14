@@ -39,10 +39,16 @@ export const configHandlers = HttpApiBuilder.group(InstanceHttpApi, "config", (h
       }
     })
 
+    const invalidate = Effect.fn("ConfigHttpApi.invalidate")(function* () {
+      yield* configSvc.invalidate()
+      return { ok: true }
+    })
+
     return handlers
       .handle("get", get)
       .handle("update", update)
       .handle("providers", providers)
       .handle("taskPolicyRuntime", taskPolicyRuntime)
+      .handle("invalidate", invalidate)
   }),
 )

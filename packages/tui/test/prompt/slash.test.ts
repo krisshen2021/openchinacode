@@ -4,8 +4,10 @@ import {
   parseCompactSlashAction,
   parseDirectSlashCommand,
   parseLspSlashAction,
+  parseRetentionTurnsSlashAction,
   parseSoulSlashAction,
   parseTestMcpSlashAction,
+  parseTokenOptimizationSlashAction,
 } from "../../src/component/prompt/slash"
 
 describe("prompt slash commands", () => {
@@ -73,5 +75,27 @@ describe("prompt slash commands", () => {
     expect(parseSoulSlashAction("friendly")).toEqual({ type: "set", soul: "friendly" })
     expect(parseSoulSlashAction("custom")).toEqual({ type: "set", soul: "custom" })
     expect(parseSoulSlashAction("unknown")).toEqual({ type: "help" })
+  })
+
+  test("parses retention turns actions", () => {
+    expect(parseRetentionTurnsSlashAction("")).toEqual({ type: "status" })
+    expect(parseRetentionTurnsSlashAction("status")).toEqual({ type: "status" })
+    expect(parseRetentionTurnsSlashAction("4")).toEqual({ type: "set", turns: 4 })
+    expect(parseRetentionTurnsSlashAction("0")).toEqual({ type: "set", turns: 0 })
+    expect(parseRetentionTurnsSlashAction("off")).toEqual({ type: "off" })
+    expect(parseRetentionTurnsSlashAction("unset")).toEqual({ type: "off" })
+    expect(parseRetentionTurnsSlashAction("-1")).toEqual({ type: "help" })
+    expect(parseRetentionTurnsSlashAction("1.5")).toEqual({ type: "help" })
+    expect(parseRetentionTurnsSlashAction("abc")).toEqual({ type: "help" })
+  })
+
+  test("parses token optimization actions", () => {
+    expect(parseTokenOptimizationSlashAction("")).toEqual({ type: "status" })
+    expect(parseTokenOptimizationSlashAction("status")).toEqual({ type: "status" })
+    expect(parseTokenOptimizationSlashAction("on")).toEqual({ type: "on" })
+    expect(parseTokenOptimizationSlashAction("unlock")).toEqual({ type: "on" })
+    expect(parseTokenOptimizationSlashAction("off")).toEqual({ type: "off" })
+    expect(parseTokenOptimizationSlashAction("lock")).toEqual({ type: "off" })
+    expect(parseTokenOptimizationSlashAction("bogus")).toEqual({ type: "help" })
   })
 })

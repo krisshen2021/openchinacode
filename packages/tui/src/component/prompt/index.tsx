@@ -81,9 +81,11 @@ import {
   parseCompactSlashAction,
   parseDirectSlashCommand,
   parseLspSlashAction,
+  parseRetentionTurnsSlashAction,
   parseSoulSlashAction,
   parseTaskPolicySlashAction,
   parseTestMcpSlashAction,
+  parseTokenOptimizationSlashAction,
 } from "./slash"
 import { DialogSoul } from "../dialog-soul"
 
@@ -364,6 +366,21 @@ async function writeGlobalTaskPolicyEnabledConfig(enabled: boolean) {
   const current = await readGlobalConfigFile()
   const before = current.text.trim() ? current.text : JSON.stringify({ $schema: CONFIG_SCHEMA }, null, 2)
   const after = Jsonc.patch(before, { task_policy: { enabled } })
+  if (after !== current.text) await writeFile(current.file, after)
+  return {
+    file: current.file,
+    changed: after !== current.text,
+  }
+}
+
+type RetentionKey = "reasoning_retention_turns" | "tool_output_retention_turns" | "attachment_retention_turns"
+
+// Undefined values delete the key (jsonc-parser modify semantics), which is
+// how `off` / master-unlock restore the default state.
+async function writeGlobalCompactionConfig(patch: Partial<Record<RetentionKey | "retention_enabled", number | boolean | undefined>>) {
+  const current = await readGlobalConfigFile()
+  const before = current.text.trim() ? current.text : JSON.stringify({ $schema: CONFIG_SCHEMA }, null, 2)
+  const after = Jsonc.patch(before, { compaction: patch })
   if (after !== current.text) await writeFile(current.file, after)
   return {
     file: current.file,
@@ -905,6 +922,162 @@ export function Prompt(props: PromptProps) {
         variant: "error",
         duration: 7000,
       })
+    }
+  }
+
+  const RETENTION_COMMANDS: Record<RetentionKey, { command: string; label: string }> = {
+    reasoning_retention_turns: { command: "reasoning-retention-turns", label: "Reasoning retention" },
+    tool_output_retention_turns: { command: "tool-output-retention-turns", label: "Tool output retention" },
+    attachment_retention_turns: { command: "attachment-retention", label: "Attachment retention" },
+  }
+
+  function currentCompaction() {
+    return (sync.data.config.compaction ?? {}) as Partial<Record<RetentionKey | "retention_enabled", number | boolean>>
+  }
+
+  function retentionState(key: RetentionKey) {
+    const compaction = currentCompaction()
+    const master = compaction.retention_enabled !== false
+    const value = compaction[key]
+    const turns = typeof value === "number" ? value : undefined
+    return { master, turns, active: master && turns !== undefined }
+  }
+
+  function updateCompactionStore(key: RetentionKey | "retention_enabled", value: number | boolean | undefined) {
+    sync.set("config", "compaction" as any, (prev: Record<string, unknown> | undefined) => {
+      const next = { ...(prev ?? {}) }
+      if (value === undefined) delete next[key]
+      else next[key] = value
+      return next
+    })
+  }
+
+  function showRetentionStatus(key: RetentionKey) {
+    const meta = RETENTION_COMMANDS[key]
+    const state = retentionState(key)
+    const locked = state.master ? "" : " Master switch is LOCKED — settings are inert (/token-optimization on to unlock)."
+    const message =
+      state.turns === undefined
+        ? `Off — full history is kept (default). Usage: /${meta.command} <turns> to enable, /${meta.command} off to disable.${locked}`
+        : `Keeping the last ${state.turns} assistant turn(s)${state.active ? "" : " (currently inert)"}. /${meta.command} off to disable.${locked}`
+    toast.show({ title: meta.label, message, variant: "info", duration: 9000 })
+  }
+
+  async function setRetentionTurns(key: RetentionKey, turns: number | undefined) {
+    const meta = RETENTION_COMMANDS[key]
+    try {
+      const result = await writeGlobalCompactionConfig({ [key]: turns })
+      await sdk.client.config.invalidate(undefined, { throwOnError: true })
+      updateCompactionStore(key, turns)
+      const state = retentionState(key)
+      const locked = turns !== undefined && !state.master ? " Master switch is locked, so it stays inert until /token-optimization on." : ""
+      toast.show({
+        title: turns === undefined ? `${meta.label} disabled` : `${meta.label} set to ${turns} turn(s)`,
+        message: `${result.changed ? "Updated config" : "Config already set"} (hot-applied): ${result.file}.${locked}`,
+        variant: "success",
+        duration: 8000,
+      })
+    } catch (error) {
+      toast.show({
+        title: `Failed to update ${meta.label.toLowerCase()}`,
+        message: errorMessage(error),
+        variant: "error",
+        duration: 7000,
+      })
+    }
+  }
+
+  function handleRetentionTurnsSlash(key: RetentionKey, args: string) {
+    const meta = RETENTION_COMMANDS[key]
+    const action = parseRetentionTurnsSlashAction(args)
+    switch (action.type) {
+      case "status":
+        showRetentionStatus(key)
+        return
+      case "set":
+        void setRetentionTurns(key, action.turns)
+        return
+      case "off":
+        void setRetentionTurns(key, undefined)
+        return
+      case "help":
+        toast.show({
+          title: meta.label,
+          message: `Usage: /${meta.command} [status|<turns>|off] - show, set, or disable. Off by default (full history kept); gated by the /token-optimization master switch.`,
+          variant: "info",
+          duration: 9000,
+        })
+        return
+    }
+  }
+
+  function showTokenOptimizationStatus() {
+    const master = currentCompaction().retention_enabled !== false
+    const lines = (Object.keys(RETENTION_COMMANDS) as RetentionKey[]).map((key) => {
+      const state = retentionState(key)
+      const label = RETENTION_COMMANDS[key].label
+      if (state.turns === undefined) return `${label}: off`
+      return `${label}: last ${state.turns} turn(s)${state.active ? "" : " (inert)"}`
+    })
+    toast.show({
+      title: `Token optimization ${master ? "unlocked" : "LOCKED"}`,
+      message: [
+        `Master switch: ${master ? "on — each setting applies as configured" : "off — all settings inert but preserved"}.`,
+        ...lines,
+        "Usage: /token-optimization [status|on|off]",
+      ].join("\n"),
+      variant: "info",
+      duration: 9000,
+    })
+  }
+
+  async function setTokenOptimizationEnabled(enabled: boolean) {
+    try {
+      // Unlock by removing the key (default is unlocked); lock by setting false.
+      const result = await writeGlobalCompactionConfig({ retention_enabled: enabled ? undefined : false })
+      await sdk.client.config.invalidate(undefined, { throwOnError: true })
+      updateCompactionStore("retention_enabled", enabled ? undefined : false)
+      toast.show({
+        title: enabled ? "Token optimization unlocked" : "Token optimization LOCKED",
+        message: `${result.changed ? "Updated config" : "Config already set"} (hot-applied): ${result.file}. ${
+          enabled
+            ? "Retention settings apply as configured."
+            : "All retention settings are now inert; their configured values are preserved."
+        }`,
+        variant: "success",
+        duration: 8000,
+      })
+    } catch (error) {
+      toast.show({
+        title: "Failed to update token optimization",
+        message: errorMessage(error),
+        variant: "error",
+        duration: 7000,
+      })
+    }
+  }
+
+  function handleTokenOptimizationSlash(args: string) {
+    const action = parseTokenOptimizationSlashAction(args)
+    switch (action.type) {
+      case "status":
+        showTokenOptimizationStatus()
+        return
+      case "on":
+        void setTokenOptimizationEnabled(true)
+        return
+      case "off":
+        void setTokenOptimizationEnabled(false)
+        return
+      case "help":
+        toast.show({
+          title: "Token optimization",
+          message:
+            "Usage: /token-optimization [status|on|off] - master switch for all retention optimizations. Locking keeps each setting's value but makes it inert; unlocking applies them again. Default is unlocked.",
+          variant: "info",
+          duration: 9000,
+        })
+        return
     }
   }
 
@@ -2768,6 +2941,26 @@ export function Prompt(props: PromptProps) {
     if (parsed.command === "task-policy") {
       clearPrompt()
       handleTaskPolicySlash(parsed.args)
+      return true
+    }
+    if (parsed.command === "reasoning-retention-turns") {
+      clearPrompt()
+      handleRetentionTurnsSlash("reasoning_retention_turns", parsed.args)
+      return true
+    }
+    if (parsed.command === "tool-output-retention-turns" || parsed.command === "tool-output-truncate") {
+      clearPrompt()
+      handleRetentionTurnsSlash("tool_output_retention_turns", parsed.args)
+      return true
+    }
+    if (parsed.command === "attachment-retention") {
+      clearPrompt()
+      handleRetentionTurnsSlash("attachment_retention_turns", parsed.args)
+      return true
+    }
+    if (parsed.command === "token-optimization") {
+      clearPrompt()
+      handleTokenOptimizationSlash(parsed.args)
       return true
     }
     if (parsed.command === "soul") {
