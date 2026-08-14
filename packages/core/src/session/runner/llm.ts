@@ -89,22 +89,25 @@ import { llmClient } from "../../effect/app-node-platform"
  * explicit loop starts the next provider turn after local settlement. Configured agent step limits bound the loop.
  */
 
-const DEFAULT_REASONING_RETENTION_TURNS = 4
-const DEFAULT_TOOL_OUTPUT_RETENTION_TURNS = 4
-const DEFAULT_ATTACHMENT_RETENTION_TURNS = 4
-
-const retentionTurns = (
+// Retention windows are opt-in: unset keys mean "keep everything" (matching
+// upstream behavior). compaction.retention_enabled === false is a master gate
+// that makes every retention key inert without deleting it. Both the gate and
+// the per-feature keys resolve highest-priority-document-first.
+export const retentionTurns = (
   documents: readonly Config.Entry[],
   key: "reasoning_retention_turns" | "tool_output_retention_turns" | "attachment_retention_turns",
-  fallback: number,
-) => {
-  for (let i = documents.length - 1; i >= 0; i--) {
+): number | undefined => {
+  let master: boolean | undefined
+  let turns: number | undefined
+  for (let i = documents.length - 1; i >= 0 && (master === undefined || turns === undefined); i--) {
     const entry = documents[i]
     if (entry.type !== "document") continue
-    const turns = entry.info.compaction?.[key]
-    if (turns !== undefined) return turns
+    const compaction = entry.info.compaction
+    if (master === undefined && compaction?.retention_enabled !== undefined) master = compaction.retention_enabled
+    if (turns === undefined && compaction?.[key] !== undefined) turns = compaction[key]
   }
-  return fallback
+  if (master === false) return undefined
+  return turns
 }
 
 const layer = Layer.effect(
@@ -224,17 +227,9 @@ const layer = Layer.effect(
           .map(SystemPart.make),
         messages: [
           ...toLLMMessages(context, model, {
-            reasoningRetention: retentionTurns(configEntries, "reasoning_retention_turns", DEFAULT_REASONING_RETENTION_TURNS),
-            toolOutputRetention: retentionTurns(
-              configEntries,
-              "tool_output_retention_turns",
-              DEFAULT_TOOL_OUTPUT_RETENTION_TURNS,
-            ),
-            attachmentRetention: retentionTurns(
-              configEntries,
-              "attachment_retention_turns",
-              DEFAULT_ATTACHMENT_RETENTION_TURNS,
-            ),
+            reasoningRetention: retentionTurns(configEntries, "reasoning_retention_turns"),
+            toolOutputRetention: retentionTurns(configEntries, "tool_output_retention_turns"),
+            attachmentRetention: retentionTurns(configEntries, "attachment_retention_turns"),
           }),
           ...(isLastStep ? [Message.assistant(MAX_STEPS_PROMPT)] : []),
         ],

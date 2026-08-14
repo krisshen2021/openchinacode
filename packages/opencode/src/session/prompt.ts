@@ -1534,9 +1534,21 @@ const layer = Layer.effect(
               instruction.system().pipe(Effect.orDie),
               sys.mcp(agent, session.permission),
               MessageV2.toModelMessagesEffect(msgs, model, {
-                reasoningRetention: cfg.compaction?.reasoning_retention_turns ?? 4,
-                toolOutputRetention: cfg.compaction?.tool_output_retention_turns ?? 4,
-                attachmentRetention: cfg.compaction?.attachment_retention_turns ?? 4,
+                // Retention windows are opt-in (unset = keep everything);
+                // retention_enabled === false is a master gate that makes
+                // them all inert without deleting the configured values.
+                reasoningRetention:
+                  cfg.compaction?.retention_enabled === false
+                    ? undefined
+                    : cfg.compaction?.reasoning_retention_turns,
+                toolOutputRetention:
+                  cfg.compaction?.retention_enabled === false
+                    ? undefined
+                    : cfg.compaction?.tool_output_retention_turns,
+                attachmentRetention:
+                  cfg.compaction?.retention_enabled === false
+                    ? undefined
+                    : cfg.compaction?.attachment_retention_turns,
               }),
             ])
             const system = [
