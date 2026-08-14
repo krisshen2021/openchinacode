@@ -704,9 +704,12 @@ const layer: Layer.Layer<
       })
       const msgs = yield* messages({ sessionID: input.sessionID })
       const idMap = new Map<string, MessageID>()
+      // Compare by created time, not raw ID: IDs generated before the 48-bit
+      // time-field wrap (2026-08-14) sort after newer IDs.
+      const target = input.messageID ? msgs.find((msg) => msg.info.id === input.messageID) : undefined
 
       for (const msg of msgs) {
-        if (input.messageID && msg.info.id >= input.messageID) break
+        if (target && (msg.info.id === target.info.id || MessageV2.after(msg.info, target.info))) break
         const newID = MessageID.ascending()
         idMap.set(msg.info.id, newID)
 

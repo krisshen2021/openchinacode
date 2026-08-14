@@ -1599,4 +1599,47 @@ describe("session.message-v2.latest", () => {
     expect(state.tasks).toHaveLength(1)
     expect(state.tasks[0]).toMatchObject({ type: "compaction", auto: true })
   })
+
+  // Regression for the 2026-08-14 48-bit ID wrap: pre-wrap IDs (msg_fff8...)
+  // sort after post-wrap IDs (msg_001c...), so latest-by-ID treated the stale
+  // morning assistant as newer and swallowed every pending task — the prompt
+  // loop exited at step 0 without calling the model.
+  test("latest resolves by created time when ID order disagrees with time", () => {
+    const PRE_WRAP_ASSISTANT = MessageID.make("msg_fff8b38850027vchR7UdWcnSy7")
+    const POST_WRAP_USER = MessageID.make("msg_001c73561001wbDbeIB4b56SDQ")
+
+    const preWrapAssistant: SessionV1.WithParts = {
+      info: {
+        ...assistantInfo(PRE_WRAP_ASSISTANT, "msg_fff899749001TATB316TPMdQlG"),
+        finish: "stop",
+        time: { created: 1000 },
+      } as SessionV1.Assistant,
+      parts: [],
+    }
+    const postWrapUser: SessionV1.WithParts = {
+      info: { ...userInfo(POST_WRAP_USER), time: { created: 2000 } },
+      parts: [
+        { ...basePart(POST_WRAP_USER, "p1"), type: "compaction", auto: false },
+      ] as SessionV1.Part[],
+    }
+
+    const state = MessageV2.latest([preWrapAssistant, postWrapUser])
+
+    expect(state.user?.id).toBe(POST_WRAP_USER)
+    expect(state.finished?.id).toBe(PRE_WRAP_ASSISTANT)
+    expect(state.tasks).toHaveLength(1)
+    expect(state.tasks[0]).toMatchObject({ type: "compaction", auto: false })
+  })
+
+  test("after compares by created time with ID tiebreak", () => {
+    const preWrap = { ...assistantInfo("msg_fff8b38850027vchR7UdWcnSy7", "msg_x"), time: { created: 1000 } }
+    const postWrap = { ...userInfo("msg_001c73561001wbDbeIB4b56SDQ"), time: { created: 2000 } }
+    expect(MessageV2.after(postWrap, preWrap)).toBe(true)
+    expect(MessageV2.after(preWrap, postWrap)).toBe(false)
+
+    const a = { ...userInfo("msg_001"), time: { created: 5 } }
+    const b = { ...userInfo("msg_002"), time: { created: 5 } }
+    expect(MessageV2.after(b, a)).toBe(true)
+    expect(MessageV2.after(a, b)).toBe(false)
+  })
 })

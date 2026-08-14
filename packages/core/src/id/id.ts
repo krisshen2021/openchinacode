@@ -41,7 +41,7 @@ export function timestamp(id: string): number {
   const prefix = id.split("_")[0]
   const hex = id.slice(prefix.length + 1, prefix.length + 13)
   const encoded = BigInt("0x" + hex)
-  return Number(encoded / BigInt(0x1000))
+  return Number(encoded >> 6n)
 }
 
 export * as Identifier from "./id"
