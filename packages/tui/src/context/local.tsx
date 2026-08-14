@@ -135,27 +135,21 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
     const agent = createAgent()
 
     function createModel() {
+      type ModelRef = { providerID: string; modelID: string }
+      type SessionModelEntry = ModelRef & { variant?: string }
+      const MAX_REMEMBERED_SESSIONS = 50
+
       const [modelStore, setModelStore] = createStore<{
         ready: boolean
-        model: Record<
-          string,
-          {
-            providerID: string
-            modelID: string
-          }
-        >
-        recent: {
-          providerID: string
-          modelID: string
-        }[]
-        favorite: {
-          providerID: string
-          modelID: string
-        }[]
+        model: Record<string, ModelRef>
+        sessions: Record<string, Record<string, SessionModelEntry>>
+        recent: ModelRef[]
+        favorite: ModelRef[]
         variant: Record<string, string | undefined>
       }>({
         ready: false,
         model: {},
+        sessions: {},
         recent: [],
         favorite: [],
         variant: {},
@@ -164,6 +158,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
       const filePath = path.join(paths.state, "model.json")
       const state = {
         pending: false,
+        sessionID: undefined as string | undefined,
       }
 
       function save() {
@@ -172,7 +167,17 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           return
         }
         state.pending = false
+        // Session keys are re-inserted on every write, so object order is
+        // least-recently-used; cap the map to keep model.json bounded.
+        const ids = Object.keys(modelStore.sessions)
+        const sessions =
+          ids.length <= MAX_REMEMBERED_SESSIONS
+            ? modelStore.sessions
+            : Object.fromEntries(ids.slice(-MAX_REMEMBERED_SESSIONS).map((id) => [id, modelStore.sessions[id]]))
+        if (sessions !== modelStore.sessions) setModelStore("sessions", sessions)
         void writeJsonAtomic(filePath, {
+          model: modelStore.model,
+          sessions,
           recent: modelStore.recent,
           favorite: modelStore.favorite,
           variant: modelStore.variant,
@@ -183,6 +188,10 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         .then((x) => {
           if (!x || typeof x !== "object") return
           const value = x as Record<string, unknown>
+          if (typeof value.model === "object" && value.model !== null)
+            setModelStore("model", value.model as Record<string, ModelRef>)
+          if (typeof value.sessions === "object" && value.sessions !== null)
+            setModelStore("sessions", value.sessions as Record<string, Record<string, SessionModelEntry>>)
           if (Array.isArray(value.recent)) setModelStore("recent", value.recent)
           if (Array.isArray(value.favorite)) setModelStore("favorite", value.favorite)
           if (typeof value.variant === "object" && value.variant !== null)
@@ -193,6 +202,44 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           setModelStore("ready", true)
           if (state.pending) save()
         })
+
+      // Remember the choice for both this session and the global per-agent
+      // fallback: sessions keep their own history, new sessions inherit the
+      // most recent choice.
+      function applyModel(agentName: string, model: ModelRef) {
+        const sessionID = state.sessionID
+        batch(() => {
+          setModelStore("model", agentName, { ...model })
+          if (sessionID) {
+            setModelStore("sessions", (prev) => {
+              const next = { ...prev }
+              const entry = { ...(next[sessionID] ?? {}) }
+              entry[agentName] = { ...entry[agentName], ...model }
+              delete next[sessionID]
+              next[sessionID] = entry
+              return next
+            })
+          }
+        })
+      }
+
+      function applyVariant(agentName: string, model: ModelRef, variant: string | undefined) {
+        const sessionID = state.sessionID
+        const key = `${model.providerID}/${model.modelID}`
+        batch(() => {
+          setModelStore("variant", key, variant ?? "default")
+          if (sessionID) {
+            setModelStore("sessions", (prev) => {
+              const next = { ...prev }
+              const entry = { ...(next[sessionID] ?? {}) }
+              entry[agentName] = { ...model, ...entry[agentName], variant }
+              delete next[sessionID]
+              next[sessionID] = entry
+              return next
+            })
+          }
+        })
+      }
 
       const fallbackModel = createMemo(() => {
         if (args.model) {
@@ -235,8 +282,13 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
 
       const currentModel = createMemo(() => {
         const a = agent.current()
+        const sessionID = state.sessionID
         return (
           getFirstValidModel(
+            () => {
+              if (!a || !sessionID) return undefined
+              return modelStore.sessions[sessionID]?.[a.name]
+            },
             () => a && modelStore.model[a.name],
             () => a && a.model,
             fallbackModel,
@@ -246,6 +298,9 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
 
       return {
         current: currentModel,
+        setSession(sessionID: string | undefined) {
+          state.sessionID = sessionID
+        },
         get ready() {
           return modelStore.ready
         },
@@ -285,7 +340,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           if (!val) return
           const a = agent.current()
           if (!a) return
-          setModelStore("model", a.name, { ...val })
+          applyModel(a.name, val)
         },
         cycleFavorite(direction: 1 | -1) {
           const favorites = modelStore.favorite.filter((item) => isModelValid(item))
@@ -313,7 +368,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           if (!next) return
           const a = agent.current()
           if (!a) return
-          setModelStore("model", a.name, { ...next })
+          applyModel(a.name, next)
           setModelStore("recent", recentModels(next, modelStore.recent))
           save()
         },
@@ -329,7 +384,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
             }
             const a = agent.current()
             if (!a) return
-            setModelStore("model", a.name, model)
+            applyModel(a.name, model)
             if (options?.recent) {
               setModelStore("recent", recentModels(model, modelStore.recent))
               save()
@@ -363,6 +418,12 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           selected() {
             const m = currentModel()
             if (!m) return undefined
+            const a = agent.current()
+            const sessionID = state.sessionID
+            if (a && sessionID) {
+              const sessionVariant = modelStore.sessions[sessionID]?.[a.name]?.variant
+              if (sessionVariant !== undefined) return sessionVariant
+            }
             const key = `${m.providerID}/${m.modelID}`
             return modelStore.variant[key]
           },
@@ -383,8 +444,9 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           set(value: string | undefined) {
             const m = currentModel()
             if (!m) return
-            const key = `${m.providerID}/${m.modelID}`
-            setModelStore("variant", key, value ?? "default")
+            const a = agent.current()
+            if (!a) return
+            applyVariant(a.name, m, value)
             save()
           },
           cycle() {

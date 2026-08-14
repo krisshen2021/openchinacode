@@ -426,6 +426,9 @@ export function Session() {
   }
 
   const local = useLocal()
+  createEffect(() => {
+    local.model.setSession(route.sessionID)
+  })
 
   function enterChild(sessionID: string) {
     navigate({
