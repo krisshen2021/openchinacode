@@ -36,7 +36,7 @@ import { editorSelectionKey, useEditorContext, type EditorSelection } from "../.
 import { normalizePromptContent, openEditor } from "../../editor"
 import { useExit } from "../../context/exit"
 import { promptOffsetWidth } from "../../prompt/display"
-import { createStore, produce, unwrap } from "solid-js/store"
+import { createStore, produce, reconcile, unwrap } from "solid-js/store"
 import { usePromptHistory, type PromptInfo } from "../../prompt/history"
 import { computePromptTraits } from "../../prompt/traits"
 import { expandPastedTextPlaceholders, expandTrackedPastedText } from "../../prompt/part"
@@ -943,13 +943,12 @@ export function Prompt(props: PromptProps) {
     return { master, turns, active: master && turns !== undefined }
   }
 
-  function updateCompactionStore(key: RetentionKey | "retention_enabled", value: number | boolean | undefined) {
-    sync.set("config", "compaction" as any, (prev: Record<string, unknown> | undefined) => {
-      const next = { ...(prev ?? {}) }
-      if (value === undefined) delete next[key]
-      else next[key] = value
-      return next
-    })
+  // Reload the merged config from the server after a file write. Updating the
+  // store locally is not enough: solid setStore merges object nodes, so keys
+  // deleted in the file (off / unlock) would survive in the store.
+  async function refreshConfig() {
+    const fresh = await sdk.client.config.get({}, { throwOnError: true })
+    sync.set("config", reconcile(fresh.data))
   }
 
   function showRetentionStatus(key: RetentionKey) {
@@ -968,7 +967,7 @@ export function Prompt(props: PromptProps) {
     try {
       const result = await writeGlobalCompactionConfig({ [key]: turns })
       await sdk.client.config.invalidate(undefined, { throwOnError: true })
-      updateCompactionStore(key, turns)
+      await refreshConfig()
       const state = retentionState(key)
       const locked = turns !== undefined && !state.master ? " Master switch is locked, so it stays inert until /token-optimization on." : ""
       toast.show({
@@ -1036,7 +1035,7 @@ export function Prompt(props: PromptProps) {
       // Unlock by removing the key (default is unlocked); lock by setting false.
       const result = await writeGlobalCompactionConfig({ retention_enabled: enabled ? undefined : false })
       await sdk.client.config.invalidate(undefined, { throwOnError: true })
-      updateCompactionStore("retention_enabled", enabled ? undefined : false)
+      await refreshConfig()
       toast.show({
         title: enabled ? "Token optimization unlocked" : "Token optimization LOCKED",
         message: `${result.changed ? "Updated config" : "Config already set"} (hot-applied): ${result.file}. ${
