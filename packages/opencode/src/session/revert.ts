@@ -71,7 +71,9 @@ const layer = Layer.effect(
       if (session.revert?.snapshot) yield* snap.restore(session.revert.snapshot)
       yield* snap.revert(patches)
       if (rev.snapshot) rev.diff = yield* snap.diff(rev.snapshot)
-      const range = all.filter((msg) => msg.info.id >= rev.messageID)
+      // `all` is chronological; slice from the revert target instead of
+      // comparing raw IDs (pre-2026-08-14 IDs sort after newer ones).
+      const range = all.slice(Math.max(0, all.findIndex((msg) => msg.info.id === rev.messageID)))
       const diffs = yield* summary.computeDiff({ messages: range })
       yield* storage.write(["session_diff", input.sessionID], diffs).pipe(Effect.ignore)
       yield* events.publish(Session.Event.Diff, { sessionID: input.sessionID, diff: diffs })
@@ -104,9 +106,13 @@ const layer = Layer.effect(
       const messageID = session.revert.messageID
       const remove = [] as SessionV1.WithParts[]
       let target: SessionV1.WithParts | undefined
-      for (const msg of msgs) {
-        if (msg.info.id < messageID) continue
-        if (msg.info.id > messageID) {
+      // `msgs` is chronological; compare positions, not raw IDs
+      // (pre-2026-08-14 IDs sort after newer ones).
+      const cutoff = msgs.findIndex((msg) => msg.info.id === messageID)
+      for (const [index, msg] of msgs.entries()) {
+        if (cutoff === -1) break
+        if (index < cutoff) continue
+        if (index > cutoff) {
           remove.push(msg)
           continue
         }
