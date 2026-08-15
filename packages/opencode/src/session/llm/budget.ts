@@ -129,6 +129,10 @@ export function apply(input: {
     }
   }
 
+  const outputCap = input.model.limit.output > 0 ? Math.floor(input.model.limit.output) : undefined
+  const roomTokens = Math.max(0, Math.floor(context - promptTokens - safetyBuffer))
+  const availableOutputTokens = outputCap === undefined ? roomTokens : Math.min(roomTokens, outputCap)
+
   const targetOutputTokens =
     input.maxOutputTokens === undefined ? undefined : Math.max(0, Math.floor(input.maxOutputTokens))
   if (targetOutputTokens === undefined || targetOutputTokens <= 0) {
@@ -136,24 +140,24 @@ export function apply(input: {
       action: "use",
       maxOutputTokens: input.maxOutputTokens,
       promptTokens,
-      availableOutputTokens: Math.max(0, context - promptTokens - safetyBuffer),
+      availableOutputTokens,
       minUsefulOutputTokens: undefined,
       clamped: false,
     }
   }
-
-  const availableOutputTokens = Math.max(0, Math.floor(context - promptTokens - safetyBuffer))
   const minUseful = minUsefulOutputTokens({
     targetOutputTokens,
     level: input.outputLevel ?? input.outputDecision?.level,
     outputDecision: input.outputDecision,
   })
 
-  if (availableOutputTokens < minUseful) {
+  // Gate compaction on raw context room: an output cap is a hard model limit
+  // that compaction cannot raise.
+  if (roomTokens < minUseful) {
     return {
       action: "compact",
       promptTokens,
-      availableOutputTokens,
+      availableOutputTokens: roomTokens,
       minUsefulOutputTokens: minUseful,
       targetOutputTokens,
       reason: "output-budget",

@@ -95,6 +95,76 @@ describe("OutputBudget.apply", () => {
     }
   })
 
+  test("caps output to the model output limit below the policy max", () => {
+    const result = OutputBudget.apply({
+      model: createModel(1_024_000, 65_536),
+      messages: [{ role: "user", content: "继续实现这个重构" }],
+      tools: {},
+      maxOutputTokens: 1_048_576,
+      outputDecision: {
+        tokens: 1_048_576,
+        level: "max",
+        mode: "heuristic",
+        reasons: ["coding-intent"],
+        needsJudge: false,
+        policy: { default: 131_072, max: 1_048_576 },
+      },
+      outputLevel: "max",
+      promptTokens: 50_000,
+    })
+
+    expect(result.action).toBe("use")
+    if (result.action === "use") {
+      expect(result.maxOutputTokens).toBe(65_536)
+      expect(result.availableOutputTokens).toBe(65_536)
+      expect(result.clamped).toBe(true)
+    }
+  })
+
+  test("treats a zero output limit as no cap", () => {
+    const result = OutputBudget.apply({
+      model: createModel(1_000_000, 0),
+      messages: [{ role: "user", content: "修复这个 bug" }],
+      tools: {},
+      maxOutputTokens: 393_216,
+      outputDecision,
+      outputLevel: "max",
+      promptTokens: 700_000,
+    })
+
+    expect(result.action).toBe("use")
+    if (result.action === "use") {
+      expect(result.maxOutputTokens).toBe(280_000)
+      expect(result.availableOutputTokens).toBe(280_000)
+    }
+  })
+
+  test("uses a small output cap without requesting compaction", () => {
+    const result = OutputBudget.apply({
+      model: createModel(1_024_000, 32_768),
+      messages: [{ role: "user", content: "继续实现这个重构" }],
+      tools: {},
+      maxOutputTokens: 1_048_576,
+      outputDecision: {
+        tokens: 1_048_576,
+        level: "max",
+        mode: "heuristic",
+        reasons: ["coding-intent"],
+        needsJudge: false,
+        policy: { default: 131_072, max: 1_048_576 },
+      },
+      outputLevel: "max",
+      promptTokens: 50_000,
+    })
+
+    expect(result.action).toBe("use")
+    if (result.action === "use") {
+      expect(result.maxOutputTokens).toBe(32_768)
+      expect(result.availableOutputTokens).toBe(32_768)
+      expect(result.clamped).toBe(true)
+    }
+  })
+
   test("does not gate models with unknown context", () => {
     const result = OutputBudget.apply({
       model: createModel(0),
