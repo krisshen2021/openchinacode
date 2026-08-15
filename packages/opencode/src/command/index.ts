@@ -50,6 +50,10 @@ export const Default = {
   TASK_CLASSIFY: "task-classify",
   INTEGRATION_TEST: "integration-test",
   BROWSER_CHECK: "browser-check",
+  REASONING_RETENTION_TURNS: "reasoning-retention-turns",
+  TOOL_OUTPUT_RETENTION_TURNS: "tool-output-retention-turns",
+  ATTACHMENT_RETENTION: "attachment-retention",
+  TOKEN_OPTIMIZATION: "token-optimization",
 } as const
 
 const PROMPT_TASK_POLICY = [
@@ -114,6 +118,46 @@ const PROMPT_INTEGRATION_TEST = [
   "",
   "User focus:",
   "$ARGUMENTS",
+].join("\n")
+
+const SESSION_RETENTION_NOTE = [
+  "OpenChinaCode's retention optimizations are session-scoped: they live in the current session's metadata (`session.metadata.compaction`), not in any config file. The global config keys no longer exist, so do not attempt to edit openchinacode.json/jsonc for this.",
+  "",
+  "Structure: `retention_enabled` (master switch, default unlocked) gates three opt-in windows: `reasoning_retention_turns`, `tool_output_retention_turns`, `attachment_retention_turns` (each unset = keep everything; 0 = strip/truncate all).",
+  "",
+  "These settings are viewable and changeable only through the TUI slash commands, which apply to the current session and sync live to all attached windows: /token-optimization [status|on|off], /reasoning-retention-turns [status|<turns>|off], /tool-output-retention-turns [status|<turns>|off], /attachment-retention [status|<turns>|off].",
+].join("\n")
+
+const PROMPT_REASONING_RETENTION_TURNS = [
+  SESSION_RETENTION_NOTE,
+  "",
+  "The user invoked /reasoning-retention-turns outside the TUI. Explain the session-scoped model above and tell them to run /reasoning-retention-turns [status|<turns>|off] in the TUI to view or change this session's reasoning retention window. Do not edit any config file.",
+  "",
+  "Argument: $ARGUMENTS",
+].join("\n")
+
+const PROMPT_TOOL_OUTPUT_RETENTION_TURNS = [
+  SESSION_RETENTION_NOTE,
+  "",
+  "The user invoked /tool-output-retention-turns outside the TUI. Explain the session-scoped model above and tell them to run /tool-output-retention-turns [status|<turns>|off] in the TUI to view or change this session's tool output retention window. Do not edit any config file.",
+  "",
+  "Argument: $ARGUMENTS",
+].join("\n")
+
+const PROMPT_ATTACHMENT_RETENTION = [
+  SESSION_RETENTION_NOTE,
+  "",
+  "The user invoked /attachment-retention outside the TUI. Explain the session-scoped model above and tell them to run /attachment-retention [status|<turns>|off] in the TUI to view or change this session's attachment retention window. Do not edit any config file.",
+  "",
+  "Argument: $ARGUMENTS",
+].join("\n")
+
+const PROMPT_TOKEN_OPTIMIZATION = [
+  SESSION_RETENTION_NOTE,
+  "",
+  "The user invoked /token-optimization outside the TUI. Explain the session-scoped model above and tell them to run /token-optimization [status|on|off] in the TUI to view or change this session's master switch. Do not edit any config file.",
+  "",
+  "Argument: $ARGUMENTS",
 ].join("\n")
 
 const PROMPT_BROWSER_CHECK = [
@@ -215,6 +259,43 @@ const layer = Layer.effect(
         },
         hints: hints(PROMPT_BROWSER_CHECK),
       }
+      commands[Default.REASONING_RETENTION_TURNS] = {
+        name: Default.REASONING_RETENTION_TURNS,
+        description: "Usage: /reasoning-retention-turns [status|<turns>|off] - this session's reasoning retention window",
+        source: "command",
+        get template() {
+          return PROMPT_REASONING_RETENTION_TURNS
+        },
+        hints: hints(PROMPT_REASONING_RETENTION_TURNS),
+      }
+      commands[Default.TOOL_OUTPUT_RETENTION_TURNS] = {
+        name: Default.TOOL_OUTPUT_RETENTION_TURNS,
+        description: "Usage: /tool-output-retention-turns [status|<turns>|off] - this session's tool output retention window",
+        source: "command",
+        get template() {
+          return PROMPT_TOOL_OUTPUT_RETENTION_TURNS
+        },
+        hints: hints(PROMPT_TOOL_OUTPUT_RETENTION_TURNS),
+      }
+      commands[Default.ATTACHMENT_RETENTION] = {
+        name: Default.ATTACHMENT_RETENTION,
+        description: "Usage: /attachment-retention [status|<turns>|off] - this session's attachment retention window",
+        source: "command",
+        get template() {
+          return PROMPT_ATTACHMENT_RETENTION
+        },
+        hints: hints(PROMPT_ATTACHMENT_RETENTION),
+      }
+      commands[Default.TOKEN_OPTIMIZATION] = {
+        name: Default.TOKEN_OPTIMIZATION,
+        description: "Usage: /token-optimization [status|on|off] - this session's master switch for retention optimizations",
+        source: "command",
+        get template() {
+          return PROMPT_TOKEN_OPTIMIZATION
+        },
+        hints: hints(PROMPT_TOKEN_OPTIMIZATION),
+      }
+
       for (const [name, command] of Object.entries(cfg.command ?? {})) {
         commands[name] = {
           name,
