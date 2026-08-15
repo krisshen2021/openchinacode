@@ -92,30 +92,9 @@ import { llmClient } from "../../effect/app-node-platform"
  * explicit loop starts the next provider turn after local settlement. Configured agent step limits bound the loop.
  */
 
-// Retention windows are opt-in: unset keys mean "keep everything" (matching
-// upstream behavior). compaction.retention_enabled === false is a master gate
-// that makes every retention key inert without deleting it. Both the gate and
-// the per-feature keys resolve highest-priority-document-first.
-const scanRetention = (
-  documents: readonly Config.Entry[],
-  key: "retention_enabled" | ConfigCompaction.RetentionKey,
-): number | boolean | undefined => {
-  for (let i = documents.length - 1; i >= 0; i--) {
-    const entry = documents[i]
-    if (entry.type !== "document") continue
-    const value = entry.info.compaction?.[key]
-    if (value !== undefined) return value
-  }
-  return undefined
-}
-
-export const retentionTurns = (
-  documents: readonly Config.Entry[],
-  key: "reasoning_retention_turns" | "tool_output_retention_turns" | "attachment_retention_turns",
-): number | undefined => {
-  if (scanRetention(documents, "retention_enabled") === false) return undefined
-  return scanRetention(documents, key) as number | undefined
-}
+// Retention windows are session-scoped (session.metadata.compaction), opt-in,
+// and off by default (full history kept). retention_enabled === false is a
+// session-level master gate that makes every window inert without deleting it.
 
 const layer = Layer.effect(
   Service,
@@ -209,20 +188,12 @@ const layer = Layer.effect(
         .where(eq(SessionTable.id, sessionID))
         .get()
         .pipe(Effect.orDie)
-      // Per-session overrides (session.metadata.compaction) win over global
-      // config; null disables a window for this session only.
+      // Session-scoped retention settings (session.metadata.compaction);
+      // null disables a window explicitly for this session.
       const retentionOverride = ConfigCompaction.sessionOverride(sessionMetadata?.metadata ?? undefined)
-      const retentionMaster = ConfigCompaction.retentionMaster(
-        { retention_enabled: scanRetention(configEntries, "retention_enabled") as boolean | undefined },
-        retentionOverride,
-      )
+      const retentionMaster = ConfigCompaction.retentionMaster(retentionOverride)
       const effectiveTurns = (key: ConfigCompaction.RetentionKey) =>
-        ConfigCompaction.retentionTurns(
-          key,
-          retentionMaster,
-          { [key]: scanRetention(configEntries, key) as number | undefined },
-          retentionOverride,
-        )
+        ConfigCompaction.retentionTurns(key, retentionMaster, retentionOverride)
       const agent = yield* agents.select(session.agent)
       const initialized = yield* SessionContextEpoch.initialize(db, loadSystemContext(agent), session.id)
       const toolFibers = yield* FiberSet.make<void, ToolOutputStore.Error>()

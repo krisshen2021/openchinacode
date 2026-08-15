@@ -1536,25 +1536,22 @@ const layer = Layer.effect(
               instruction.system().pipe(Effect.orDie),
               sys.mcp(agent, session.permission),
               MessageV2.toModelMessagesEffect(msgs, model, {
-                // Retention windows are opt-in (unset = keep everything).
-                // Per-session overrides (session.metadata.compaction) win over
-                // global config; null disables a window for this session.
+                // Retention windows are session-scoped (session.metadata.compaction),
+                // opt-in, and off by default (full history kept). Null disables
+                // a window explicitly; the master gate makes them all inert.
                 reasoningRetention: ConfigCompaction.retentionTurns(
                   "reasoning_retention_turns",
-                  ConfigCompaction.retentionMaster(cfg.compaction, sessionOverride),
-                  cfg.compaction,
+                  ConfigCompaction.retentionMaster(sessionOverride),
                   sessionOverride,
                 ),
                 toolOutputRetention: ConfigCompaction.retentionTurns(
                   "tool_output_retention_turns",
-                  ConfigCompaction.retentionMaster(cfg.compaction, sessionOverride),
-                  cfg.compaction,
+                  ConfigCompaction.retentionMaster(sessionOverride),
                   sessionOverride,
                 ),
                 attachmentRetention: ConfigCompaction.retentionTurns(
                   "attachment_retention_turns",
-                  ConfigCompaction.retentionMaster(cfg.compaction, sessionOverride),
-                  cfg.compaction,
+                  ConfigCompaction.retentionMaster(sessionOverride),
                   sessionOverride,
                 ),
               }),

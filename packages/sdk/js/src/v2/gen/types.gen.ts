@@ -2212,10 +2212,6 @@ export type Config = {
     tail_turns?: number | "auto"
     preserve_recent_tokens?: number
     reserved?: number
-    retention_enabled?: boolean
-    reasoning_retention_turns?: number
-    tool_output_retention_turns?: number
-    attachment_retention_turns?: number
   }
   experimental?: {
     disable_paste_summary?: boolean
