@@ -36,7 +36,7 @@ import { editorSelectionKey, useEditorContext, type EditorSelection } from "../.
 import { normalizePromptContent, openEditor } from "../../editor"
 import { useExit } from "../../context/exit"
 import { promptOffsetWidth } from "../../prompt/display"
-import { createStore, produce, reconcile, unwrap } from "solid-js/store"
+import { createStore, produce, unwrap } from "solid-js/store"
 import { usePromptHistory, type PromptInfo } from "../../prompt/history"
 import { computePromptTraits } from "../../prompt/traits"
 import { expandPastedTextPlaceholders, expandTrackedPastedText } from "../../prompt/part"
@@ -374,19 +374,6 @@ async function writeGlobalTaskPolicyEnabledConfig(enabled: boolean) {
 }
 
 type RetentionKey = "reasoning_retention_turns" | "tool_output_retention_turns" | "attachment_retention_turns"
-
-// Undefined values delete the key (jsonc-parser modify semantics), which is
-// how `off` / master-unlock restore the default state.
-async function writeGlobalCompactionConfig(patch: Partial<Record<RetentionKey | "retention_enabled", number | boolean | undefined>>) {
-  const current = await readGlobalConfigFile()
-  const before = current.text.trim() ? current.text : JSON.stringify({ $schema: CONFIG_SCHEMA }, null, 2)
-  const after = Jsonc.patch(before, { compaction: patch })
-  if (after !== current.text) await writeFile(current.file, after)
-  return {
-    file: current.file,
-    changed: after !== current.text,
-  }
-}
 
 function hasEditorRangeSelection(selection: EditorSelection["ranges"][number]) {
   return (
@@ -931,48 +918,106 @@ export function Prompt(props: PromptProps) {
     attachment_retention_turns: { command: "attachment-retention", label: "Attachment retention" },
   }
 
-  function currentCompaction() {
+  type SessionCompaction = {
+    retention_enabled?: boolean
+    reasoning_retention_turns?: number | null
+    tool_output_retention_turns?: number | null
+    attachment_retention_turns?: number | null
+  }
+
+  // Per-session retention overrides live in session.metadata.compaction. An
+  // absent key inherits the global config value; null disables that window for
+  // this session only. Session updates broadcast session.updated, so every
+  // attached window stays in sync (unlike global config file edits).
+  function currentSession() {
+    const sessionID = route.data.type === "session" ? route.data.sessionID : undefined
+    return sync.data.session.find((item) => item.id === sessionID)
+  }
+
+  function sessionCompaction(): SessionCompaction {
+    const compaction = currentSession()?.metadata?.["compaction"]
+    if (typeof compaction !== "object" || compaction === null || Array.isArray(compaction)) return {}
+    return compaction as SessionCompaction
+  }
+
+  function globalCompaction() {
     return (sync.data.config.compaction ?? {}) as Partial<Record<RetentionKey | "retention_enabled", number | boolean>>
   }
 
-  function retentionState(key: RetentionKey) {
-    const compaction = currentCompaction()
-    const master = compaction.retention_enabled !== false
-    const value = compaction[key]
-    const turns = typeof value === "number" ? value : undefined
-    return { master, turns, active: master && turns !== undefined }
+  function retentionMasterState() {
+    const sessionValue = sessionCompaction().retention_enabled
+    const globalValue = globalCompaction().retention_enabled
+    return {
+      master: (sessionValue ?? globalValue) !== false,
+      source: sessionValue !== undefined ? ("session" as const) : globalValue !== undefined ? ("global" as const) : ("default" as const),
+    }
   }
 
-  // Reload the merged config from the server after a file write. Updating the
-  // store locally is not enough: solid setStore merges object nodes, so keys
-  // deleted in the file (off / unlock) would survive in the store.
-  async function refreshConfig() {
-    const fresh = await sdk.client.config.get({}, { throwOnError: true })
-    sync.set("config", reconcile(fresh.data))
+  function retentionState(key: RetentionKey) {
+    const masterState = retentionMasterState()
+    const sessionValue = sessionCompaction()[key]
+    if (sessionValue === null) return { ...masterState, turns: undefined as number | undefined, source: "session" as const, active: false }
+    if (sessionValue !== undefined)
+      return { ...masterState, turns: sessionValue, source: "session" as const, active: masterState.master }
+    const globalValue = globalCompaction()[key]
+    const turns = typeof globalValue === "number" ? globalValue : undefined
+    if (turns !== undefined) return { ...masterState, turns, source: "global" as const, active: masterState.master }
+    return { ...masterState, turns: undefined, source: "default" as const, active: false }
+  }
+
+  async function writeSessionCompaction(mutate: (current: SessionCompaction) => SessionCompaction) {
+    const session = currentSession()
+    if (!session) throw new Error("No active session — open a session first.")
+    const compaction = mutate(sessionCompaction())
+    await sdk.client.session.update(
+      { sessionID: session.id, metadata: { ...(session.metadata ?? {}), compaction } },
+      { throwOnError: true },
+    )
+  }
+
+  function describeRetentionValue(key: RetentionKey) {
+    const state = retentionState(key)
+    if (state.source === "session" && state.turns === undefined) return "off (session override)"
+    if (state.turns === undefined) return "off (default)"
+    return `last ${state.turns} turn(s) (${state.source})${state.active ? "" : " (inert)"}`
+  }
+
+  function lockedHint(master: boolean, source: string) {
+    if (master) return ""
+    return ` Master switch is LOCKED (${source}) — settings are inert (/token-optimization on to unlock for this session).`
   }
 
   function showRetentionStatus(key: RetentionKey) {
     const meta = RETENTION_COMMANDS[key]
     const state = retentionState(key)
-    const locked = state.master ? "" : " Master switch is LOCKED — settings are inert (/token-optimization on to unlock)."
-    const message =
-      state.turns === undefined
-        ? `Off — full history is kept (default). Usage: /${meta.command} <turns> to enable, /${meta.command} off to disable.${locked}`
-        : `Keeping the last ${state.turns} assistant turn(s)${state.active ? "" : " (currently inert)"}. /${meta.command} off to disable.${locked}`
-    toast.show({ title: meta.label, message, variant: "info", duration: 9000 })
+    toast.show({
+      title: meta.label,
+      message: `${describeRetentionValue(key)}. Usage: /${meta.command} [status|<turns>|off|default] — <turns> sets this session, off disables this session, default inherits global config.${lockedHint(state.master, state.source)}`,
+      variant: "info",
+      duration: 9000,
+    })
   }
 
-  async function setRetentionTurns(key: RetentionKey, turns: number | undefined) {
+  async function setRetentionTurns(key: RetentionKey, value: number | null | undefined) {
     const meta = RETENTION_COMMANDS[key]
     try {
-      const result = await writeGlobalCompactionConfig({ [key]: turns })
-      await sdk.client.config.invalidate(undefined, { throwOnError: true })
-      await refreshConfig()
-      const state = retentionState(key)
-      const locked = turns !== undefined && !state.master ? " Master switch is locked, so it stays inert until /token-optimization on." : ""
+      await writeSessionCompaction((current) => {
+        const next = { ...current }
+        if (value === undefined) delete next[key]
+        else next[key] = value
+        return next
+      })
+      const title =
+        value === undefined
+          ? `${meta.label} inherits global config now`
+          : value === null
+            ? `${meta.label} off for this session`
+            : `${meta.label} set to ${value} turn(s) for this session`
+      const masterState = retentionMasterState()
+      const locked = typeof value === "number" ? lockedHint(masterState.master, masterState.source) : ""
       toast.show({
-        title: turns === undefined ? `${meta.label} disabled` : `${meta.label} set to ${turns} turn(s)`,
-        message: `${result.changed ? "Updated config" : "Config already set"} (hot-applied): ${result.file}.${locked}`,
+        title,
+        message: `Saved to session metadata — synced live to all attached windows.${locked}`,
         variant: "success",
         duration: 8000,
       })
@@ -997,12 +1042,15 @@ export function Prompt(props: PromptProps) {
         void setRetentionTurns(key, action.turns)
         return
       case "off":
+        void setRetentionTurns(key, null)
+        return
+      case "default":
         void setRetentionTurns(key, undefined)
         return
       case "help":
         toast.show({
           title: meta.label,
-          message: `Usage: /${meta.command} [status|<turns>|off] - show, set, or disable. Off by default (full history kept); gated by the /token-optimization master switch.`,
+          message: `Usage: /${meta.command} [status|<turns>|off|default] — set/show/disable this session's window; default clears the session override and inherits global config. Gated by the /token-optimization master switch.`,
           variant: "info",
           duration: 9000,
         })
@@ -1011,37 +1059,41 @@ export function Prompt(props: PromptProps) {
   }
 
   function showTokenOptimizationStatus() {
-    const master = currentCompaction().retention_enabled !== false
-    const lines = (Object.keys(RETENTION_COMMANDS) as RetentionKey[]).map((key) => {
-      const state = retentionState(key)
-      const label = RETENTION_COMMANDS[key].label
-      if (state.turns === undefined) return `${label}: off`
-      return `${label}: last ${state.turns} turn(s)${state.active ? "" : " (inert)"}`
-    })
+    const masterState = retentionMasterState()
+    const lines = (Object.keys(RETENTION_COMMANDS) as RetentionKey[]).map(
+      (key) => `${RETENTION_COMMANDS[key].label}: ${describeRetentionValue(key)}`,
+    )
     toast.show({
-      title: `Token optimization ${master ? "unlocked" : "LOCKED"}`,
+      title: `Token optimization ${masterState.master ? "unlocked" : "LOCKED"} (${masterState.source})`,
       message: [
-        `Master switch: ${master ? "on — each setting applies as configured" : "off — all settings inert but preserved"}.`,
+        `Master switch: ${masterState.master ? "on — each setting applies as resolved" : "off — all settings inert but preserved"} (source: ${masterState.source}).`,
         ...lines,
-        "Usage: /token-optimization [status|on|off]",
+        "Usage: /token-optimization [status|on|off|default] — on/off override this session; default inherits global config.",
       ].join("\n"),
       variant: "info",
       duration: 9000,
     })
   }
 
-  async function setTokenOptimizationEnabled(enabled: boolean) {
+  async function setTokenOptimizationEnabled(enabled: boolean | undefined) {
     try {
-      // Unlock by removing the key (default is unlocked); lock by setting false.
-      const result = await writeGlobalCompactionConfig({ retention_enabled: enabled ? undefined : false })
-      await sdk.client.config.invalidate(undefined, { throwOnError: true })
-      await refreshConfig()
+      await writeSessionCompaction((current) => {
+        const next = { ...current }
+        if (enabled === undefined) delete next.retention_enabled
+        else next.retention_enabled = enabled
+        return next
+      })
       toast.show({
-        title: enabled ? "Token optimization unlocked" : "Token optimization LOCKED",
-        message: `${result.changed ? "Updated config" : "Config already set"} (hot-applied): ${result.file}. ${
-          enabled
-            ? "Retention settings apply as configured."
-            : "All retention settings are now inert; their configured values are preserved."
+        title:
+          enabled === undefined
+            ? "Token optimization inherits global config now"
+            : enabled
+              ? "Token optimization unlocked for this session"
+              : "Token optimization LOCKED for this session",
+        message: `Saved to session metadata — synced live to all attached windows. ${
+          enabled === false
+            ? "All retention settings are inert for this session; their configured values are preserved."
+            : "Settings resolve session-first, then global config."
         }`,
         variant: "success",
         duration: 8000,
@@ -1068,11 +1120,14 @@ export function Prompt(props: PromptProps) {
       case "off":
         void setTokenOptimizationEnabled(false)
         return
+      case "default":
+        void setTokenOptimizationEnabled(undefined)
+        return
       case "help":
         toast.show({
           title: "Token optimization",
           message:
-            "Usage: /token-optimization [status|on|off] - master switch for all retention optimizations. Locking keeps each setting's value but makes it inert; unlocking applies them again. Default is unlocked.",
+            "Usage: /token-optimization [status|on|off|default] - session-scoped master switch for all retention optimizations. Locking keeps each setting's value but makes it inert for this session; default clears the session override and inherits global config.",
           variant: "info",
           duration: 9000,
         })

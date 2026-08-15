@@ -131,24 +131,36 @@ export function parseSoulSlashAction(args: string): SoulSlashAction {
   return { type: "help" }
 }
 
-export type RetentionTurnsSlashAction = { type: "status" } | { type: "set"; turns: number } | { type: "off" } | { type: "help" }
+export type RetentionTurnsSlashAction =
+  | { type: "status" }
+  | { type: "set"; turns: number }
+  | { type: "off" }
+  | { type: "default" }
+  | { type: "help" }
 
 export function parseRetentionTurnsSlashAction(args: string): RetentionTurnsSlashAction {
   const normalized = args.trim().toLowerCase()
   if (!normalized || normalized === "status") return { type: "status" }
-  if (["off", "disable", "disabled", "false", "unset", "remove"].includes(normalized)) return { type: "off" }
+  if (["off", "disable", "disabled", "false"].includes(normalized)) return { type: "off" }
+  if (["default", "inherit", "global", "unset", "remove", "reset"].includes(normalized)) return { type: "default" }
   if (["help", "-h", "--help"].includes(normalized)) return { type: "help" }
   const turns = Number(normalized)
   if (!Number.isInteger(turns) || turns < 0) return { type: "help" }
   return { type: "set", turns }
 }
 
-export type TokenOptimizationSlashAction = { type: "status" } | { type: "on" } | { type: "off" } | { type: "help" }
+export type TokenOptimizationSlashAction =
+  | { type: "status" }
+  | { type: "on" }
+  | { type: "off" }
+  | { type: "default" }
+  | { type: "help" }
 
 export function parseTokenOptimizationSlashAction(args: string): TokenOptimizationSlashAction {
   const normalized = args.trim().toLowerCase()
   if (!normalized || normalized === "status") return { type: "status" }
   if (["on", "enable", "enabled", "true", "1", "unlock"].includes(normalized)) return { type: "on" }
   if (["off", "disable", "disabled", "false", "0", "lock"].includes(normalized)) return { type: "off" }
+  if (["default", "inherit", "global", "unset", "reset"].includes(normalized)) return { type: "default" }
   return { type: "help" }
 }

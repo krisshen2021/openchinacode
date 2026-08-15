@@ -9,8 +9,10 @@ import {
   type ProviderErrorEvent,
 } from "@opencode-ai/llm"
 import { Cause, DateTime, Effect, FiberSet, Layer, Option, Semaphore, Stream } from "effect"
+import { eq } from "drizzle-orm"
 import { AgentV2 } from "../../agent"
 import { Config } from "../../config"
+import { ConfigCompaction } from "../../config/compaction"
 import { Database } from "../../database/database"
 import { EventV2 } from "../../event"
 import { Location } from "../../location"
@@ -29,6 +31,7 @@ import { SessionEvent } from "../event"
 import { SessionHistory } from "../history"
 import { SessionInput } from "../input"
 import { SessionSchema } from "../schema"
+import { SessionTable } from "../sql"
 import { SessionStore } from "../store"
 import { type RunError, Service } from "./index"
 import { SessionRunnerModel } from "./model"
@@ -93,21 +96,25 @@ import { llmClient } from "../../effect/app-node-platform"
 // upstream behavior). compaction.retention_enabled === false is a master gate
 // that makes every retention key inert without deleting it. Both the gate and
 // the per-feature keys resolve highest-priority-document-first.
+const scanRetention = (
+  documents: readonly Config.Entry[],
+  key: "retention_enabled" | ConfigCompaction.RetentionKey,
+): number | boolean | undefined => {
+  for (let i = documents.length - 1; i >= 0; i--) {
+    const entry = documents[i]
+    if (entry.type !== "document") continue
+    const value = entry.info.compaction?.[key]
+    if (value !== undefined) return value
+  }
+  return undefined
+}
+
 export const retentionTurns = (
   documents: readonly Config.Entry[],
   key: "reasoning_retention_turns" | "tool_output_retention_turns" | "attachment_retention_turns",
 ): number | undefined => {
-  let master: boolean | undefined
-  let turns: number | undefined
-  for (let i = documents.length - 1; i >= 0 && (master === undefined || turns === undefined); i--) {
-    const entry = documents[i]
-    if (entry.type !== "document") continue
-    const compaction = entry.info.compaction
-    if (master === undefined && compaction?.retention_enabled !== undefined) master = compaction.retention_enabled
-    if (turns === undefined && compaction?.[key] !== undefined) turns = compaction[key]
-  }
-  if (master === false) return undefined
-  return turns
+  if (scanRetention(documents, "retention_enabled") === false) return undefined
+  return scanRetention(documents, key) as number | undefined
 }
 
 const layer = Layer.effect(
@@ -196,6 +203,26 @@ const layer = Layer.effect(
       const session = yield* getSession(sessionID)
       if (session.location.directory !== location.directory || session.location.workspaceID !== location.workspaceID)
         return yield* Effect.interrupt
+      const sessionMetadata = yield* db
+        .select({ metadata: SessionTable.metadata })
+        .from(SessionTable)
+        .where(eq(SessionTable.id, sessionID))
+        .get()
+        .pipe(Effect.orDie)
+      // Per-session overrides (session.metadata.compaction) win over global
+      // config; null disables a window for this session only.
+      const retentionOverride = ConfigCompaction.sessionOverride(sessionMetadata?.metadata ?? undefined)
+      const retentionMaster = ConfigCompaction.retentionMaster(
+        { retention_enabled: scanRetention(configEntries, "retention_enabled") as boolean | undefined },
+        retentionOverride,
+      )
+      const effectiveTurns = (key: ConfigCompaction.RetentionKey) =>
+        ConfigCompaction.retentionTurns(
+          key,
+          retentionMaster,
+          { [key]: scanRetention(configEntries, key) as number | undefined },
+          retentionOverride,
+        )
       const agent = yield* agents.select(session.agent)
       const initialized = yield* SessionContextEpoch.initialize(db, loadSystemContext(agent), session.id)
       const toolFibers = yield* FiberSet.make<void, ToolOutputStore.Error>()
@@ -227,9 +254,9 @@ const layer = Layer.effect(
           .map(SystemPart.make),
         messages: [
           ...toLLMMessages(context, model, {
-            reasoningRetention: retentionTurns(configEntries, "reasoning_retention_turns"),
-            toolOutputRetention: retentionTurns(configEntries, "tool_output_retention_turns"),
-            attachmentRetention: retentionTurns(configEntries, "attachment_retention_turns"),
+            reasoningRetention: effectiveTurns("reasoning_retention_turns"),
+            toolOutputRetention: effectiveTurns("tool_output_retention_turns"),
+            attachmentRetention: effectiveTurns("attachment_retention_turns"),
           }),
           ...(isLastStep ? [Message.assistant(MAX_STEPS_PROMPT)] : []),
         ],

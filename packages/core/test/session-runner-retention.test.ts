@@ -52,3 +52,53 @@ describe("session.runner.retentionTurns", () => {
     expect(retentionTurns(documents, "reasoning_retention_turns")).toBeUndefined()
   })
 })
+
+describe("ConfigCompaction session overrides", () => {
+  const global = { retention_enabled: undefined, reasoning_retention_turns: 6 }
+
+  test("absent session keys inherit global config", () => {
+    const override = ConfigCompaction.sessionOverride({ compaction: {} })
+    const master = ConfigCompaction.retentionMaster(global, override)
+    expect(ConfigCompaction.retentionTurns("reasoning_retention_turns", master, global, override)).toBe(6)
+  })
+
+  test("session value wins over global config", () => {
+    const override = ConfigCompaction.sessionOverride({ compaction: { reasoning_retention_turns: 2 } })
+    const master = ConfigCompaction.retentionMaster(global, override)
+    expect(ConfigCompaction.retentionTurns("reasoning_retention_turns", master, global, override)).toBe(2)
+  })
+
+  test("session null disables the window even when global configures it", () => {
+    const override = ConfigCompaction.sessionOverride({ compaction: { reasoning_retention_turns: null } })
+    const master = ConfigCompaction.retentionMaster(global, override)
+    expect(ConfigCompaction.retentionTurns("reasoning_retention_turns", master, global, override)).toBeUndefined()
+  })
+
+  test("session master unlock re-enables globally locked windows and keeps global turns", () => {
+    const locked = { retention_enabled: false, reasoning_retention_turns: 6 }
+    const override = ConfigCompaction.sessionOverride({ compaction: { retention_enabled: true } })
+    const master = ConfigCompaction.retentionMaster(locked, override)
+    expect(master).toBe(true)
+    expect(ConfigCompaction.retentionTurns("reasoning_retention_turns", master, locked, override)).toBe(6)
+  })
+
+  test("session master lock disables globally configured windows", () => {
+    const override = ConfigCompaction.sessionOverride({ compaction: { retention_enabled: false } })
+    const master = ConfigCompaction.retentionMaster(global, override)
+    expect(ConfigCompaction.retentionTurns("reasoning_retention_turns", master, global, override)).toBeUndefined()
+  })
+
+  test("master lock wins over session turns values", () => {
+    const override = ConfigCompaction.sessionOverride({
+      compaction: { retention_enabled: false, reasoning_retention_turns: 2 },
+    })
+    const master = ConfigCompaction.retentionMaster(global, override)
+    expect(ConfigCompaction.retentionTurns("reasoning_retention_turns", master, global, override)).toBeUndefined()
+  })
+
+  test("malformed metadata yields no overrides", () => {
+    expect(ConfigCompaction.sessionOverride(undefined)).toEqual({})
+    expect(ConfigCompaction.sessionOverride({ compaction: "nope" })).toEqual({})
+    expect(ConfigCompaction.sessionOverride({ compaction: [1, 2] })).toEqual({})
+  })
+})

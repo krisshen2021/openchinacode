@@ -1,4 +1,5 @@
 import { LayerNode } from "@opencode-ai/core/effect/layer-node"
+import { ConfigCompaction } from "@opencode-ai/core/config/compaction"
 import { PermissionV1 } from "@opencode-ai/core/v1/permission"
 import path from "path"
 import { SessionV1 } from "@opencode-ai/core/v1/session"
@@ -1495,6 +1496,7 @@ const layer = Layer.effect(
             const bypassAgentCheck = lastUserMsg?.parts.some((p) => p.type === "agent") ?? false
             const promptOps = yield* ops()
             const cfg = yield* config.get()
+            const sessionOverride = ConfigCompaction.sessionOverride(session.metadata)
 
             const tools = yield* SessionTools.resolve({
               agent,
@@ -1534,21 +1536,27 @@ const layer = Layer.effect(
               instruction.system().pipe(Effect.orDie),
               sys.mcp(agent, session.permission),
               MessageV2.toModelMessagesEffect(msgs, model, {
-                // Retention windows are opt-in (unset = keep everything);
-                // retention_enabled === false is a master gate that makes
-                // them all inert without deleting the configured values.
-                reasoningRetention:
-                  cfg.compaction?.retention_enabled === false
-                    ? undefined
-                    : cfg.compaction?.reasoning_retention_turns,
-                toolOutputRetention:
-                  cfg.compaction?.retention_enabled === false
-                    ? undefined
-                    : cfg.compaction?.tool_output_retention_turns,
-                attachmentRetention:
-                  cfg.compaction?.retention_enabled === false
-                    ? undefined
-                    : cfg.compaction?.attachment_retention_turns,
+                // Retention windows are opt-in (unset = keep everything).
+                // Per-session overrides (session.metadata.compaction) win over
+                // global config; null disables a window for this session.
+                reasoningRetention: ConfigCompaction.retentionTurns(
+                  "reasoning_retention_turns",
+                  ConfigCompaction.retentionMaster(cfg.compaction, sessionOverride),
+                  cfg.compaction,
+                  sessionOverride,
+                ),
+                toolOutputRetention: ConfigCompaction.retentionTurns(
+                  "tool_output_retention_turns",
+                  ConfigCompaction.retentionMaster(cfg.compaction, sessionOverride),
+                  cfg.compaction,
+                  sessionOverride,
+                ),
+                attachmentRetention: ConfigCompaction.retentionTurns(
+                  "attachment_retention_turns",
+                  ConfigCompaction.retentionMaster(cfg.compaction, sessionOverride),
+                  cfg.compaction,
+                  sessionOverride,
+                ),
               }),
             ])
             const system = [
