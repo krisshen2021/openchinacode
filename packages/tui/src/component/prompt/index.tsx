@@ -2506,9 +2506,12 @@ export function Prompt(props: PromptProps) {
     }
     if (props.disabled) return false
     if (workspace.creating() || move.creating()) return false
-    if (auto()?.visible) return false
     if (!store.prompt.input) return false
     const trimmed = store.prompt.input.trim()
+    // While the autocomplete menu is open, Enter normally selects the fuzzy
+    // match. An exactly typed command name wins so the typed text is executed
+    // instead of an unrelated fuzzy hit (e.g. /toggle-thinking for /token-...).
+    if (auto()?.visible && !isExactSlashCommandText(trimmed)) return false
     if (dispatchDirectSlashCommand(trimmed)) return false
 
     const agent = local.agent.current()
@@ -2910,6 +2913,59 @@ export function Prompt(props: PromptProps) {
     setStore("extmarkToPartIndex", new Map())
   }
 
+  // Names handled by dispatchDirectSlashCommand below. Used to let an exactly
+  // typed slash command win over the autocomplete menu's fuzzy selection, so
+  // Enter can never execute a different command than the one typed.
+  const DIRECT_SLASH_COMMANDS = new Set([
+    "lsp",
+    "auto-maxtokens",
+    "auto-max-tokens",
+    "test-mcp",
+    "playwright-mcp",
+    "image-generate",
+    "image",
+    "video-generate",
+    "video",
+    "media-auth",
+    "ark-auth",
+    "ocr",
+    "ocr-extract",
+    "ocr-auth",
+    "baidu-ocr-auth",
+    "compact",
+    "summarize",
+    "task-policy",
+    "reasoning-retention-turns",
+    "tool-output-retention-turns",
+    "tool-output-truncate",
+    "attachment-retention",
+    "token-optimization",
+    "soul",
+  ])
+
+  function findSlashCommandEntry(name: string) {
+    const entries = keymap.getCommandEntries({
+      visibility: "reachable",
+      namespace: "palette",
+      filter: (entry) => entry.hidden !== true && entry.name !== COMMAND_PALETTE_COMMAND,
+    })
+    return entries.find((entry) => {
+      const slashName = entry.command.slashName
+      const slashAliases = entry.command.slashAliases
+      if (typeof slashName === "string" && slashName.toLowerCase() === name) return true
+      if (!Array.isArray(slashAliases)) return false
+      return slashAliases.some((alias) => typeof alias === "string" && alias.toLowerCase() === name)
+    })
+  }
+
+  function isExactSlashCommandText(text: string) {
+    const parsed = parseDirectSlashCommand(text)
+    if (!parsed || parsed.args) return false
+    if (DIRECT_SLASH_COMMANDS.has(parsed.command)) return true
+    if (sync.data.command.some((x) => x.name.toLowerCase() === parsed.command)) return true
+    return findSlashCommandEntry(parsed.command) !== undefined
+  }
+
   function dispatchDirectSlashCommand(text: string) {
     const parsed = parseDirectSlashCommand(text)
     if (!parsed) return false
@@ -2993,19 +3049,7 @@ export function Prompt(props: PromptProps) {
       return true
     }
     if (parsed.args) return false
-    const requested = parsed.command
-    const entries = keymap.getCommandEntries({
-      visibility: "reachable",
-      namespace: "palette",
-      filter: (entry) => entry.hidden !== true && entry.name !== COMMAND_PALETTE_COMMAND,
-    })
-    const match = entries.find((entry) => {
-      const slashName = entry.command.slashName
-      const slashAliases = entry.command.slashAliases
-      if (typeof slashName === "string" && slashName.toLowerCase() === requested) return true
-      if (!Array.isArray(slashAliases)) return false
-      return slashAliases.some((alias) => typeof alias === "string" && alias.toLowerCase() === requested)
-    })
+    const match = findSlashCommandEntry(parsed.command)
     if (!match) return false
 
     clearPrompt()
@@ -3414,6 +3458,11 @@ export function Prompt(props: PromptProps) {
         }}
         anchor={() => anchor}
         input={() => input}
+        onExactCommand={() => {
+          if (!isExactSlashCommandText(store.prompt.input.trim())) return false
+          void submit()
+          return true
+        }}
         setPrompt={(cb) => {
           setStore("prompt", produce(cb))
         }}

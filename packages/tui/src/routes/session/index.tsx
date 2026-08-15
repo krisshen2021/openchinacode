@@ -733,7 +733,9 @@ export function Session() {
         aliases: ["toggle-thinking"],
       },
       run: () => {
-        thinking.set(nextThinkingMode(thinkingMode()))
+        const next = nextThinkingMode(thinkingMode())
+        thinking.set(next)
+        toast.show({ message: `Thinking blocks: ${next === "show" ? "expanded" : "collapsed"}`, variant: "info" })
         dialog.clear()
       },
     },

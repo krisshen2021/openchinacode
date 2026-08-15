@@ -77,6 +77,9 @@ export function Autocomplete(props: {
   sessionID?: string
   setPrompt: (input: (prompt: PromptInfo) => void) => void
   setExtmark: (partIndex: number, extmarkId: number) => void
+  // Return true when the typed text is itself a complete slash command, so
+  // Enter submits it instead of executing the highlighted fuzzy match.
+  onExactCommand?: () => boolean
   anchor: () => BoxRenderable
   input: () => TextareaRenderable
   ref: (ref: AutocompleteRef) => void
@@ -616,6 +619,7 @@ export function Autocomplete(props: {
         title: "Select autocomplete item",
         category: "Autocomplete",
         run() {
+          if (props.onExactCommand?.()) return
           select()
         },
       },
