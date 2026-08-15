@@ -172,6 +172,40 @@ openchinacode</div>
                 </tbody>
               </table>
             </div>
+
+            <h3 style="margin-top: 32px; margin-bottom: 12px;" data-i18n="config.customProvider">Custom providers</h3>
+            <p data-i18n-html="config.customProvider.desc">Additional providers are declared in config under <code>provider</code>, with no code changes required. A typical use is a multi-model subscription endpoint such as the Volcengine Ark agent plan (<code>/api/plan/v3</code>), which proxies GLM, Kimi, DeepSeek, and Doubao models behind one base URL and one API key:</p>
+            <div class="code-block">"provider": {
+  "volcengine-agent-plan": {
+    "npm": "@ai-sdk/openai-compatible",
+    "name": "Volcano Engine Agent Plan",
+    "options": {
+      "baseURL": "https://ark.cn-beijing.volces.com/api/plan/v3",
+      "apiKey": "{env:ARK_PLAN_API_KEY}"
+    },
+    "models": {
+      "glm-5.3": {
+        "name": "GLM 5.3 (Ark Plan)",
+        "reasoning": true, "tool_call": true,
+        "interleaved": { "field": "reasoning_content" },
+        "limit": { "context": 1024000, "output": 65536 },
+        "modalities": { "input": ["text"], "output": ["text"] },
+        "variants": {
+          "high": { "reasoningEffort": "high" },
+          "max": { "reasoningEffort": "max" }
+        }
+      },
+      "kimi-k3": {
+        "name": "Kimi K3 (Ark Plan)",
+        "reasoning": true, "tool_call": true, "attachment": true,
+        "interleaved": { "field": "reasoning_content" },
+        "limit": { "context": 1024000, "output": 65536 },
+        "modalities": { "input": ["text", "image"], "output": ["text"] }
+      }
+    }
+  }
+}</div>
+            <p data-i18n-html="config.customProvider.notes">Model names containing <code>kimi-k3</code> or <code>deepseek-v4</code> automatically inherit the China request transforms and variants (<code>#high</code>/<code>#max</code>, plus <code>#none</code> for deepseek) when <code>reasoning</code> is true; declare <code>variants</code> and <code>interleaved</code> explicitly for other names. Key precedence: <code>options.apiKey</code> &gt; auth.json &gt; env vars. Custom providers appear in the TUI model picker after restart; <code>openchinacode providers login</code> covers only the three built-ins. Use a provider id other than <code>volcengine-ark</code>, which is reserved for native media auth.</p>
           </section>
 
           <!-- Slash Commands -->

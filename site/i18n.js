@@ -193,6 +193,9 @@ const I18N = {
     "config.kimi.notes": "Used for fast implementation, review, summarize, and quick routes.",
     "config.deepseek.purpose": "DeepSeek official API",
     "config.deepseek.notes": "Used for debug/test-fix loops and low-cost judge paths.",
+    "config.customProvider": "Custom providers",
+    "config.customProvider.desc": "Additional providers are declared in config under <code>provider</code>, with no code changes required. A typical use is a multi-model subscription endpoint such as the Volcengine Ark agent plan (<code>/api/plan/v3</code>), which proxies GLM, Kimi, DeepSeek, and Doubao models behind one base URL and one API key:",
+    "config.customProvider.notes": "Model names containing <code>kimi-k3</code> or <code>deepseek-v4</code> automatically inherit the China request transforms and variants (<code>#high</code>/<code>#max</code>, plus <code>#none</code> for deepseek) when <code>reasoning</code> is true; declare <code>variants</code> and <code>interleaved</code> explicitly for other names. Key precedence: <code>options.apiKey</code> &gt; auth.json &gt; env vars. Custom providers appear in the TUI model picker after restart; <code>openchinacode providers login</code> covers only the three built-ins. Use a provider id other than <code>volcengine-ark</code>, which is reserved for native media auth.",
 
     /* ── Slash Commands ── */
     "commands.title": "Custom Slash Commands",
@@ -496,6 +499,9 @@ const I18N = {
     "config.kimi.notes": "用于快速实现、审查、摘要和快速路由。",
     "config.deepseek.purpose": "DeepSeek 官方 API",
     "config.deepseek.notes": "用于调试/测试修复循环和低成本评判路径。",
+    "config.customProvider": "自定义提供商",
+    "config.customProvider.desc": "额外提供商通过配置文件中的 <code>provider</code> 字段声明，无需修改代码。典型场景是多模型订阅端点，例如火山引擎 Ark agent plan（<code>/api/plan/v3</code>），用一个 base URL 和一个 API key 代理 GLM、Kimi、DeepSeek、Doubao 系列模型：",
+    "config.customProvider.notes": "模型名包含 <code>kimi-k3</code> 或 <code>deepseek-v4</code> 时，只要 <code>reasoning</code> 为 true，就会自动继承中国厂商的请求改写和变体（<code>#high</code>/<code>#max</code>，deepseek 另有 <code>#none</code>）；其他名字需显式声明 <code>variants</code> 和 <code>interleaved</code>。密钥优先级：<code>options.apiKey</code> &gt; auth.json &gt; 环境变量。自定义提供商在重启后自动出现在 TUI 模型选择器中；<code>openchinacode providers login</code> 仅覆盖三个内置提供商。请勿使用 <code>volcengine-ark</code> 作为提供商 ID，它已保留给原生媒体工具认证。",
 
     /* ── Slash Commands ── */
     "commands.title": "自定义斜杠命令",

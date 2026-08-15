@@ -197,6 +197,77 @@ OpenChinaCode's built-in model surface is intentionally focused on GLM, Kimi,
 and DeepSeek. Prefer built-in providers over re-adding generic OpenAI-compatible
 duplicates.
 
+### Custom Providers
+
+Extra providers are declared in config under `provider` — no code changes
+needed. A typical use is a multi-model subscription endpoint, for example the
+Volcengine Ark agent plan (`/api/plan/v3`) which proxies GLM, Kimi, DeepSeek,
+and Doubao models behind one base URL and one API key:
+
+```jsonc
+{
+  "provider": {
+    "volcengine-agent-plan": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Volcano Engine Agent Plan",
+      "options": {
+        "baseURL": "https://ark.cn-beijing.volces.com/api/plan/v3",
+        "apiKey": "{env:ARK_PLAN_API_KEY}", // or a literal key in user-global config
+      },
+      "models": {
+        "glm-5.3": {
+          "name": "GLM 5.3 (Ark Plan)",
+          "reasoning": true,
+          "tool_call": true,
+          "interleaved": { "field": "reasoning_content" },
+          "limit": { "context": 1024000, "output": 65536 },
+          "modalities": { "input": ["text"], "output": ["text"] },
+          // Auto variants only match exact "glm-5.2" spellings, so declare
+          // glm-5.3 variants explicitly:
+          "variants": {
+            "high": { "reasoningEffort": "high" },
+            "max": { "reasoningEffort": "max" },
+          },
+        },
+        "kimi-k3": {
+          "name": "Kimi K3 (Ark Plan)",
+          "reasoning": true,
+          "tool_call": true,
+          "attachment": true,
+          "interleaved": { "field": "reasoning_content" },
+          "limit": { "context": 1024000, "output": 65536 },
+          "modalities": { "input": ["text", "image"], "output": ["text"] },
+        },
+        "deepseek-v4-pro": {
+          "name": "DeepSeek V4 Pro (Ark Plan)",
+          "reasoning": true,
+          "tool_call": true,
+          "limit": { "context": 1024000, "output": 65536 },
+          "modalities": { "input": ["text"], "output": ["text"] },
+        },
+      },
+    },
+  },
+}
+```
+
+Behavior notes for custom providers:
+
+- API key precedence: `options.apiKey` > auth.json entry > env vars listed in
+  `env`. `{env:VAR}` interpolation works inside config strings.
+- Model names containing `kimi-k3` or `deepseek-v4` inherit the China request
+  transforms and auto variants (`#high`/`#max`, plus `#none` for deepseek) when
+  `reasoning: true`; `deepseek` names also default to
+  `interleaved: { field: "reasoning_content" }`. Other names get neither, so
+  declare `variants` and `interleaved` explicitly to match built-in behavior.
+- Config-defined providers appear in the TUI model picker automatically after
+  restart. `openchinacode providers login` only covers the three built-ins;
+  for custom providers use `options.apiKey`, the TUI Connect provider dialog,
+  or a hand-written auth.json entry.
+- `volcengine-ark` is already used as the auth.json id for native media tools
+  (Seedream/Seedance). Pick a distinct provider id for an LLM plan endpoint
+  unless you intentionally want to share that credential.
+
 Native media generation and OCR use auth entries, not normal LLM providers:
 
 - Volcengine Ark Seedream/Seedance auth is saved by `/media-auth` or
