@@ -454,7 +454,15 @@ agent defaults/config -> runtime project policy -> current-session Allow always
   "mcp": {
     "playwright": {
       "type": "local",
-      "command": ["openchinacode", "mcp", "playwright", "--headless", "--isolated", "--browser=chrome", "--caps=default"],
+      "command": [
+        "openchinacode",
+        "mcp",
+        "playwright",
+        "--headless",
+        "--isolated",
+        "--browser=chrome",
+        "--caps=default",
+      ],
       "enabled": true,
       "timeout": 30000,
     },
@@ -469,6 +477,36 @@ agent defaults/config -> runtime project policy -> current-session Allow always
 默认配置显式包含 `--isolated`。这是因为 `@playwright/mcp` 的 API `createConnection()` 在未显式 isolated 时会走 persistent profile，而 OpenChinaCode 早期 wrapper 容易留下 `mcp-chrome-<hash>` / `SingletonLock`。现在 wrapper 仍使用编译版兼容的 API 入口，但强制默认 isolated，并在 wrapper 退出、MCP disconnect、hot reconnect、finalizer 阶段清理本地 stdio 子进程树。需要复用登录态时，用户可以手动移除 `--isolated` 并配置 `--user-data-dir <path>`。
 
 实测底层 `browser_close` tool call 本身不会结束 `createConnection()` 启动的 Chrome 子进程；Chrome 会一直挂在 MCP wrapper 下面，直到 MCP client close。因此 OpenChinaCode 在执行 `playwright_browser_close` 后会自动 `disconnect -> connect` 对应 MCP server。这个 restart 通过 `Effect.ensuring` 执行，即使 `browser_close` tool 自己失败，也会尝试清理并恢复后续 Playwright 工具可用性。
+
+### Remote MCP / Miro
+
+OpenChinaCode remote MCP 配置使用当前 schema 的 `mcp` 字段，不使用 Cursor/Kiro/Windsurf 示例里的 `mcpServers`。Miro 官方 endpoint 是 `https://mcp.miro.com`，配置形态：
+
+```jsonc
+{
+  "mcp": {
+    "miro": {
+      "type": "remote",
+      "url": "https://mcp.miro.com",
+      "enabled": true,
+      "oauth": {},
+      "timeout": 30000,
+    },
+  },
+}
+```
+
+认证命令：
+
+```bash
+openchinacode mcp auth miro
+```
+
+相关修复：
+
+- `packages/core/src/plugin/skill/customize-opencode.md` 已重写为 OpenChinaCode 配置指南。skill 名称暂时保留 `customize-opencode` 以兼容现有 tool call，但 description/body 均指向 OpenChinaCode。
+- `openchinacode mcp add` 现在写入 `openchinacode.jsonc/json` 或 `.openchinacode/openchinacode.jsonc/json`，不再写 `opencode.json`。
+- MCP auth 提示改为 `openchinacode mcp auth <name>`。
 
 ### `/sessions`
 
@@ -930,7 +968,15 @@ TUI 新用户优先使用：
   "mcp": {
     "playwright": {
       "type": "local",
-      "command": ["openchinacode", "mcp", "playwright", "--headless", "--isolated", "--browser=chrome", "--caps=default"],
+      "command": [
+        "openchinacode",
+        "mcp",
+        "playwright",
+        "--headless",
+        "--isolated",
+        "--browser=chrome",
+        "--caps=default",
+      ],
       "enabled": true,
       "timeout": 30000,
     },

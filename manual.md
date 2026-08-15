@@ -639,7 +639,15 @@ explicit task model
   "mcp": {
     "playwright": {
       "type": "local",
-      "command": ["openchinacode", "mcp", "playwright", "--headless", "--isolated", "--browser=chrome", "--caps=default"],
+      "command": [
+        "openchinacode",
+        "mcp",
+        "playwright",
+        "--headless",
+        "--isolated",
+        "--browser=chrome",
+        "--caps=default",
+      ],
       "enabled": true,
       "timeout": 30000,
     },
@@ -661,6 +669,35 @@ Playwright MCP 产物默认写入系统临时目录，避免截图、snapshot、
 ```
 
 如果模型给 screenshot / snapshot / PDF 等工具传了 `filename`，OpenChinaCode 会把相对文件名安全改写到这个目录下；需要自定义时可在 MCP 命令里显式传 `--output-dir`。
+
+### Remote MCP / Miro
+
+OpenChinaCode 的 MCP 配置写在 `mcp` 字段下，不使用其它客户端文档里的 `mcpServers`。Remote MCP 使用 `type: "remote"` 和 `url`；OAuth 服务可以显式写 `oauth: {}`。
+
+Miro MCP 示例：
+
+```jsonc
+{
+  "mcp": {
+    "miro": {
+      "type": "remote",
+      "url": "https://mcp.miro.com",
+      "enabled": true,
+      "oauth": {},
+      "timeout": 30000,
+    },
+  },
+}
+```
+
+保存后执行：
+
+```bash
+openchinacode mcp auth miro
+openchinacode mcp list
+```
+
+如果状态显示 `needs authentication`，说明配置已经被识别，只差浏览器 OAuth 授权。
 
 ### 粘贴图片视觉输入
 
