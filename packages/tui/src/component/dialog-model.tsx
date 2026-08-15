@@ -30,6 +30,7 @@ export function DialogModel(props: { providerID?: string }) {
     const recommended = showSections
       ? pipe(
           sync.data.provider,
+          filter((provider) => OPENCHINA_RECOMMENDED_ORDER.includes(provider.id)),
           sortBy((provider) => {
             const index = OPENCHINA_RECOMMENDED_ORDER.indexOf(provider.id)
             return index === -1 ? OPENCHINA_RECOMMENDED_ORDER.length : index
