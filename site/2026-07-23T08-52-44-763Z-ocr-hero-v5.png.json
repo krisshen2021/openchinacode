@@ -1,0 +1,17 @@
+{
+  "provider": "volcengine-ark",
+  "model": "doubao-seedream-5-0-pro-260628",
+  "request": {
+    "model": "doubao-seedream-5-0-pro-260628",
+    "prompt": "Modern tech presentation slide on dark ink-black background. No title text at all. Background texture: subtle Chinese traditional fret pattern, geometric meander pattern with square spiral lines, rendered in very dim jade green ink, elegant and minimal. Left: a large angled document page showing English technical text with a glowing azure scan line across it. Right: two keyboard keycaps with clear text labels Ctrl C and Ctrl V printed on them, rendered in cinnabar red and jade green with soft glow. Below them, format labels (PDF, OFD, DOC, DOCX, PPT, PPTX, WPS, TXT, JPG, PNG) in a neat gray monospace grid. Composition like a premium product slide with generous negative space. Flat vector style, dark mode, clean and sophisticated.\nAspect ratio requirement: 16:9.",
+    "size": "2K",
+    "output_format": "png",
+    "response_format": "url",
+    "watermark": false
+  },
+  "source_url_expires": "provider URL expires; local file downloaded immediately",
+  "output_path": "/home/kris/Projects/OpenChinaCode/site/2026-07-23T08-52-44-763Z-ocr-hero-v5.png",
+  "mime": "image/png",
+  "bytes": 4269270,
+  "downloaded_at": "2026-07-23T08:52:45.806Z"
+}
