@@ -1,452 +1,387 @@
 <!--
   Built-in skill. Name and description are registered in code at
-  packages/core/src/plugin/skill.ts
-  and CUSTOMIZE_OPENCODE_SKILL_DESCRIPTION). The body below becomes the
-  skill's content.
+  packages/core/src/plugin/skill.ts and packages/opencode/src/skill/index.ts.
+  The skill name remains "customize-opencode" for compatibility, but this
+  content documents OpenChinaCode's current config system.
 -->
 
-# Customizing opencode
+# Customizing OpenChinaCode
 
-opencode validates its own config strictly and refuses to start when a field
-is wrong. The shapes below cover the common surface area, but they are a
-**summary, not the source of truth**.
+OpenChinaCode validates its own config strictly and can refuse to start when a
+field shape is wrong. Use this guide whenever the user asks to configure
+OpenChinaCode itself, including providers, MCP servers, permissions, agents,
+commands, skills, task policy, compaction, LSP, Playwright, native media, OCR,
+or OpenChinaCode project/global config files.
 
-## Full schema reference
+Do not apply upstream opencode config examples verbatim. OpenChinaCode uses the
+`openchinacode` command, `openchinacode.json(c)` config files, `.openchinacode/`
+project directories, and `~/.config/openchinacode/` global config.
 
-The authoritative list of every config option — with field types, enums,
-defaults, and descriptions — lives in the published JSON Schema:
+## Config Loading
 
-**<https://opencode.ai/config.json>**
+OpenChinaCode reads config once when the instance starts. After editing a config
+file, agent file, command file, skill, or plugin, tell the user to restart
+OpenChinaCode unless the feature explicitly supports hot-apply, such as
+`/task-policy`, `/permission`, `/test-mcp`, `/media-auth`, or `/ocr-auth`.
 
-If a field is not documented in this skill, or you need to confirm an exact
-shape before writing config, **fetch that URL and read the schema directly**
-rather than guessing. opencode hard-fails on invalid config, so the cost of a
-wrong shape is a broken startup.
+Config precedence is:
 
-Independently, every `opencode.json` should declare
-`"$schema": "https://opencode.ai/config.json"` so the user's editor catches
-mistakes as they type.
+1. Global config from `~/.config/openchinacode/openchinacode.jsonc` or
+   `~/.config/openchinacode/openchinacode.json`.
+2. Project root config discovered upward from the working directory:
+   `openchinacode.jsonc` or `openchinacode.json`.
+3. Project directory config discovered upward:
+   `.openchinacode/openchinacode.jsonc` or
+   `.openchinacode/openchinacode.json`.
+4. Explicit overrides from environment flags such as `OPENCODE_CONFIG` and
+   `OPENCODE_CONFIG_CONTENT`.
 
-## Applying changes
+Project config overrides global config. Preserve existing unrelated fields.
 
-Config is loaded once when opencode starts and is not hot-reloaded. After
-saving changes to `opencode.json`, an agent file, a skill, a plugin, or any
-other config-time file, **tell the user to quit and restart opencode** for
-the changes to take effect. The running session will keep using the
-already-loaded config until then.
+## File Locations
 
-## Where files live
+| Scope            | Path                                                                                                |
+| ---------------- | --------------------------------------------------------------------------------------------------- |
+| Global config    | `~/.config/openchinacode/openchinacode.jsonc`                                                       |
+| Project config   | `./openchinacode.jsonc` or `.openchinacode/openchinacode.jsonc`                                     |
+| Global auth      | `~/.local/share/openchinacode/auth.json`                                                            |
+| MCP OAuth auth   | `~/.local/share/openchinacode/mcp-auth.json`                                                        |
+| Project agents   | `.openchinacode/agent/<name>.md` or `.openchinacode/agents/<name>.md`                               |
+| Global agents    | `~/.config/openchinacode/agent/<name>.md` or `~/.config/openchinacode/agents/<name>.md`             |
+| Project commands | `.openchinacode/command/<name>.md` or `.openchinacode/commands/<name>.md`                           |
+| Global commands  | `~/.config/openchinacode/command/<name>.md` or `~/.config/openchinacode/commands/<name>.md`         |
+| Project skills   | `.openchinacode/skill/<name>/SKILL.md` or `.openchinacode/skills/<name>/SKILL.md`                   |
+| Global skills    | `~/.config/openchinacode/skill/<name>/SKILL.md` or `~/.config/openchinacode/skills/<name>/SKILL.md` |
+| External skills  | `~/.claude/skills/<name>/SKILL.md`, `~/.agents/skills/<name>/SKILL.md`                              |
 
-| Scope                         | Path                                                                                                                      |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| Project config                | `./opencode.json`, `./opencode.jsonc`, or `.opencode/opencode.json` (opencode walks up from the cwd to the worktree root) |
-| Global config                 | `~/.config/opencode/opencode.json` (NOT `~/.opencode/`)                                                                   |
-| Project agents                | `.opencode/agent/<name>.md` or `.opencode/agents/<name>.md`                                                               |
-| Global agents                 | `~/.config/opencode/agent(s)/<name>.md`                                                                                   |
-| Project commands              | `.opencode/command/<name>.md` or `.opencode/commands/<name>.md`                                                           |
-| Global commands               | `~/.config/opencode/command(s)/<name>.md`                                                                                 |
-| Project skills                | `.opencode/skill(s)/<name>/SKILL.md`                                                                                      |
-| Global skills                 | `~/.config/opencode/skill(s)/<name>/SKILL.md`                                                                             |
-| External skills (auto-loaded) | `~/.claude/skills/<name>/SKILL.md`, `~/.agents/skills/<name>/SKILL.md`                                                    |
+## Base Config Shape
 
-Configs from each scope are deep-merged. Project overrides global. Unknown
-top-level keys in `opencode.json` are rejected with `ConfigInvalidError`.
+Use JSONC for examples because user configs often contain comments.
 
-## opencode.json
-
-Every field is optional.
-
-```json
+```jsonc
 {
   "$schema": "https://opencode.ai/config.json",
-  "username": "string",
-  "model": "provider/model-id",
-  "small_model": "provider/model-id",
-  "default_agent": "agent-name",
-  "shell": "/bin/zsh",
-  "logLevel": "DEBUG" | "INFO" | "WARN" | "ERROR",
-  "share": "manual" | "auto" | "disabled",
-  "autoupdate": true | false | "notify",
-  "snapshot": true,
-  "instructions": ["AGENTS.md", "docs/style.md"],
+  "model": "zhipuai-pay2go/glm-5.2#max",
+  "default_agent": "build",
+  "soul": "rigorous",
+  "lsp": true,
+  "formatter": true,
+  "auto_maxtokens": "heuristic",
+  "tool_output": { "max_lines": 2000, "max_bytes": 51200 },
+  "compaction": { "auto": true, "tail_turns": "auto" },
 
+  "task_policy": {
+    "enabled": true,
+    "extra_router": { "enabled": false },
+  },
+
+  "mcp": {},
+  "agent": {},
+  "command": {},
+  "provider": {},
+  "permission": {},
   "skills": {
-    "paths": [".opencode/skills", "/abs/path/to/skills"],
-    "urls": ["https://example.com/.well-known/skills/"]
+    "paths": [".openchinacode/skills"],
+    "urls": [],
   },
+  "plugin": [],
+}
+```
 
-  "references": {
-    "docs": {
-      "path": "../docs",
-      "description": "Use for product behavior and documentation conventions"
-    },
-    "sdk": {
-      "repository": "owner/sdk",
-      "branch": "main",
-      "description": "Use for SDK implementation details",
-      "hidden": true
-    }
-  },
+Important shape rules:
 
-  "agent": {
-    "my-agent": {
-      "model": "anthropic/claude-sonnet-4-6",
-      "mode": "subagent",
-      "description": "...",
-      "permission": { "edit": "deny" }
-    }
-  },
+- `model` is `provider/model` with optional `#variant`, for example
+  `moonshotai-cn/kimi-k3#high`.
+- Use `agent`, `command`, `provider`, `plugin`, `permission` in config files.
+  Do not invent plural aliases unless the local schema explicitly supports them.
+- `mcp` is an object keyed by server name. It is not `mcpServers`.
+- Local MCP `command` is an array of strings, never one shell string.
+- Remote MCP uses `type: "remote"` and `url`.
+- Remote MCP OAuth is enabled by default unless `oauth: false`; use `oauth: {}`
+  when you want to make OAuth intent explicit.
+- String values in headers can use `{env:VAR}` interpolation. Shell-style
+  `${VAR}` is not substituted.
 
-  "command": {
-    "deploy": { "description": "...", "template": "..." }
-  },
+## MCP Servers
 
-  "provider": {
-    "anthropic": { "options": { "apiKey": "..." } }
-  },
-  "disabled_providers": ["openai"],
-  "enabled_providers": ["anthropic"],
+### Local MCP
 
+```jsonc
+{
   "mcp": {
     "playwright": {
       "type": "local",
-      "command": ["npx", "-y", "@playwright/mcp"],
+      "command": [
+        "openchinacode",
+        "mcp",
+        "playwright",
+        "--headless",
+        "--isolated",
+        "--browser=chrome",
+        "--caps=default",
+      ],
       "enabled": true,
-      "env": {}
+      "timeout": 30000,
     },
-    "remote-thing": {
-      "type": "remote",
-      "url": "https://...",
-      "headers": { "Authorization": "Bearer ..." }
-    }
   },
-
-  "plugin": [
-    "opencode-gemini-auth",
-    "opencode-foo@1.2.3",
-    "./local-plugin.ts",
-    ["opencode-bar", { "option": "value" }]
-  ],
-
-  "permission": {
-    "edit": "deny",
-    "bash": { "git *": "allow", "*": "ask" }
-  },
-
-  "formatter": false,
-  "lsp": false,
-
-  "experimental": {
-    "primary_tools": ["edit"],
-    "mcp_timeout": 30000
-  },
-
-  "tool_output": { "max_lines": 200, "max_bytes": 8192 },
-
-  "compaction": { "auto": true, "tail_turns": 15 }
 }
 ```
 
-Shape notes worth being explicit about:
+`--isolated` is the recommended default for Playwright MCP. It avoids reusing a
+persistent `mcp-chrome-<hash>` profile and reduces `SingletonLock` / `Browser is
+already in use` failures.
 
-- `model` always carries a provider prefix: `"anthropic/claude-sonnet-4-6"`.
-- `skills` is an object with `paths` and/or `urls`, not an array.
-- `references` is an object keyed by alias. Each value is a local path, Git repository, or string shorthand.
-- `agent` is an object keyed by agent name, not an array.
-- `command` is an object keyed by command name, not an array.
-- `plugin` is an array of strings or `[name, options]` tuples, not an object.
-- `mcp[name].command` is an array of strings, never a single string. `type` is required.
-- `permission` is either a string action or an object keyed by tool name.
+### Remote OAuth MCP
 
-## Skills
-
-opencode's skill loader scans for `**/SKILL.md` inside skill directories. The
-file is named `SKILL.md` exactly, and lives in its own folder named after the
-skill:
-
-```
-.opencode/skills/my-skill/SKILL.md
-```
-
-Frontmatter:
-
-```markdown
----
-name: my-skill
-description: One sentence covering what this skill does AND when to trigger it. Front-load the literal keywords or filenames the user is likely to say.
----
-
-# My Skill
-
-(skill body in markdown: instructions, examples, references)
-```
-
-- `name` is required, lowercase hyphen-separated, up to 64 chars, and matches the folder name.
-- `description` is effectively required: skills without one are filtered out and never surfaced to the model. Cover both _what_ the skill does and _when_ to use it. Write in third person ("Use when...", not "I help with..."). Front-load concrete trigger keywords and filenames; gate with "Use ONLY when..." if the skill should stay quiet on adjacent topics.
-- Optional: `license`, `compatibility`, `metadata` (string-string map).
-
-Register skills from non-default locations via `skills.paths` (scanned
-recursively for `**/SKILL.md`) and `skills.urls` (each URL serves a list of
-skills).
-
-## References
-
-References make local directories and Git repositories outside the active
-project available as supporting context. Configure them under `references`,
-keyed by the alias used in `@` autocomplete:
-
-```json
+```jsonc
 {
-  "references": {
-    "docs": {
-      "path": "../product-docs",
-      "description": "Use for product behavior and terminology"
+  "mcp": {
+    "miro": {
+      "type": "remote",
+      "url": "https://mcp.miro.com",
+      "enabled": true,
+      "oauth": {},
+      "timeout": 30000,
     },
-    "effect": {
-      "repository": "Effect-TS/effect",
-      "branch": "main",
-      "description": "Use for Effect implementation details"
-    }
-  }
+  },
 }
 ```
 
-Local `path` values may be relative to the declaring config, absolute, or use
-`~/`. Git `repository` values accept Git URLs, host/path references, and GitHub
-`owner/repo` shorthand; `branch` is optional. Both forms support optional
-`description` and `hidden` fields.
+After adding a remote OAuth MCP server, the user must authenticate:
 
-- Only references with a `description` are advertised to agents in system context.
-- `hidden: true` removes a reference from TUI `@` autocomplete only. It remains available to agents and by direct path.
-- Reference directories are automatically allowed through the external-directory boundary; normal read/edit/tool permissions still apply.
-- String shorthand is supported: use `"docs": "../docs"` for local paths or `"effect": "Effect-TS/effect"` for Git repositories.
+```bash
+openchinacode mcp auth miro
+openchinacode mcp list
+```
+
+If the TUI status says `Needs authentication`, do not rewrite the MCP config into
+`mcpServers`. Run `openchinacode mcp auth <name>` instead.
+
+### Adding Miro MCP
+
+Miro's official MCP endpoint is:
+
+```text
+https://mcp.miro.com
+```
+
+Use this OpenChinaCode config:
+
+```jsonc
+{
+  "mcp": {
+    "miro": {
+      "type": "remote",
+      "url": "https://mcp.miro.com",
+      "enabled": true,
+      "oauth": {},
+      "timeout": 30000,
+    },
+  },
+}
+```
+
+Then authenticate with:
+
+```bash
+openchinacode mcp auth miro
+```
+
+Miro board access is scoped to the Miro team selected during OAuth. If a prompt
+references a board URL from another team, ask the user to re-authenticate or use
+a board in the authorized team.
+
+## Providers And Auth
+
+OpenChinaCode's built-in model surface is intentionally focused on GLM, Kimi,
+and DeepSeek. Prefer built-in providers over re-adding generic OpenAI-compatible
+duplicates.
+
+Native media generation and OCR use auth entries, not normal LLM providers:
+
+- Volcengine Ark Seedream/Seedance auth is saved by `/media-auth` or
+  `ARK_API_KEY`, under `~/.local/share/openchinacode/auth.json`.
+- Baidu Unlimited-OCR auth is saved by `/ocr-auth` or
+  `BAIDU_OCR_API_KEY` + `BAIDU_OCR_SECRET_KEY`, under
+  `~/.local/share/openchinacode/auth.json`.
+
+Do not store secrets directly in project config when an auth command or
+environment variable is available.
 
 ## Agents
 
-Two ways to define an agent. Use the file form for anything non-trivial.
+Inline:
 
-### Inline (in `opencode.json`)
-
-```json
+```jsonc
 {
   "agent": {
-    "my-reviewer": {
-      "description": "Reviews PRs for style violations.",
+    "reviewer": {
+      "description": "Reviews code for correctness and regression risk.",
       "mode": "subagent",
-      "model": "anthropic/claude-sonnet-4-6",
+      "model": "zhipuai-pay2go/glm-5.2#high",
       "permission": { "edit": "deny", "bash": "ask" },
-      "prompt": "You are a strict PR reviewer..."
-    }
-  }
+      "prompt": "You are a strict code reviewer...",
+    },
+  },
 }
 ```
 
-### File
+File:
 
-```
-.opencode/agent/my-reviewer.md      OR     .opencode/agents/my-reviewer.md
+```text
+.openchinacode/agents/reviewer.md
 ```
 
 ```markdown
 ---
-description: Reviews PRs for style violations.
+description: Reviews code for correctness and regression risk.
 mode: subagent
-model: anthropic/claude-sonnet-4-6
+model: zhipuai-pay2go/glm-5.2#high
 permission:
   edit: deny
   bash: ask
 ---
 
-You are a strict PR reviewer. Focus on...
+You are a strict code reviewer...
 ```
 
-The file body becomes the agent's `prompt`. Do not also put `prompt:` in the
-frontmatter.
-
-`mode` is one of `"primary"`, `"subagent"`, `"all"`.
-
-Allowed top-level frontmatter fields: `name, model, variant, description, mode,
-hidden, color, steps, options, permission, disable, temperature, top_p`. Any
-unknown field is silently routed into `options`.
-
-To disable a built-in agent: `agent: { build: { disable: true } }`, or in a
-file, `disable: true` in frontmatter.
-
-`default_agent` must point to a non-hidden, primary-mode agent.
-
-### Built-in agents
-
-opencode ships with `build`, `plan`, `general`, `explore`. Hidden internal agents:
-`compaction`, `title`, `summary`. To override a built-in's fields, define the
-same key in `agent: { <name>: { ... } }`.
+The file body becomes the prompt. Do not duplicate it as a `prompt:` field.
 
 ## Commands
 
-opencode's command loader scans for `**/*.md` inside command directories. The
-file is named after the command, and lives directly inside the `command` folder:
+Command files live under `.openchinacode/commands/` or
+`~/.config/openchinacode/commands/`.
 
+```text
+.openchinacode/commands/deploy-check.md
 ```
-.opencode/command/deploy.md
-```
-
-Frontmatter:
 
 ```markdown
 ---
-description: One sentence describing what the command does.
+description: Check deployment readiness.
 agent: build
-model: anthropic/claude-sonnet-4-6
+model: moonshotai-cn/kimi-k3#high
 ---
 
-(command body in markdown: the prompt opencode runs, with $ARGUMENTS for the user's input)
+Inspect the project deployment config and report blockers.
+User input: $ARGUMENTS
 ```
 
-- `template` is the command body — everything below the frontmatter — and is required: it is the prompt opencode runs when the command is invoked. Do not also put a `template:` key in the frontmatter.
-- `$ARGUMENTS` is replaced with everything the user typed after the command; `$1`, `$2`, … pull individual positional arguments.
-- Optional: `description`, `agent`, `model`, `variant`, `subtask`.
+The command body is the template. `$ARGUMENTS` expands to the text after the
+slash command.
 
-## Plugins
+## Skills
 
-`plugin:` is an array. Each entry is one of:
+Skill files must be named exactly `SKILL.md`:
 
-```json
-"plugin": [
-  "opencode-gemini-auth",            // npm spec, latest
-  "opencode-foo@1.2.3",              // npm spec, pinned
-  "./local-plugin.ts",               // file path, relative to the declaring config
-  "file:///abs/path/plugin.js",      // file URL
-  ["opencode-bar", { "key": "val" }] // tuple form with options
-]
+```text
+.openchinacode/skills/my-skill/SKILL.md
 ```
 
-Auto-discovered plugins (no config entry needed): any `*.ts` or `*.js` file in
-`.opencode/plugin/` or `.opencode/plugins/`.
+```markdown
+---
+name: my-skill
+description: Use when the user asks for ...
+---
 
-A plugin module exports `default` (or any named export) of type
-`Plugin = (input: PluginInput, options?) => Promise<Hooks>`. The export is a
-function, not a plain object literal, and the function returns an object
-(return `{}` if there is nothing to register).
+# My Skill
 
-```ts
-import type { Plugin } from "@opencode-ai/plugin"
-
-export default (async ({ client, project, directory, $ }) => {
-  return {
-    config: (cfg) => {
-      // cfg is the live merged config; mutate fields here.
-    },
-    "tool.execute.before": async (input, output) => {
-      // mutate output.args before the tool runs
-    },
-  }
-}) satisfies Plugin
+Instructions...
 ```
 
-Hook surface (mutate `output` in place; return `void`):
-
-- `event(input)`: every bus event
-- `config(cfg)`: once on init with the merged config
-- `chat.message`, `chat.params`, `chat.headers`
-- `tool.execute.before`, `tool.execute.after`
-- `tool.definition`
-- `command.execute.before`
-- `shell.env`
-- `permission.ask`
-- `experimental.chat.messages.transform`, `experimental.chat.system.transform`,
-  `experimental.session.compacting`, `experimental.compaction.autocontinue`,
-  `experimental.text.complete`
-
-Special object-shaped (not callbacks): `tool: { my_tool: { ... } }`,
-`auth: { ... }`, `provider: { ... }`.
-
-## MCP servers
-
-`mcp:` is an object keyed by server name. Each server is discriminated by
-`type`:
-
-```json
-{
-  "mcp": {
-    "playwright": {
-      "type": "local",
-      "command": ["npx", "-y", "@playwright/mcp"],
-      "enabled": true,
-      "env": { "BROWSER": "chromium" }
-    },
-    "github": {
-      "type": "remote",
-      "url": "https://...",
-      "enabled": true,
-      "headers": { "Authorization": "Bearer {env:GITHUB_TOKEN}" }
-    },
-    "old-server": { "enabled": false }
-  }
-}
-```
-
-`command` is an array of strings. `type` is required. Use `enabled: false` to
-disable a server inherited from a parent config. String values such as header
-tokens support `{env:VAR}` interpolation (and `{file:path}`); the shell-style
-`${VAR}` is not substituted.
+`name` is required, lowercase hyphen-separated, and should match the folder
+name. `description` is required in practice because skills without descriptions
+are not advertised to the model.
 
 ## Permissions
 
-```json
-"permission": {
-  "edit": "deny",
-  "bash": { "git *": "allow", "rm *": "deny", "*": "ask" },
-  "external_directory": { "~/secrets/**": "deny", "*": "allow" }
+```jsonc
+{
+  "permission": {
+    "edit": "deny",
+    "bash": { "*": "ask", "git status*": "allow" },
+    "external_directory": { "*": "ask", "~/Projects/**": "allow" },
+    "task": "allow",
+  },
 }
 ```
 
-Actions: `"allow"`, `"ask"`, `"deny"`.
+Actions are `allow`, `ask`, and `deny`. For object rules, insertion order
+matters and the last matching rule wins. Per-agent `permission` overrides
+top-level `permission`.
 
-Per-tool value forms: `"allow"` shorthand (treated as `{"*": "allow"}`), or an
-object `{ pattern: action }`. Within an object, **insertion order matters**.
-opencode evaluates the LAST matching rule, so put broad rules first and narrow
-rules last.
+Plan mode must remain read-only. If editing a plan agent or subagent used from
+plan mode, make sure `edit`, `write`, `apply_patch`, and similar write tools
+remain denied.
 
-`permission: "allow"` (a string at the top level) is shorthand for "allow
-everything" and is rarely what the user wants.
+## OpenChinaCode-Specific Settings
 
-Known permission keys: `read, edit, glob, grep, list, bash, task,
-external_directory, todowrite, question, webfetch, websearch, lsp, doom_loop,
-skill`. Some of these (`todowrite,
-question, webfetch, websearch, doom_loop`) only accept a flat
-action, not a per-pattern object.
+### Task Policy
 
-`external_directory` patterns are filesystem paths (use `~/`, absolute paths,
-or globs like `~/projects/**`).
+```jsonc
+{
+  "task_policy": {
+    "enabled": true,
+    "extra_router": { "enabled": false },
+  },
+}
+```
 
-Per-agent `permission:` overrides top-level `permission:`. Plan Mode lives on
-the `plan` agent's permission ruleset (`edit: deny *`).
+Users can hot-toggle in TUI:
 
-## Escape hatches
+```text
+/task-policy on
+/task-policy off
+/task-policy extra-on
+/task-policy extra-off
+```
 
-When a user's config is broken and opencode won't start, these env vars help:
+### Soul
 
-- `OPENCODE_DISABLE_PROJECT_CONFIG=1`: skip the project's local `opencode.json`
-  and start from globals only. Run from the project directory, opencode loads,
-  the user edits the broken file, then they restart without the flag.
-- `OPENCODE_CONFIG=/path/to/file.json`: load an additional explicit config.
-- `OPENCODE_CONFIG_CONTENT='{"$schema":"https://opencode.ai/config.json"}'`:
-  inject inline JSON as a final local-scope merge.
+```jsonc
+{
+  "soul": "rigorous",
+}
+```
+
+Supported built-ins: `rigorous`, `friendly`, `custom`. The custom path defaults
+to `.openchinacode/souls/custom.md`.
+
+### Compaction
+
+```jsonc
+{
+  "compaction": {
+    "auto": true,
+    "tail_turns": "auto",
+  },
+}
+```
+
+OpenChinaCode smart compaction combines general summary, active-task essential
+extraction, and a minimal raw recent tail. Do not replace this with upstream
+opencode-only compaction advice.
+
+## Escape Hatches
+
+These environment variables are still named `OPENCODE_*` for compatibility with
+upstream internals:
+
+- `OPENCODE_DISABLE_PROJECT_CONFIG=1`: skip project config.
+- `OPENCODE_CONFIG=/path/to/openchinacode.jsonc`: load an explicit config file.
+- `OPENCODE_CONFIG_CONTENT='{"model":"zhipuai-pay2go/glm-5.2"}'`: inject inline
+  config.
 - `OPENCODE_DISABLE_DEFAULT_PLUGINS=1`: skip default plugins.
-- `OPENCODE_PURE=1`: skip external plugins entirely.
-- `OPENCODE_DISABLE_EXTERNAL_SKILLS=1`,
-  `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1`: skip the external skill scans under
-  `~/.claude/` and `~/.agents/`.
+- `OPENCODE_PURE=1`: skip external plugins.
+- `OPENCODE_DISABLE_EXTERNAL_SKILLS=1`: skip external skills.
 
-## When proposing edits
+Use these only as emergency recovery tools when config prevents startup.
 
-- Validate against the schema before writing. If you are unsure of a field's
-  exact shape, or the field is not covered in this skill, fetch
-  `https://opencode.ai/config.json` and read the schema rather than guessing.
-- Preserve `$schema` and any existing fields the user did not ask to change.
-- For agent, command, skill, and plugin definitions, prefer creating new files
-  in the correct location over inlining everything in `opencode.json`.
-- If the user's existing config is malformed, point them at the env-var escape
-  hatches above so they can edit from inside opencode without breaking their
-  session.
-- After saving any config change, remind the user to quit and restart opencode
-  — running sessions keep using the already-loaded config.
+## Before Writing Config
+
+- Read the existing file first and preserve unrelated fields.
+- Prefer `openchinacode.jsonc` over `openchinacode.json`.
+- Prefer `.openchinacode/` over `.opencode/` for project-local customization.
+- Use `openchinacode mcp auth <name>` for OAuth; do not invent tokens.
+- Use `/media-auth` and `/ocr-auth` for native media/OCR credentials.
+- After file edits, tell the user whether restart is required.
