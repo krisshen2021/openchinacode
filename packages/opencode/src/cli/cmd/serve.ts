@@ -19,6 +19,25 @@ export const ServeCommand = effectCmd({
     const server = yield* Effect.promise(() => Server.listen(opts))
     console.log(`opencode server listening on http://${server.hostname}:${server.port}`)
 
+    if (!process.env.OPENCODE_SKIP_REGISTRY) {
+      const { Global } = yield* Effect.promise(() => import("@opencode-ai/core/global"))
+      const { InstallationVersion } = yield* Effect.promise(() => import("@opencode-ai/core/installation/version"))
+      const { ServerRegistry } = yield* Effect.promise(() => import("../../server/registry"))
+      yield* Effect.promise(() =>
+        ServerRegistry.write(Global.Path.data, {
+          pid: process.pid,
+          url: `http://${server.hostname}:${server.port}`,
+          version: InstallationVersion,
+          ...(Flag.OPENCODE_SERVER_PASSWORD ? { password: Flag.OPENCODE_SERVER_PASSWORD } : {}),
+          startedAt: Date.now(),
+        }),
+      )
+      // Signal handlers (not process.on("exit")) so the async removal completes.
+      const shutdown = () => ServerRegistry.remove(Global.Path.data).finally(() => process.exit(0))
+      process.once("SIGINT", shutdown)
+      process.once("SIGTERM", shutdown)
+    }
+
     yield* Effect.never
   }),
 })
