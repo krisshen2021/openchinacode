@@ -5,7 +5,7 @@ import { ListRootsRequestSchema, ToolListChangedNotificationSchema } from "@mode
 import { LayerNode } from "@opencode-ai/core/effect/layer-node"
 import { Cause, Effect, Exit } from "effect"
 import type { MCP as MCPNS } from "../../src/mcp/index"
-import { testEffect } from "../lib/effect"
+import { testEffect, pollWithTimeout } from "../lib/effect"
 import { TestInstance } from "../fixture/fixture"
 
 // --- Mock infrastructure ---
@@ -714,6 +714,63 @@ it.instance(
       }),
     ),
   { config: { mcp: {} } },
+)
+
+// ========================================================================
+// Test: idle local servers are reaped and transparently respawned
+// ========================================================================
+
+it.instance(
+  "reaps an idle local server and respawns it on next use",
+  () =>
+    MCP.Service.use((mcp: MCPNS.Interface) =>
+      Effect.gen(function* () {
+        const previousReapInterval = process.env.OPENCODE_MCP_REAP_INTERVAL
+        process.env.OPENCODE_MCP_REAP_INTERVAL = "100"
+        yield* Effect.gen(function* () {
+          lastCreatedClientName = "reap-server"
+          const serverState = getOrCreateClientState("reap-server")
+
+          expect((yield* mcp.status())["reap-server"]?.status).toBe("connected")
+          const createdBefore = clientCreateCount
+
+          yield* pollWithTimeout(
+            Effect.sync(() => (serverState.closed ? (true as const) : undefined)),
+            "idle MCP server was never reaped",
+          )
+
+          // The mock close() does not fire onclose; simulate the SDK behavior.
+          const clients = yield* mcp.clients()
+          clients["reap-server"]?.onclose?.()
+          expect((yield* mcp.status())["reap-server"]).toEqual({ status: "failed", error: "Connection closed" })
+
+          lastCreatedClientName = "reap-server"
+          const tools = yield* mcp.tools()
+          expect(clientCreateCount).toBe(createdBefore + 1)
+          expect(serverState.listToolsCalls).toBe(2)
+          expect((yield* mcp.status())["reap-server"]?.status).toBe("connected")
+          expect(Object.keys(tools)).toContain("reap-server_test_tool")
+        }).pipe(
+          Effect.ensuring(
+            Effect.sync(() => {
+              if (previousReapInterval === undefined) return delete process.env.OPENCODE_MCP_REAP_INTERVAL
+              process.env.OPENCODE_MCP_REAP_INTERVAL = previousReapInterval
+            }),
+          ),
+        )
+      }),
+    ),
+  {
+    config: {
+      mcp: {
+        "reap-server": {
+          type: "local",
+          command: ["echo", "test"],
+        },
+      },
+      experimental: { mcp_idle_timeout: 1 },
+    },
+  },
 )
 
 // ========================================================================

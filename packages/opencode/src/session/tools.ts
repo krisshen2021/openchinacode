@@ -419,6 +419,7 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
                 )
               : Effect.void
           const result: Awaited<ReturnType<NonNullable<typeof execute>>> = yield* Effect.gen(function* () {
+            if (entry.clientName) yield* mcp.touch(entry.clientName)
             yield* ctx.ask({ permission: key, metadata: {}, patterns: ["*"], always: ["*"] })
             return yield* Effect.promise(() => execute(args, opts))
           }).pipe(

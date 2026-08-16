@@ -115,6 +115,7 @@ function makeMcp(instructions: MCP.ServerInstructions[] = []) {
     MCP.Service.of({
       status: () => Effect.succeed({}),
       clients: () => Effect.succeed({}),
+      touch: () => Effect.void,
       instructions: () => Effect.succeed(instructions),
       tools: () => Effect.succeed({}),
       prompts: () => Effect.succeed({}),

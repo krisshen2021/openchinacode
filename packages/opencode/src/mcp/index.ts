@@ -137,14 +137,29 @@ interface AuthResult {
   client?: MCPClient
 }
 
+export function idleLocalServers(
+  s: State,
+  configured: Record<string, ConfigMCPV1.Info>,
+  now: number,
+  idleTimeout: number,
+) {
+  return Object.keys(s.clients).filter((name) => {
+    if (s.status[name]?.status !== "connected") return false
+    const mcp = s.config[name] ?? configured[name]
+    if (mcp.type !== "local" || mcp.enabled === false) return false
+    return now - (s.lastUsedAt[name] ?? 0) >= idleTimeout
+  })
+}
+
 // --- Effect Service ---
 
-interface State {
+export interface State {
   config: Record<string, ConfigMCPV1.Info>
   status: Record<string, Status>
   clients: Record<string, MCPClient>
   defs: Record<string, MCPToolDef[]>
   instructions: Record<string, string>
+  lastUsedAt: Record<string, number>
 }
 
 export interface ServerInstructions {
@@ -166,6 +181,7 @@ export interface McpTool {
 export interface Interface {
   readonly status: () => Effect.Effect<Record<string, Status>>
   readonly clients: () => Effect.Effect<Record<string, MCPClient>>
+  readonly touch: (clientName: string) => Effect.Effect<void>
   readonly instructions: () => Effect.Effect<ServerInstructions[]>
   readonly tools: () => Effect.Effect<Record<string, McpTool>>
   readonly prompts: () => Effect.Effect<Record<string, PromptInfo & { client: string }>>
@@ -481,6 +497,7 @@ const layer = Layer.effect(
         delete s.clients[name]
         delete s.defs[name]
         delete s.instructions[name]
+        delete s.lastUsedAt[name]
         s.status[name] = { status: "failed", error: "Connection closed" }
         bridge.fork(
           Effect.logWarning("MCP connection closed", { server: name }).pipe(
@@ -536,6 +553,7 @@ const layer = Layer.effect(
           clients: {},
           defs: {},
           instructions: {},
+          lastUsedAt: {},
         }
 
         yield* Effect.forEach(
@@ -564,12 +582,41 @@ const layer = Layer.effect(
           { concurrency: "unbounded" },
         )
 
+        // OPENCODE_MCP_REAP_INTERVAL (ms) overrides the 30s tick; test/ops knob.
+        const reapInterval = Number(process.env.OPENCODE_MCP_REAP_INTERVAL) || 30_000
+        yield* Effect.gen(function* () {
+          const cfg = yield* cfgSvc.get()
+          const idleTimeout = cfg.experimental?.mcp_idle_timeout ?? 600_000
+          if (idleTimeout <= 0) return
+          const now = Date.now()
+          const configured = Object.fromEntries(
+            Object.entries(cfg.mcp ?? {}).filter((entry): entry is [string, ConfigMCPV1.Info] =>
+              isMcpConfigured(entry[1]),
+            ),
+          )
+          for (const name of idleLocalServers(s, configured, now, idleTimeout)) {
+            const client = s.clients[name]
+            if (!client) continue
+            yield* Effect.logInfo("closing idle MCP server", { server: name })
+            // Do not delete state here: the client's onclose handler transitions
+            // the server to failed/"Connection closed", making it eligible for
+            // transparent respawn via respawnClosed.
+            yield* closeMcpClient(name, client)
+          }
+        }).pipe(
+          Effect.catchCause((cause) => Effect.logWarning("MCP idle reaper tick failed", { cause: String(cause) })),
+          Effect.andThen(Effect.sleep(reapInterval)),
+          Effect.forever,
+          Effect.forkScoped,
+        )
+
         yield* Effect.addFinalizer(() =>
           Effect.gen(function* () {
             const clients = Object.entries(s.clients)
             s.clients = {}
             s.defs = {}
             s.instructions = {}
+            s.lastUsedAt = {}
             yield* Effect.forEach(clients, ([name, client]) => closeMcpClient(name, client), {
               concurrency: "unbounded",
             })
@@ -586,6 +633,7 @@ const layer = Layer.effect(
       delete s.clients[name]
       delete s.defs[name]
       delete s.instructions[name]
+      delete s.lastUsedAt[name]
       if (!client) return Effect.void
       return closeMcpClient(name, client)
     }
@@ -602,6 +650,7 @@ const layer = Layer.effect(
       const previous = s.clients[name]
       s.status[name] = { status: "connected" }
       s.clients[name] = client
+      s.lastUsedAt[name] = Date.now()
       s.defs[name] = listed
       if (instructions) s.instructions[name] = instructions
       else delete s.instructions[name]
@@ -631,7 +680,13 @@ const layer = Layer.effect(
 
     const clients = Effect.fn("MCP.clients")(function* () {
       const s = yield* InstanceState.get(state)
+      yield* respawnClosed(s)
       return s.clients
+    })
+
+    const touch = Effect.fn("MCP.touch")(function* (clientName: string) {
+      const s = yield* InstanceState.get(state)
+      s.lastUsedAt[clientName] = Date.now()
     })
 
     const instructions = Effect.fn("MCP.instructions")(function* () {
@@ -751,6 +806,7 @@ const layer = Layer.effect(
       targetClientName?: string,
     ) {
       return Effect.gen(function* () {
+        yield* respawnClosed(s)
         const cfg = yield* cfgSvc.get()
         return yield* Effect.forEach(
           Object.entries(s.clients).filter(
@@ -800,6 +856,8 @@ const layer = Layer.effect(
       meta?: Record<string, unknown>,
     ) {
       const s = yield* InstanceState.get(state)
+      yield* respawnClosed(s)
+      s.lastUsedAt[clientName] = Date.now()
       const client = s.clients[clientName]
       if (!client) {
         yield* Effect.logWarning(`client not found for ${label}`, { clientName })
@@ -1043,6 +1101,7 @@ const layer = Layer.effect(
     return Service.of({
       status,
       clients,
+      touch,
       instructions,
       tools,
       prompts,
