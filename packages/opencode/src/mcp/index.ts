@@ -146,6 +146,7 @@ export function idleLocalServers(
   return Object.keys(s.clients).filter((name) => {
     if (s.status[name]?.status !== "connected") return false
     const mcp = s.config[name] ?? configured[name]
+    if (!mcp) return false
     if (mcp.type !== "local" || mcp.enabled === false) return false
     return now - (s.lastUsedAt[name] ?? 0) >= idleTimeout
   })
@@ -584,7 +585,7 @@ const layer = Layer.effect(
         )
 
         // OPENCODE_MCP_REAP_INTERVAL (ms) overrides the 30s tick; test/ops knob.
-        const reapInterval = Number(process.env.OPENCODE_MCP_REAP_INTERVAL) || 30_000
+        const reapInterval = Math.max(100, Math.trunc(Number(process.env.OPENCODE_MCP_REAP_INTERVAL)) || 30_000)
         yield* Effect.gen(function* () {
           const cfg = yield* cfgSvc.get()
           const idleTimeout = cfg.experimental?.mcp_idle_timeout ?? 600_000
@@ -598,6 +599,9 @@ const layer = Layer.effect(
           for (const name of idleLocalServers(s, configured, now, idleTimeout)) {
             const client = s.clients[name]
             if (!client) continue
+            // Re-check before closing: a concurrent touch may have stamped the
+            // server after selection at tick start.
+            if (now - (s.lastUsedAt[name] ?? 0) < idleTimeout) continue
             yield* Effect.logInfo("closing idle MCP server", { server: name })
             // Do not delete state here: the client's onclose handler transitions
             // the server to failed/"Connection closed", making it eligible for
@@ -605,7 +609,11 @@ const layer = Layer.effect(
             yield* closeMcpClient(name, client)
           }
         }).pipe(
-          Effect.catchCause((cause) => Effect.logWarning("MCP idle reaper tick failed", { cause: String(cause) })),
+          Effect.catchCause((cause) =>
+            Cause.hasInterruptsOnly(cause)
+              ? Effect.failCause(cause)
+              : Effect.logWarning("MCP idle reaper tick failed", { cause: String(cause) }),
+          ),
           Effect.andThen(Effect.sleep(reapInterval)),
           Effect.forever,
           Effect.forkScoped,

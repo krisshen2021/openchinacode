@@ -59,15 +59,20 @@ export function DialogStatus() {
                 <text
                   flexShrink={0}
                   style={{
-                    fg: (
-                      {
-                        connected: theme.success,
-                        failed: theme.error,
-                        disabled: theme.textMuted,
-                        needs_auth: theme.warning,
-                        needs_client_registration: theme.error,
-                      } as Record<string, typeof theme.success>
-                    )[item.status],
+                    // Servers that closed cleanly (idle reap, wrapper self-exit) respawn
+                    // transparently on next use; render them muted, not as errors.
+                    fg:
+                      item.status === "failed" && item.error === "Connection closed"
+                        ? theme.textMuted
+                        : (
+                            {
+                              connected: theme.success,
+                              failed: theme.error,
+                              disabled: theme.textMuted,
+                              needs_auth: theme.warning,
+                              needs_client_registration: theme.error,
+                            } as Record<string, typeof theme.success>
+                          )[item.status],
                   }}
                 >
                   •

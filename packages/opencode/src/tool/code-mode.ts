@@ -147,6 +147,7 @@ function toolTree(catalog: readonly CatalogEntry[], run: (entry: CatalogEntry) =
 
 const invokeChildTool = Effect.fn("CodeMode.invokeChildTool")(function* (input: {
   plugin: Plugin.Interface
+  mcp: MCP.Interface
   entry: CatalogEntry
   args: Record<string, unknown>
   callID: string
@@ -158,6 +159,7 @@ const invokeChildTool = Effect.fn("CodeMode.invokeChildTool")(function* (input: 
     { args: input.args },
   )
   const result: CallToolResult = yield* Effect.gen(function* () {
+    if (input.entry.tool.clientName) yield* input.mcp.touch(input.entry.tool.clientName)
     yield* input.ctx.ask({ permission: input.entry.key, metadata: {}, patterns: ["*"], always: ["*"] })
     // Deliberately mirrors McpCatalog.convertTool's transport call so the MCP service stays free of tool-loop concerns.
     return yield* Effect.promise(async () => {
@@ -236,6 +238,7 @@ export const CodeModeTool = Tool.define(
             childCalls += 1
             const result = yield* invokeChildTool({
               plugin,
+              mcp,
               entry,
               args: (input ?? {}) as Record<string, unknown>,
               callID: `${ctx.callID ?? entry.key}/${childCalls}`,

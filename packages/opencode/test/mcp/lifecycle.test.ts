@@ -773,6 +773,139 @@ it.instance(
   },
 )
 
+it.instance(
+  "does not reap when mcp_idle_timeout is 0",
+  () =>
+    MCP.Service.use((mcp: MCPNS.Interface) =>
+      Effect.gen(function* () {
+        const previousReapInterval = process.env.OPENCODE_MCP_REAP_INTERVAL
+        process.env.OPENCODE_MCP_REAP_INTERVAL = "100"
+        yield* Effect.gen(function* () {
+          lastCreatedClientName = "noreap-server"
+          const serverState = getOrCreateClientState("noreap-server")
+
+          expect((yield* mcp.status())["noreap-server"]?.status).toBe("connected")
+          // Fixed sleep is the test here: the reaper must stay inactive for the full window.
+          yield* Effect.sleep("500 millis")
+          expect(serverState.closed).toBe(false)
+          expect((yield* mcp.status())["noreap-server"]?.status).toBe("connected")
+        }).pipe(
+          Effect.ensuring(
+            Effect.sync(() => {
+              if (previousReapInterval === undefined) return delete process.env.OPENCODE_MCP_REAP_INTERVAL
+              process.env.OPENCODE_MCP_REAP_INTERVAL = previousReapInterval
+            }),
+          ),
+        )
+      }),
+    ),
+  {
+    config: {
+      mcp: {
+        "noreap-server": {
+          type: "local",
+          command: ["echo", "test"],
+        },
+      },
+      experimental: { mcp_idle_timeout: 0 },
+    },
+  },
+)
+
+it.instance(
+  "does not reap a boot-connected server within the default idle timeout",
+  () =>
+    MCP.Service.use((mcp: MCPNS.Interface) =>
+      Effect.gen(function* () {
+        const previousReapInterval = process.env.OPENCODE_MCP_REAP_INTERVAL
+        process.env.OPENCODE_MCP_REAP_INTERVAL = "100"
+        yield* Effect.gen(function* () {
+          lastCreatedClientName = "boot-server"
+          const serverState = getOrCreateClientState("boot-server")
+
+          expect((yield* mcp.status())["boot-server"]?.status).toBe("connected")
+          // Fixed sleep is the test here: 500ms is far below the 600s default timeout.
+          yield* Effect.sleep("500 millis")
+          expect(serverState.closed).toBe(false)
+          expect((yield* mcp.status())["boot-server"]?.status).toBe("connected")
+        }).pipe(
+          Effect.ensuring(
+            Effect.sync(() => {
+              if (previousReapInterval === undefined) return delete process.env.OPENCODE_MCP_REAP_INTERVAL
+              process.env.OPENCODE_MCP_REAP_INTERVAL = previousReapInterval
+            }),
+          ),
+        )
+      }),
+    ),
+  {
+    config: {
+      mcp: {
+        "boot-server": {
+          type: "local",
+          command: ["echo", "test"],
+        },
+      },
+    },
+  },
+)
+
+it.instance(
+  "getPrompt respawns a reaped server via withClient",
+  () =>
+    MCP.Service.use((mcp: MCPNS.Interface) =>
+      Effect.gen(function* () {
+        const previousReapInterval = process.env.OPENCODE_MCP_REAP_INTERVAL
+        process.env.OPENCODE_MCP_REAP_INTERVAL = "100"
+        yield* Effect.gen(function* () {
+          lastCreatedClientName = "prompt-reap-server"
+          const serverState = getOrCreateClientState("prompt-reap-server")
+          serverState.prompts = [{ name: "review", description: "A test prompt" }]
+
+          expect((yield* mcp.status())["prompt-reap-server"]?.status).toBe("connected")
+          const createdBefore = clientCreateCount
+
+          yield* pollWithTimeout(
+            Effect.sync(() => (serverState.closed ? (true as const) : undefined)),
+            "idle MCP server was never reaped",
+          )
+
+          // The mock close() does not fire onclose; simulate the SDK behavior.
+          const clients = yield* mcp.clients()
+          clients["prompt-reap-server"]?.onclose?.()
+          expect((yield* mcp.status())["prompt-reap-server"]).toEqual({
+            status: "failed",
+            error: "Connection closed",
+          })
+
+          lastCreatedClientName = "prompt-reap-server"
+          const prompt = yield* mcp.getPrompt("prompt-reap-server", "review")
+          expect(clientCreateCount).toBe(createdBefore + 1)
+          expect(prompt).toEqual({ messages: [] })
+          expect((yield* mcp.status())["prompt-reap-server"]?.status).toBe("connected")
+        }).pipe(
+          Effect.ensuring(
+            Effect.sync(() => {
+              if (previousReapInterval === undefined) return delete process.env.OPENCODE_MCP_REAP_INTERVAL
+              process.env.OPENCODE_MCP_REAP_INTERVAL = previousReapInterval
+            }),
+          ),
+        )
+      }),
+    ),
+  {
+    config: {
+      mcp: {
+        "prompt-reap-server": {
+          type: "local",
+          command: ["echo", "test"],
+        },
+      },
+      experimental: { mcp_idle_timeout: 1 },
+    },
+  },
+)
+
 // ========================================================================
 // Test: add() closes existing client before replacing
 // ========================================================================
