@@ -1,13 +1,10 @@
 import type { Argv } from "yargs"
 import { UI } from "../ui"
-import * as prompts from "@clack/prompts"
-import { Installation } from "../../installation"
-import { Global } from "@opencode-ai/core/global"
+import type { Installation } from "../../installation"
 import fs from "fs/promises"
 import path from "path"
 import os from "os"
 import { Filesystem } from "@/util/filesystem"
-import { Process } from "@/util/process"
 
 interface UninstallArgs {
   keepConfig: boolean
@@ -52,6 +49,8 @@ export const UninstallCommand = {
       }),
 
   handler: async (args: UninstallArgs) => {
+    const prompts = await import("@clack/prompts")
+    const { Installation } = await import("../../installation")
     UI.empty()
     UI.println(UI.logo("  "))
     UI.empty()
@@ -88,6 +87,7 @@ export const UninstallCommand = {
 }
 
 async function collectRemovalTargets(args: UninstallArgs, method: Installation.Method): Promise<RemovalTargets> {
+  const { Global } = await import("@opencode-ai/core/global")
   const directories: RemovalTargets["directories"] = [
     { path: Global.Path.data, label: "Data", keep: args.keepData },
     { path: Global.Path.cache, label: "Cache", keep: false },
@@ -102,6 +102,7 @@ async function collectRemovalTargets(args: UninstallArgs, method: Installation.M
 }
 
 async function showRemovalSummary(targets: RemovalTargets, method: Installation.Method) {
+  const prompts = await import("@clack/prompts")
   prompts.log.message("The following will be removed:")
 
   for (const dir of targets.directories) {
@@ -142,6 +143,8 @@ async function showRemovalSummary(targets: RemovalTargets, method: Installation.
 }
 
 async function executeUninstall(method: Installation.Method, targets: RemovalTargets) {
+  const prompts = await import("@clack/prompts")
+  const { Process } = await import("@/util/process")
   const spinner = prompts.spinner()
   const errors: string[] = []
 
