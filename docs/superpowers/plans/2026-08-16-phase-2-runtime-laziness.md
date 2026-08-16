@@ -1,4 +1,4 @@
-# Phase 2: Runtime Service-Graph Laziness Implementation Plan
+# Phase 2: Runtime Service-Graph Laziness Implementation Plan — ✅ COMPLETE (2026-08-16)
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -39,7 +39,7 @@
 - Modify: `packages/opencode/test/mcp/lifecycle.test.ts` (integration test, reuses its existing mock harness)
 - Create: `packages/opencode/test/mcp/idle-reap.test.ts` (unit tests for the pure selection function)
 
-- [ ] **Step 1: config field**
+- [x] **Step 1: config field**
 
 In `packages/core/src/v1/config/config.ts`, immediately after the `mcp_timeout` field (lines 213-215):
 
@@ -52,7 +52,7 @@ In `packages/core/src/v1/config/config.ts`, immediately after the `mcp_timeout` 
 
 Verify: `cd packages/core && bun typecheck` — clean.
 
-- [ ] **Step 2: State field + export**
+- [x] **Step 2: State field + export**
 
 In `packages/opencode/src/mcp/index.ts`:
 
@@ -71,7 +71,7 @@ export interface State {
 
 - In the state initializer (lines 533-539) add `lastUsedAt: {}` to the object literal.
 
-- [ ] **Step 3: pure selection function (write failing unit test first)**
+- [x] **Step 3: pure selection function (write failing unit test first)**
 
 Create `packages/opencode/test/mcp/idle-reap.test.ts` with failing tests, then implement.
 
@@ -174,7 +174,7 @@ Note: `configured` values passed in are filtered `ConfigMCPV1.Info` by the calle
 
 Run the test again — expected PASS (6/6).
 
-- [ ] **Step 4: track usage (storeClient / closeClient / finalizer / watch)**
+- [x] **Step 4: track usage (storeClient / closeClient / finalizer / watch)**
 
 In `storeClient` (lines 593-611), after `s.clients[name] = client` add:
 
@@ -188,7 +188,7 @@ In the instance finalizer (lines 567-578), add `s.lastUsedAt = {}` next to the o
 
 In the `watch` onclose handler (lines 479-491), add `delete s.lastUsedAt[name]` next to the other deletes.
 
-- [ ] **Step 5: `touch` service method + respawn gap fixes**
+- [x] **Step 5: `touch` service method + respawn gap fixes**
 
 Add to `Interface` (after `clients` at line 168):
 
@@ -228,7 +228,7 @@ s.lastUsedAt[clientName] = Date.now()
 
 Add `touch` to the `Service.of({...})` literal (lines 1043-1063), after `clients,`.
 
-- [ ] **Step 6: reaper fiber in state init**
+- [x] **Step 6: reaper fiber in state init**
 
 In the state init closure, immediately after the connect-all `Effect.forEach` block ends (after line 565) and before `yield* Effect.addFinalizer(...)` (line 567), insert:
 
@@ -261,7 +261,7 @@ yield *
   )
 ```
 
-- [ ] **Step 7: touch on MCP tool execution**
+- [x] **Step 7: touch on MCP tool execution**
 
 In `packages/opencode/src/session/tools.ts`, in the MCP tool execute wrapper's inner gen (lines 421-424), before `yield* ctx.ask(...)`:
 
@@ -271,11 +271,11 @@ if (entry.clientName) yield * mcp.touch(entry.clientName)
 
 Do NOT touch in `tools()` itself — it runs every prompt step and would defeat idleness.
 
-- [ ] **Step 8: typecheck**
+- [x] **Step 8: typecheck**
 
 Run: `cd packages/opencode && bun typecheck` — clean.
 
-- [ ] **Step 9: integration test in lifecycle.test.ts (reap → respawn cycle)**
+- [x] **Step 9: integration test in lifecycle.test.ts (reap → respawn cycle)**
 
 Read `packages/opencode/test/mcp/lifecycle.test.ts` first — it mocks `@modelcontextprotocol/sdk/client/*` with a `clientStates` map tracking `closed`, `listToolsCalls`, etc. Find how existing tests simulate a connection close (search for `onclose` / `"Connection closed"` in that file) and how they build the MCP layer with a local stdio server config.
 
@@ -291,7 +291,7 @@ Add a test to that file:
 
 Run: `cd packages/opencode && bun test test/mcp/lifecycle.test.ts test/mcp/idle-reap.test.ts` — all green.
 
-- [ ] **Step 10: full mcp test suite + commit**
+- [x] **Step 10: full mcp test suite + commit**
 
 Run: `cd packages/opencode && bun test test/mcp/ test/server/httpapi-mcp.test.ts` — all green (no regressions in oauth/session-recovery neighbors).
 
@@ -309,7 +309,7 @@ git commit -m "feat(opencode): reap idle local MCP servers"
 - Delete: `packages/ui/src/context/marked.tsx`
 - Modify: `packages/ui/package.json` (dependencies + devDependencies, only entries with zero remaining importers)
 
-- [ ] **Step 1: re-verify zero consumers**
+- [x] **Step 1: re-verify zero consumers**
 
 From the worktree root, run and confirm each prints nothing outside `marked.tsx` itself:
 
@@ -319,7 +319,7 @@ rg -l "useMarked|MarkedProvider|context/marked" packages/
 
 Expected: only `packages/ui/src/context/marked.tsx` (or zero lines). If any real consumer appears, STOP and report — do not delete.
 
-- [ ] **Step 2: audit which deps become unused**
+- [x] **Step 2: audit which deps become unused**
 
 Run from worktree root:
 
@@ -331,7 +331,7 @@ done
 
 Known upfront: `@pierre/diffs` stays (used by `packages/ui/src/custom-elements.d.ts:1` and `packages/ui/src/context/worker-pool.tsx:1` — do not remove). Record which of the seven audited deps have zero remaining importers.
 
-- [ ] **Step 3: delete + prune**
+- [x] **Step 3: delete + prune**
 
 ```bash
 rm packages/ui/src/context/marked.tsx
@@ -341,11 +341,11 @@ In `packages/ui/package.json` remove ONLY the deps confirmed unused in Step 2 (c
 
 Run: `bun install` (from worktree root).
 
-- [ ] **Step 4: typecheck**
+- [x] **Step 4: typecheck**
 
 Run: `cd packages/ui && bun typecheck` then `cd packages/tui && bun typecheck` — both clean.
 
-- [ ] **Step 5: commit**
+- [x] **Step 5: commit**
 
 ```bash
 git add packages/ui/package.json packages/ui/src/context/marked.tsx bun.lock
@@ -361,15 +361,15 @@ git commit -m "chore(ui): remove dead marked/shiki context"
 - Modify: `packages/core/src/models-dev.ts:3` (drop unused `FetchHttpClient` specifier from the `effect/unstable/http` import — verify with `rg FetchHttpClient packages/core/src/models-dev.ts` that it appears only in the import)
 - Modify: `docs/superpowers/plans/2026-08-16-memory-surgery.md` (Phase 2 section → point to this child plan and record the four findings; Phase 5 candidates → add "LSP idle reaping for long-lived servers", "ModelsDev light/heavy module split", "MCP execution-time respawn that keeps defs cached across idle reaps")
 
-- [ ] **Step 1: edit + typecheck**
+- [x] **Step 1: edit + typecheck**
 
 Remove the specifier; run `cd packages/core && bun typecheck` — clean.
 
-- [ ] **Step 2: doc updates**
+- [x] **Step 2: doc updates**
 
 Apply the two plan-doc edits above. Keep them short.
 
-- [ ] **Step 3: commit**
+- [x] **Step 3: commit**
 
 ```bash
 git add packages/core/src/models-dev.ts docs/superpowers/plans/
@@ -380,13 +380,13 @@ git commit -m "chore(core): drop unused FetchHttpClient import"
 
 ## Task 2.4: Phase 2 verification gate
 
-- [ ] **Step 1: typecheck + tests**
+- [x] **Step 1: typecheck + tests**
 
 ```bash
 cd packages/opencode && bun typecheck && bun test test/mcp/
 ```
 
-- [ ] **Step 2: CLI bench**
+- [x] **Step 2: CLI bench**
 
 ```bash
 bun run script/bench-rss.ts
@@ -394,7 +394,7 @@ bun run script/bench-rss.ts
 
 Record both rows; `--help` should still be ~144 MB (Phase 1 result — no regression).
 
-- [ ] **Step 3: compiled-binary smoke (MANDATORY — dev path cannot catch bundle-order issues)**
+- [x] **Step 3: compiled-binary smoke (MANDATORY — dev path cannot catch bundle-order issues)**
 
 Build (background, ~3-4 min):
 
@@ -415,7 +415,7 @@ Then, in a scratch dir with a playwright MCP configured (e.g. `~/Projects/aiwall
 5. `~/.local/bin/openchinacode-test run "say hi"` in the same dir — a prompt forces `mcp.tools()` → playwright child respawns (`pgrep -af playwright` shows it again).
 6. Kill the tmux session; kill leftover MCP children by ppid. Restore `mcp_idle_timeout` in the surgery config to its previous value (or remove the override).
 
-- [ ] **Step 4: record results + commit**
+- [x] **Step 4: record results + commit**
 
 Fill the checkboxes in this file and the Phase 2 section of `2026-08-16-memory-surgery.md` with the measured numbers, then:
 
@@ -425,3 +425,21 @@ git commit -m "docs: record phase 2 verification results"
 ```
 
 **Phase 2 merge to `main` is NOT part of this plan** — the user holds that decision until the surgery binary proves itself in daily use.
+
+---
+
+## Verification results (2026-08-16, all gates passed)
+
+**Commits:** `248e5dd06` feat (reaper) · `e86d6f305` fix (NonNegativeInt + boot grace + sdk gen) · `f0d17f275` fix (hardening: interrupt propagation, interval clamp, missing-config guard, TOCTOU re-check, codemode touch, TUI neutral "Connection closed" rendering, +3 tests) · `95b95207ab` chore (delete marked.tsx + prune 6 ui deps) · `3ee7b21ec` chore (FetchHttpClient + catalog scrub + findings).
+
+**Tests/typecheck:** `bun test test/mcp/ test/server/httpapi-mcp.test.ts test/tool/code-mode.test.ts` 125/125 green; typecheck clean in `packages/core`, `packages/opencode`, `packages/ui`, `packages/tui`. Both spec and quality review passed per task (quality re-review after hardening: "ready to merge").
+
+**CLI bench:** `--help` peak 147 MB, `models --help` 137 MB (Phase 1: 144 MB — no regression).
+
+**Compiled-binary smoke** (`0.0.0-memory-surgery-202608160631`, `OPENCODE_APP_NAME=openchinacode-surgery`, aiwallpaper dir, config `experimental.mcp_idle_timeout: 60000`, playwright local via wrapper + miro remote):
+- TUI boot idle main-process RSS **455 MB** (gate ≤ 500 MB ✓; Phase 1 compiled baseline 449 MB).
+- playwright MCP child present at boot (~193 MB) — boot connect preserved ✓
+- after ~75 s idle (60 s timeout + ≤30 s tick): playwright child **reaped, 0 idle MCP children** ✓; main RSS steady 455 MB
+- `hi` sent via tmux into the TUI: playwright child **transparently respawned** (new pid), prompt cycle healthy (DeepSeek V4 Flash answered, 20.7K tokens ¥0.01, cache fine)
+- miro (remote) never reaped, as designed
+- cleanup verified: no leftover surgery processes; production instances (main branch) untouched throughout
