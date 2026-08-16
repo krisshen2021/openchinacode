@@ -1,5 +1,4 @@
 import type { PermissionV1 } from "@opencode-ai/core/v1/permission"
-import { FSUtil } from "@opencode-ai/core/fs-util"
 // CLI entry point for `openchinacode run` and bare `openchinacode`.
 //
 // Handles three modes:
@@ -15,16 +14,10 @@ import { FSUtil } from "@opencode-ai/core/fs-util"
 // and `--fork` for forking before continuing.
 import type { Argv } from "yargs"
 import path from "path"
-import { pathToFileURL } from "url"
-import { open } from "node:fs/promises"
 import { Effect } from "effect"
-import { UI } from "../ui"
 import { effectCmd } from "../effect-cmd"
-import { EOL } from "os"
-import { Filesystem } from "@/util/filesystem"
-import { createOpencodeClient, type OpencodeClient, type ToolPart } from "@opencode-ai/sdk/v2"
+import type { OpencodeClient, ToolPart } from "@opencode-ai/sdk/v2"
 import { FormatError, FormatUnknownError } from "../error"
-import { INTERACTIVE_INPUT_ERROR, resolveInteractiveStdin } from "./run/runtime.stdin"
 
 type ModelInput = Parameters<OpencodeClient["session"]["prompt"]>[0]["model"]
 
@@ -70,14 +63,16 @@ type SessionInfo = {
   directory?: string
 }
 
-function inline(info: Inline) {
+async function inline(info: Inline) {
+  const { UI } = await import("../ui")
   const suffix = info.description ? UI.Style.TEXT_DIM + ` ${info.description}` + UI.Style.TEXT_NORMAL : ""
   UI.println(UI.Style.TEXT_NORMAL + info.icon, UI.Style.TEXT_NORMAL + info.title + suffix)
 }
 
-function block(info: Inline, output?: string) {
+async function block(info: Inline, output?: string) {
+  const { UI } = await import("../ui")
   UI.empty()
-  inline(info)
+  await inline(info)
   if (!output?.trim()) return
   UI.println(output)
   UI.empty()
@@ -92,13 +87,13 @@ async function tool(part: ToolPart) {
     const { toolInlineInfo } = await import("./run/tool")
     const next = toolInlineInfo(part)
     if (next.mode === "block") {
-      block(next, next.body)
+      await block(next, next.body)
       return
     }
 
-    inline(next)
+    await inline(next)
   } catch {
-    inline({
+    await inline({
       icon: "\u2699",
       title: part.tool,
     })
@@ -109,14 +104,14 @@ async function toolError(part: ToolPart) {
   try {
     const { toolInlineInfo } = await import("./run/tool")
     const next = toolInlineInfo(part)
-    inline({
+    await inline({
       icon: "✗",
       title: `${next.title} failed`,
       ...(next.description && { description: next.description }),
     })
     return
   } catch {
-    inline({
+    await inline({
       icon: "✗",
       title: `${part.tool} failed`,
     })
@@ -269,6 +264,14 @@ export const RunCommand = effectCmd({
     const flags = yield* RuntimeFlags.Service
     const localInstance = yield* InstanceRef
     yield* Effect.promise(async () => {
+      const { open } = await import("node:fs/promises")
+      const { EOL } = await import("os")
+      const { pathToFileURL } = await import("url")
+      const { UI } = await import("../ui")
+      const { Filesystem } = await import("@/util/filesystem")
+      const { FSUtil } = await import("@opencode-ai/core/fs-util")
+      const { createOpencodeClient } = await import("@opencode-ai/sdk/v2")
+      const { INTERACTIVE_INPUT_ERROR, resolveInteractiveStdin } = await import("./run/runtime.stdin")
       const rawMessage = [...args.message, ...(args["--"] || [])].join(" ")
       const interactive = Boolean(args.mini || args.interactive)
       const auto = args.auto || args.yolo || args["dangerously-skip-permissions"]
