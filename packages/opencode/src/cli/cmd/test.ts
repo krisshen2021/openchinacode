@@ -5,8 +5,6 @@ import { existsSync } from "node:fs"
 import net from "node:net"
 import { spawn, type ChildProcess } from "node:child_process"
 import { Effect } from "effect"
-import { Global } from "@opencode-ai/core/global"
-import { killTree } from "@opencode-ai/core/shell"
 import type { ConfigIntegrationTest } from "@opencode-ai/core/config/integration-test"
 import { cmd } from "./cmd"
 import { effectCmd, fail } from "../effect-cmd"
@@ -203,6 +201,7 @@ const startService = async (
 }
 
 const stopService = async (child: ChildProcess) => {
+  const { killTree } = await import("@opencode-ai/core/shell")
   try {
     await killTree(child)
   } catch {
@@ -309,6 +308,7 @@ const TestMcpCommand = effectCmd({
       .option("headed", { type: "boolean", describe: "run Playwright MCP headed instead of headless" })
       .option("timeout", { type: "number", describe: "MCP request timeout in milliseconds" }),
   handler: Effect.fn("Cli.test.mcp")(function* (args) {
+    const { Global } = yield* Effect.promise(() => import("@opencode-ai/core/global"))
     const file = args.global
       ? path.join(Global.Path.config, "openchinacode.jsonc")
       : path.join(process.cwd(), "openchinacode.jsonc")
