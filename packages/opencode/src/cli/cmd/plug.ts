@@ -1,16 +1,9 @@
-import { intro, log, outro, spinner } from "@clack/prompts"
 import { Effect } from "effect"
 
-import { ConfigPaths } from "@/config/paths"
-import { Global } from "@opencode-ai/core/global"
-import { installPlugin, patchPluginConfig, readPluginManifest } from "../../plugin/install"
-import { resolvePluginTarget } from "../../plugin/shared"
 import { errorMessage } from "../../util/error"
 import { Filesystem } from "@/util/filesystem"
-import { Process } from "@/util/process"
 import { UI } from "../ui"
 import { effectCmd } from "../effect-cmd"
-import { InstanceRef } from "@/effect/instance-ref"
 
 type Spin = {
   start: (msg: string) => void
@@ -44,21 +37,27 @@ export type PlugCtx = {
   directory: string
 }
 
-const defaultPlugDeps: PlugDeps = {
-  spinner: () => spinner(),
-  log: {
-    error: (msg) => log.error(msg),
-    info: (msg) => log.info(msg),
-    success: (msg) => log.success(msg),
-  },
-  resolve: (spec) => resolvePluginTarget(spec),
-  readText: (file) => Filesystem.readText(file),
-  write: async (file, text) => {
-    await Filesystem.write(file, text)
-  },
-  exists: (file) => Filesystem.exists(file),
-  files: (dir, name) => ConfigPaths.fileInDirectory(dir, name),
-  global: Global.Path.config,
+async function defaultPlugDeps(): Promise<PlugDeps> {
+  const { spinner, log } = await import("@clack/prompts")
+  const { ConfigPaths } = await import("@/config/paths")
+  const { Global } = await import("@opencode-ai/core/global")
+  const { resolvePluginTarget } = await import("../../plugin/shared")
+  return {
+    spinner: () => spinner(),
+    log: {
+      error: (msg) => log.error(msg),
+      info: (msg) => log.info(msg),
+      success: (msg) => log.success(msg),
+    },
+    resolve: (spec) => resolvePluginTarget(spec),
+    readText: (file) => Filesystem.readText(file),
+    write: async (file, text) => {
+      await Filesystem.write(file, text)
+    },
+    exists: (file) => Filesystem.exists(file),
+    files: (dir, name) => ConfigPaths.fileInDirectory(dir, name),
+    global: Global.Path.config,
+  }
 }
 
 function cause(err: unknown) {
@@ -67,12 +66,15 @@ function cause(err: unknown) {
   return (err as { cause?: unknown }).cause
 }
 
-export function createPlugTask(input: PlugInput, dep: PlugDeps = defaultPlugDeps) {
+export function createPlugTask(input: PlugInput, deps?: PlugDeps) {
   const mod = input.mod
   const force = Boolean(input.force)
   const global = Boolean(input.global)
 
   return async (ctx: PlugCtx) => {
+    const dep = deps ?? (await defaultPlugDeps())
+    const { installPlugin, patchPluginConfig, readPluginManifest } = await import("../../plugin/install")
+    const { Process } = await import("@/util/process")
     const install = dep.spinner()
     install.start("Installing plugin package...")
     const target = await installPlugin(mod, dep)
@@ -198,6 +200,8 @@ export const PluginCommand = effectCmd({
         describe: "replace existing plugin version",
       }),
   handler: Effect.fn("Cli.plug")(function* (args) {
+    const { intro, outro } = yield* Effect.promise(() => import("@clack/prompts"))
+    const { InstanceRef } = yield* Effect.promise(() => import("@/effect/instance-ref"))
     const mod = String(args.module ?? "").trim()
     if (!mod) {
       UI.error("module is required")
