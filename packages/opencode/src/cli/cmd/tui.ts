@@ -19,6 +19,18 @@ declare global {
 
 type RpcClient = ReturnType<typeof Rpc.client<typeof rpc>>
 
+type Mode = {
+  transport: {
+    url: string
+    fetch: typeof fetch | undefined
+    events: EventSource | undefined
+    headers: Record<string, string> | undefined
+  }
+  reload: () => void
+  stop: () => Promise<void>
+  onSnapshot: () => Promise<string[]>
+}
+
 function createWorkerFetch(client: RpcClient): typeof fetch {
   const fn = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const request = new Request(input, init)
@@ -118,6 +130,11 @@ export const TuiThreadCommand = cmd({
         hidden: true,
         default: false,
       })
+      .option("in-process", {
+        type: "boolean",
+        describe: "host the server in a worker thread instead of a separate process",
+        default: false,
+      })
       .option("mini", {
         type: "boolean",
         describe: "start the minimal interactive interface",
@@ -193,13 +210,10 @@ export const TuiThreadCommand = cmd({
         return
       }
 
-      const { Rpc } = await import("@/util/rpc")
-      const { ServerAuth } = await import("@/server/auth")
       const { validateSession } = await import("../tui/validate-session")
       // Resolve relative --project paths from PWD, then use the real cwd after
-      // chdir so the thread and worker share the same directory key.
+      // chdir so the TUI and server share the same directory key.
       const next = resolveThreadDirectory(args.project)
-      const file = await target()
       try {
         process.chdir(next)
       } catch {
@@ -208,50 +222,106 @@ export const TuiThreadCommand = cmd({
       }
       const cwd = Filesystem.resolve(process.cwd())
 
-      const worker = new Worker(file)
-      const client = Rpc.client<typeof rpc>(worker)
-      const reload = () => {
-        client.call("reload", undefined).catch(() => {})
-      }
-      process.on("SIGUSR2", reload)
-
-      let stopped = false
-      const stop = async () => {
-        if (stopped) return
-        stopped = true
-        process.off("SIGUSR2", reload)
-        await withTimeout(client.call("shutdown", undefined), 5000).catch(() => {})
-        worker.terminate()
-      }
-
       const prompt = await input(args.prompt)
       const config = await TuiConfig.get()
 
       const network = resolveNetworkOptionsNoConfig(args)
       const external = hasArg("--port") || hasArg("--hostname") || network.mdns === true
 
-      const headers = external ? ServerAuth.headers() : undefined
+      const inProcess = async (): Promise<Mode> => {
+        const { Rpc } = await import("@/util/rpc")
+        const { ServerAuth } = await import("@/server/auth")
+        const worker = new Worker(await target())
+        const client = Rpc.client<typeof rpc>(worker)
+        const reload = () => {
+          client.call("reload", undefined).catch(() => {})
+        }
+        let stopped = false
+        const stop = async () => {
+          if (stopped) return
+          stopped = true
+          process.off("SIGUSR2", reload)
+          await withTimeout(client.call("shutdown", undefined), 5000).catch(() => {})
+          worker.terminate()
+        }
+        const headers = external ? ServerAuth.headers() : undefined
+        const transport = external
+          ? {
+              url: (await client.call("server", network)).url,
+              fetch: undefined,
+              events: undefined,
+              headers,
+            }
+          : {
+              url: "http://opencode.internal",
+              fetch: createWorkerFetch(client),
+              events: createEventSource(client),
+              headers,
+            }
+        return {
+          transport,
+          reload,
+          stop,
+          onSnapshot: async () => [writeHeapSnapshot("tui.heapsnapshot"), await client.call("snapshot", undefined)],
+        }
+      }
 
-      const transport = external
-        ? {
-            url: (await client.call("server", network)).url,
-            fetch: undefined,
-            events: undefined,
-            headers,
-          }
-        : {
-            url: "http://opencode.internal",
-            fetch: createWorkerFetch(client),
-            events: createEventSource(client),
-          }
+      const split = async (): Promise<Mode | undefined> => {
+        const { ensureServer, freePort } = await import("../tui/server-proc")
+        // A dedicated server skips the shared registry, so fix its port up
+        // front: keep an explicit --port, or reserve a free one and forward it.
+        const port = !external ? 0 : hasArg("--port") && args.port !== 0 ? args.port : await freePort()
+        const host = hasArg("--hostname") ? args.hostname : "127.0.0.1"
+        const dedicated = external
+          ? {
+              args: [
+                "--port",
+                String(port),
+                ...(hasArg("--hostname") ? ["--hostname", args.hostname] : []),
+                ...(network.mdns ? ["--mdns"] : []),
+                ...(hasArg("--mdns-domain") ? ["--mdns-domain", args["mdns-domain"]] : []),
+                ...network.cors.flatMap((origin) => ["--cors", origin]),
+              ],
+              url: `http://${host}:${port}`,
+            }
+          : undefined
+        const server = await ensureServer({ network: dedicated }).catch((error: unknown) => {
+          UI.error(errorMessage(error))
+          process.exitCode = 1
+          return undefined
+        })
+        if (!server) return undefined
+        const reload = () => {
+          void fetch(`${server.url}/config/invalidate`, {
+            method: "POST",
+            headers: { ...server.headers, "x-opencode-directory": cwd },
+          }).catch(() => {})
+          void fetch(`${server.url}/global/dispose`, { method: "POST", headers: server.headers }).catch(() => {})
+        }
+        // The server is left running on exit so its sessions survive the TUI.
+        const stop = async () => {
+          process.off("SIGUSR2", reload)
+        }
+        return {
+          transport: { url: server.url, fetch: undefined, events: undefined, headers: server.headers },
+          reload,
+          stop,
+          // The server heapsnapshot is unavailable in split mode.
+          onSnapshot: async () => [writeHeapSnapshot("tui.heapsnapshot")],
+        }
+      }
+
+      const mode = args["in-process"] === true ? await inProcess() : await split()
+      if (!mode) return
+      process.on("SIGUSR2", mode.reload)
 
       try {
         await validateSession({
-          url: transport.url,
+          url: mode.transport.url,
           sessionID: args.session,
           directory: cwd,
-          fetch: transport.fetch,
-          headers,
+          fetch: mode.transport.fetch,
+          headers: mode.transport.headers,
         })
       } catch (error) {
         UI.error(errorMessage(error))
@@ -265,18 +335,14 @@ export const TuiThreadCommand = cmd({
         const { createLegacyTuiPluginHost } = await import("@/plugin/tui/runtime")
         await Effect.runPromise(
           run({
-            url: transport.url,
-            async onSnapshot() {
-              const tui = writeHeapSnapshot("tui.heapsnapshot")
-              const server = await client.call("snapshot", undefined)
-              return [tui, server]
-            },
+            url: mode.transport.url,
+            onSnapshot: mode.onSnapshot,
             config,
             pluginHost: createLegacyTuiPluginHost(),
             directory: cwd,
-            fetch: transport.fetch,
-            headers: transport.headers,
-            events: transport.events,
+            fetch: mode.transport.fetch,
+            headers: mode.transport.headers,
+            events: mode.transport.events,
             args: {
               continue: args.continue,
               sessionID: args.session,
@@ -289,7 +355,7 @@ export const TuiThreadCommand = cmd({
           }),
         )
       } finally {
-        await stop()
+        await mode.stop()
       }
     } finally {
       try {
