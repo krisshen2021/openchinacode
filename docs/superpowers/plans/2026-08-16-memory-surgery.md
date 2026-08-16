@@ -206,12 +206,9 @@ git merge memory-surgery
 
 **Verification gate:** TUI idle RSS after GC (tmux + `ps` sampling as in diagnosis) — target ≤ 500 MB main process, 0 idle MCP children.
 
-## Phase 3: TUI/backend process split (spec — expand at phase start)
+## Phase 3: TUI/backend process split — ✅ DONE (2026-08-16)
 
-**Scope:** `cli/cmd/tui.ts` + `cli/tui/worker.ts` currently host the server in a worker thread of the TUI process via RPC-bridged `fetch`. `serve` + `attach` commands already exist as the seam.
-
-- Make the default TUI spawn (or reuse) a separate server process and attach over localhost HTTP/SSE, keeping the in-process worker as a fallback flag.
-- Verify: `openchinacode` starts TUI + server as two processes; all TUI flows work; memory splits into two smaller RSS profiles; killing the TUI leaves sessions alive on the server.
+Expanded into `2026-08-16-phase-3-process-split.md` (verification results there). Default TUI spawns-or-reuses a detached `serve` process over localhost HTTP+SSE (registry in `Global.Path.data/server.json`, ownership-guarded, version-matched, throwaway Basic password); `--in-process` keeps the old worker path. TUI exit leaves the server running; sessions survive TUI restarts. Measured: TUI 221 MB / server 334 MB (Phase 2 single-process was 455 MB).
 
 ## Phase 4: Excise the experimental V2 session runtime (spec — expand at phase start)
 

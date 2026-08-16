@@ -1,6 +1,6 @@
-# Phase 3: TUI/Backend Process Split Implementation Plan
+# Phase 3: TUI/Backend Process Split Implementation Plan — ✅ COMPLETE (2026-08-16)
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** The default `openchinacode` TUI launch spawns (or reuses) a SEPARATE headless server process and attaches over localhost HTTP+SSE, instead of hosting the backend in a worker thread. The in-process worker stays behind `--in-process`.
 
@@ -39,19 +39,19 @@
 **Files:**
 - Modify: `packages/opencode/src/index.ts` (command registration, lines 70-79)
 
-- [ ] **Step 1: measure before**
+- [x] **Step 1: measure before**
 
 Run `bun run script/bench-rss.ts` from worktree root; record (`--help` expect ~147 MB).
 
-- [ ] **Step 2: register**
+- [x] **Step 2: register**
 
 In `packages/opencode/src/index.ts` add `ServeCommand` and `AttachCommand` imports + `.command(...)` entries, following the exact pattern of the existing registrations. Do NOT register `acp`/`web` (out of scope).
 
-- [ ] **Step 3: verify no bench regression**
+- [x] **Step 3: verify no bench regression**
 
 Re-run the bench. If `--help` regresses by >5 MB, find which static import chain is responsible (`serve.ts` top imports `../effect-cmd`; check whether `effect-cmd.ts` statically pulls `app-runtime`) and restructure so the heavy path stays handler-time (e.g. convert to plain `cmd` with the effect machinery dynamically imported inside the handler, mirroring how other lazified commands look after Phase 1). Repeat until regression ≤5 MB.
 
-- [ ] **Step 4: smoke + tests**
+- [x] **Step 4: smoke + tests**
 
 ```bash
 bun run --conditions=browser packages/opencode/src/index.ts serve --help
@@ -61,7 +61,7 @@ bun run --conditions=browser packages/opencode/src/index.ts --help
 
 All print help; `serve`/`attach` appear in the root help. Then `cd packages/opencode && bun test test/cli` — report which previously-failing tests (the ones waiting on unregistered `serve`/`attach`) now pass; do NOT chase unrelated pre-existing failures (29 known at baseline, mostly acp/serve/web orphans).
 
-- [ ] **Step 5: commit**
+- [x] **Step 5: commit**
 
 ```bash
 git add packages/opencode/src/index.ts
@@ -79,7 +79,7 @@ A per-app-identity registry file at `Global.Path.data/server.json` (already app-
 - Modify: `packages/opencode/src/cli/cmd/serve.ts`
 - Create: `packages/opencode/test/server/registry.test.ts`
 
-- [ ] **Step 1: failing tests first**
+- [x] **Step 1: failing tests first**
 
 Create `test/server/registry.test.ts` (plain `bun:test` + `tmpdir()` fixture is fine; no Effect services needed if the module is pure functions taking a directory):
 
@@ -132,7 +132,7 @@ describe("ServerRegistry", () => {
 
 Run: `cd packages/opencode && bun test test/server/registry.test.ts` — expected FAIL (module missing).
 
-- [ ] **Step 2: implement `src/server/registry.ts`**
+- [x] **Step 2: implement `src/server/registry.ts`**
 
 ```ts
 import path from "path"
@@ -181,7 +181,7 @@ export const ServerRegistry = { read, write, remove, alive }
 
 Note: follow the repo self-export pattern used in sibling modules (check `src/server/auth.ts` for the local convention — if it uses named exports + `export * as X from` elsewhere, match that instead of the const-object). Run the tests — green.
 
-- [ ] **Step 3: serve writes/removes the registry**
+- [x] **Step 3: serve writes/removes the registry**
 
 In `packages/opencode/src/cli/cmd/serve.ts` handler, after `Server.listen` resolves and the listening line prints:
 
@@ -212,7 +212,7 @@ Note: a crashed/killed -9 server leaves a stale registry — the TUI-side reuse 
 
 IMPORTANT: verify the real export names before writing — `Installation.VERSION` vs `InstallationVersion` constant, and the exact module specifier (`@opencode-ai/core/installation`); look at how `models-dev.ts:18` and the build script reference version/channel and match that. `Flag.OPENCODE_SERVER_PASSWORD` — check `packages/core/src/flag/flag.ts` for the exact name (serve.ts:15 already uses it). `password` field: include only when set (don't write `password: undefined` — build the object conditionally per repo style).
 
-- [ ] **Step 4: typecheck + tests + smoke**
+- [x] **Step 4: typecheck + tests + smoke**
 
 `cd packages/opencode && bun typecheck` clean; `bun test test/server/registry.test.ts` green; then:
 
@@ -225,7 +225,7 @@ test -f ~/.local/share/openchinacode-surgery/server.json && echo "REGISTRY NOT C
 
 Registry appears with correct pid/url/version, vanishes on SIGTERM.
 
-- [ ] **Step 5: commit**
+- [x] **Step 5: commit**
 
 ```bash
 git add packages/opencode/src/server/registry.ts packages/opencode/src/cli/cmd/serve.ts packages/opencode/test/server/registry.test.ts
@@ -248,7 +248,7 @@ git commit -m "feat(opencode): register listening server in data dir"
 - Version mismatch or dead pid or failed health → SIGTERM the stale pid (same app identity only — registry is per-app data dir), wait ≤3 s, spawn fresh.
 - Spawn failure/timeout → `UI.error` + non-zero exit (no silent worker fallback).
 
-- [ ] **Step 1: failing tests for the pure helpers**
+- [x] **Step 1: failing tests for the pure helpers**
 
 `test/cli/tui-server-proc.test.ts`:
 
@@ -296,7 +296,7 @@ describe("reusable", () => {
 
 Run — FAIL (module missing).
 
-- [ ] **Step 2: implement `src/cli/tui/server-proc.ts`**
+- [x] **Step 2: implement `src/cli/tui/server-proc.ts`**
 
 Contents (adjust names to repo reality; keep the pure helpers exported for tests):
 
@@ -337,7 +337,7 @@ For the dedicated-spawn (network flags) case: skip steps 1-3, pass `OPENCODE_SKI
 
 For `InstallationVersion`/version: use the same module the codebase already uses for version identity (check `src/server/routes/instance/httpapi/groups/global.ts` health handler — reuse its version source so TUI and server always agree).
 
-- [ ] **Step 3: wire into `tui.ts`**
+- [x] **Step 3: wire into `tui.ts`**
 
 - Builder: add
 
@@ -388,11 +388,11 @@ Keep the shared tail (validateSession + run(...)) common to both branches; only 
 
 - Child-death monitor (split mode): `child.exited.then(code => ...)` — if the TUI is still running, `console.error` a warning that the server died and sessions are unavailable (SSE backoff already surfaces disconnects in UI). Do not auto-respawn mid-session in v1.
 
-- [ ] **Step 4: typecheck + tests**
+- [x] **Step 4: typecheck + tests**
 
 `cd packages/opencode && bun typecheck` clean; `bun test test/cli/tui-server-proc.test.ts test/server/registry.test.ts` green; `bun run script/bench-rss.ts` no regression (>5 MB) since the new module must only be dynamically imported in the handler.
 
-- [ ] **Step 5: dev-mode smoke**
+- [x] **Step 5: dev-mode smoke**
 
 ```bash
 cd ~/Projects/aiwallpaper  # any project dir
@@ -401,7 +401,7 @@ OPENCODE_APP_NAME=openchinacode-surgery bun run --conditions=browser /home/kris/
 
 TUI boots, works; `pgrep -af "serve"` shows the child server; Ctrl-q; server still alive. Then `--in-process` boots with NO serve child. Kill the leftover server (`kill <pid>`).
 
-- [ ] **Step 6: commit**
+- [x] **Step 6: commit**
 
 ```bash
 git add packages/opencode/src/cli/tui/server-proc.ts packages/opencode/src/cli/cmd/tui.ts packages/opencode/test/cli/tui-server-proc.test.ts
@@ -412,16 +412,16 @@ git commit -m "feat(opencode): default TUI to a split server process"
 
 ## Task 3.4: Phase 3 verification gate
 
-- [ ] **Step 1: typecheck + tests**
+- [x] **Step 1: typecheck + tests**
 
 ```bash
 cd packages/opencode && bun typecheck && bun test test/cli test/server/registry.test.ts test/mcp/
 cd packages/tui && bun typecheck
 ```
 
-- [ ] **Step 2: bench** — `bun run script/bench-rss.ts`; `--help` ≤ ~150 MB.
+- [x] **Step 2: bench** — `bun run script/bench-rss.ts`; `--help` ≤ ~150 MB.
 
-- [ ] **Step 3: compiled-binary smoke (MANDATORY)**
+- [x] **Step 3: compiled-binary smoke (MANDATORY)**
 
 ```bash
 cd packages/opencode && OPENCODE_APP_NAME=openchinacode-surgery bun run build --single --skip-install
@@ -439,7 +439,7 @@ Then in `~/Projects/aiwallpaper` (or a scratch dir):
 8. Kill the serve process while the TUI is up: TUI shows the disconnect/warning, doesn't crash.
 9. Cleanup: kill tmux session + serve child; verify no orphans (`pgrep -af openchinacode-surgery`).
 
-- [ ] **Step 4: record + commit**
+- [x] **Step 4: record + commit**
 
 Fill this plan's results section (RSS numbers, before/after) and update `2026-08-16-memory-surgery.md` Phase 3 section; mark checkboxes.
 
@@ -449,3 +449,20 @@ git commit -m "docs: record phase 3 verification results"
 ```
 
 **Merging Phase 3 to `main` is NOT part of this plan** — the user holds that decision.
+
+---
+
+## Verification results (2026-08-16, all gates passed)
+
+**Commits:** `44ff05768` feat (register serve/attach) · `3c4d036fb` feat (server registry) · `5b5e90b5c` feat (split) · `d9b5e3cd4` fix (ownership race + auth env align) · `a9b50c02e` fix (spawn convergence + lifecycle hardening) · `a2b8e60de` fix (portless-dedicated sentinel). Three review rounds per task; final verdict "ready".
+
+**Tests/typecheck:** `test/cli/tui-server-proc` 13 + `test/server/registry` 7 + `test/mcp` 83 green; typecheck clean in `packages/opencode` + `packages/tui`. CLI bench: `--help` 144 MB (no regression). Bonus: registering serve/attach flipped 12 pre-existing `test/cli` failures to pass.
+
+**Compiled-binary smoke** (`0.0.0-memory-surgery-202608161021`, aiwallpaper):
+- Boot → TWO processes: **TUI 221 MB** (Phase 2 single-process: 455 MB → **−51%**) + **server 334 MB** (+ playwright MCP child 194 MB, reaped on idle per Phase 2). Sidebar memory display now reflects the TUI process only.
+- Prompt cycle over HTTP+SSE healthy (model responded, cache fine).
+- Kill TUI → server + `server.json` survive ✓; relaunch `--continue` → **same serve pid reused**, prior session restored (tokens shown) ✓.
+- Kill server with TUI up → TUI stays alive, no crash (SSE backoff; stderr warning accepted as v1 UX) ✓.
+- Cleanup verified: zero orphan processes.
+
+**Accepted semantics (documented during review):** TUI exit leaves the server running (sessions survive — the point of the phase); concurrent double-launch converges onto one server; stale registry entries are only SIGTERMed after `/proc` cmdline ownership verification; dedicated network-flag launches register like any server ("newest wins"); portless dedicated launches (`--hostname`/`--mdns` without `--port`) never silently reuse the shared server.
