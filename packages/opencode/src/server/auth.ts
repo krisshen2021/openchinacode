@@ -15,8 +15,17 @@ export type DecodedCredentials = {
 }
 
 export class Config extends ConfigService.Service<Config>()("@opencode/ServerAuthConfig", {
-  password: EffectConfig.string("OPENCODE_SERVER_PASSWORD").pipe(EffectConfig.option),
-  username: EffectConfig.string("OPENCODE_SERVER_USERNAME").pipe(EffectConfig.withDefault("opencode")),
+  // Accept either env name during the OPENCODE_ → OPENCHINACODE_ rename; keep
+  // precedence identical to Flag.OPENCODE_SERVER_PASSWORD / _USERNAME so the
+  // middleware enforces exactly the credential Flag reports.
+  password: EffectConfig.string("OPENCHINACODE_SERVER_PASSWORD").pipe(
+    EffectConfig.orElse(() => EffectConfig.string("OPENCODE_SERVER_PASSWORD")),
+    EffectConfig.option,
+  ),
+  username: EffectConfig.string("OPENCHINACODE_SERVER_USERNAME").pipe(
+    EffectConfig.orElse(() => EffectConfig.string("OPENCODE_SERVER_USERNAME")),
+    EffectConfig.withDefault("opencode"),
+  ),
 }) {}
 
 export type Info = Context.Service.Shape<typeof Config>

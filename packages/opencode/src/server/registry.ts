@@ -27,7 +27,13 @@ export async function write(dir: string, entry: Entry) {
   await chmod(file(dir), 0o600).catch(() => {})
 }
 
-export async function remove(dir: string) {
+export async function remove(dir: string, expectedPid?: number) {
+  // Ownership guard: a stale server may outlive its replacement's startup, so
+  // a shutdown hook must not delete a fresh owner's entry.
+  if (expectedPid !== undefined) {
+    const entry = await read(dir)
+    if (entry?.pid !== expectedPid) return
+  }
   await rm(file(dir), { force: true }).catch(() => {})
 }
 

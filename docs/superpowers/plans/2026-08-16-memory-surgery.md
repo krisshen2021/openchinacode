@@ -236,6 +236,7 @@ Not a single phase with an end date — the standing "重构" track on the slimm
 - **LSP idle reaping:** language servers spawned via `touchFile` live until instance disposal; add an idle-timeout reaper mirroring the MCP one (long sessions accumulate LSP children).
 - **ModelsDev light/heavy split:** keep schemas/pricing tables in `models-dev.ts`; move `Service`/`layer`/`node` + heavy imports to `models-dev/live.ts` so type-only consumers (e.g. `provider/model-status.ts`) stop paying the closure; optionally drop the EventV2 hard dep via `Effect.serviceOption`.
 - **MCP execution-time respawn:** keep tool defs cached across idle reaps and respawn at tool-execution time instead of enumeration time; also covers the stale-captured-client window (reap lands between `SessionTools.resolve` and execute → one retryable ConnectionClosed today).
+- **Unify server-auth env var sources:** auth middleware enforces OPENCODE_SERVER_PASSWORD while Flag.OPENCODE_* reads the OPENCHINACODE_* prefix; pick one source of truth.
 
 ---
 

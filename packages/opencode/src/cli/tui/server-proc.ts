@@ -1,7 +1,7 @@
 import path from "path"
 import { closeSync, openSync } from "node:fs"
 import { randomBytes } from "node:crypto"
-import { setTimeout as sleep } from "node:timers/promises"
+import { setTimeout } from "node:timers/promises"
 import { fileURLToPath } from "node:url"
 import { Global } from "@opencode-ai/core/global"
 import { InstallationVersion } from "@opencode-ai/core/installation/version"
@@ -83,10 +83,9 @@ export async function ensureServer(opts: { network?: { args: string[]; url: stri
   const child = Bun.spawn(argv, {
     env: {
       ...process.env,
-      // Auth enforcement reads OPENCODE_SERVER_PASSWORD (ServerAuth.Config)
-      // while serve's registry write reads OPENCHINACODE_SERVER_PASSWORD via
-      // Flag — set both so the registry entry records the password and the
-      // next TUI can actually reuse this server.
+      // The fork is mid-rename OPENCODE_ → OPENCHINACODE_; server auth accepts
+      // either name, but set both so this child also interops with older
+      // binaries that read only one of them.
       OPENCODE_SERVER_PASSWORD: password,
       OPENCHINACODE_SERVER_PASSWORD: password,
       ...(opts.network ? { OPENCODE_SKIP_REGISTRY: "1" } : {}),
@@ -129,7 +128,7 @@ async function terminate(pid: number) {
   }
   const deadline = Date.now() + 3000
   while (ServerRegistry.alive(pid) && Date.now() < deadline) {
-    await sleep(100)
+    await setTimeout(100)
   }
 }
 
@@ -140,7 +139,7 @@ async function waitReady(child: Bun.Subprocess, network: { args: string[]; url: 
     const entry = network ? undefined : await ServerRegistry.read(Global.Path.data)
     const url = network?.url ?? (entry?.pid === child.pid ? entry.url : undefined)
     if (url && (await healthy(url, password))) return url
-    await sleep(100)
+    await setTimeout(100)
   }
   return undefined
 }

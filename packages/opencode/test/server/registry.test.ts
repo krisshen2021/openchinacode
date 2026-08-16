@@ -36,6 +36,15 @@ describe("ServerRegistry", () => {
     expect(await ServerRegistry.read(tmp.path)).toBeUndefined()
   })
 
+  test("remove with expectedPid only deletes the owner's entry", async () => {
+    await using tmp = await tmpdir()
+    await ServerRegistry.write(tmp.path, { pid: 1, url: "http://127.0.0.1:1", version: "x", startedAt: 0 })
+    await ServerRegistry.remove(tmp.path, 2)
+    expect((await ServerRegistry.read(tmp.path))?.pid).toBe(1)
+    await ServerRegistry.remove(tmp.path, 1)
+    expect(await ServerRegistry.read(tmp.path)).toBeUndefined()
+  })
+
   test("alive detects pids", () => {
     expect(ServerRegistry.alive(process.pid)).toBe(true)
     expect(ServerRegistry.alive(2 ** 22)).toBe(false)

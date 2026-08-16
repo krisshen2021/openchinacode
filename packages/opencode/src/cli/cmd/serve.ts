@@ -33,7 +33,9 @@ export const ServeCommand = effectCmd({
         }),
       )
       // Signal handlers (not process.on("exit")) so the async removal completes.
-      const shutdown = () => ServerRegistry.remove(Global.Path.data).finally(() => process.exit(0))
+      // Ownership guard: only remove the entry if it still belongs to this process —
+      // a slow shutdown may outlive the fresh server that replaced this one.
+      const shutdown = () => ServerRegistry.remove(Global.Path.data, process.pid).finally(() => process.exit(0))
       process.once("SIGINT", shutdown)
       process.once("SIGTERM", shutdown)
     }

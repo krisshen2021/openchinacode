@@ -29,8 +29,10 @@ export const Flag = {
   OPENCODE_DISABLE_MODELS_FETCH: truthy("OPENCHINACODE_DISABLE_MODELS_FETCH"),
   OPENCODE_DISABLE_MOUSE: truthy("OPENCHINACODE_DISABLE_MOUSE"),
   OPENCODE_FAKE_VCS: process.env["OPENCHINACODE_FAKE_VCS"],
-  OPENCODE_SERVER_PASSWORD: process.env["OPENCHINACODE_SERVER_PASSWORD"],
-  OPENCODE_SERVER_USERNAME: process.env["OPENCHINACODE_SERVER_USERNAME"],
+  // Server auth accepts either env name during the OPENCODE_ → OPENCHINACODE_
+  // rename; keep precedence identical to ServerAuth.Config in opencode/src/server/auth.ts.
+  OPENCODE_SERVER_PASSWORD: process.env["OPENCHINACODE_SERVER_PASSWORD"] ?? process.env["OPENCODE_SERVER_PASSWORD"],
+  OPENCODE_SERVER_USERNAME: process.env["OPENCHINACODE_SERVER_USERNAME"] ?? process.env["OPENCODE_SERVER_USERNAME"],
   OPENCODE_DISABLE_FFF: fff === undefined ? process.platform === "win32" : truthy("OPENCHINACODE_DISABLE_FFF"),
 
   // Experimental
