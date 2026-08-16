@@ -8,8 +8,11 @@ import { disposeAllInstances, tmpdir, tmpdirScoped } from "../fixture/fixture"
 import { Config, Effect, Layer, Queue, Schema } from "effect"
 import { HttpClient, HttpClientRequest, HttpRouter, HttpServer } from "effect/unstable/http"
 import * as Socket from "effect/unstable/socket/Socket"
+import { mkdir } from "fs/promises"
+import path from "path"
 import { HttpApiApp } from "../../src/server/routes/instance/httpapi/server"
 import { Pty } from "@opencode-ai/core/pty"
+import { markPluginDependenciesReady } from "../fixture/plugin"
 import { testEffect } from "../lib/effect"
 
 const testPty = process.platform === "win32" ? test.skip : test
@@ -295,5 +298,77 @@ describe("pty HttpApi bridge", () => {
         )
         expect(removed.status).toBe(200)
       }),
+  )
+  ;(process.platform === "win32" ? effectIt.live.skip : effectIt.live)(
+    "applies plugin shell environment before forced PTY values",
+    () =>
+      Effect.gen(function* () {
+        const dir = yield* tmpdirScoped({ git: true, config: { formatter: false, lsp: false } })
+        const plugin = path.join(dir, ".openchinacode", "plugin", "shell-env.ts")
+        const cwd = path.join(dir, "child")
+        yield* Effect.promise(() => mkdir(cwd))
+        yield* Effect.promise(() => markPluginDependenciesReady(path.join(dir, ".openchinacode")))
+        yield* Effect.promise(() =>
+          Bun.write(
+            plugin,
+            [
+              "export default async () => ({",
+              '  "shell.env": (input, output) => {',
+              '    output.env.SHARED = "plugin"',
+              '    output.env.PLUGIN = "plugin"',
+              '    output.env.TERM = "plugin"',
+              "    output.env.HOOK_CWD = input.cwd",
+              "  },",
+              "})",
+              "",
+            ].join("\n"),
+          ),
+        )
+
+        const created = yield* HttpClientRequest.post(PtyPaths.create).pipe(
+          directoryHeader(dir),
+          HttpClientRequest.bodyJson({
+            command: "/bin/sh",
+            args: ["-c", 'printf "%s|%s|%s|%s|%s\\n" "$CALLER" "$SHARED" "$PLUGIN" "$TERM" "$HOOK_CWD"; sleep 5'],
+            cwd,
+            env: { CALLER: "caller", SHARED: "caller", TERM: "caller" },
+          }),
+          Effect.flatMap(HttpClient.execute),
+        )
+        expect(created.status).toBe(200)
+        const info = yield* Schema.decodeUnknownEffect(Pty.Info)(yield* created.json)
+
+        const socket = yield* Socket.makeWebSocket(
+          `${(yield* serverUrl()).replace(/^http/, "ws")}${PtyPaths.connect.replace(":ptyID", info.id)}?cursor=0&directory=${encodeURIComponent(dir)}`,
+          { closeCodeIsError: () => false },
+        )
+        const messages = yield* Queue.unbounded<string>()
+        yield* socket
+          .runRaw((message) =>
+            Queue.offer(messages, typeof message === "string" ? message : new TextDecoder().decode(message)),
+          )
+          .pipe(
+            Effect.catch(() => Effect.void),
+            Effect.forkScoped,
+          )
+        const write = yield* socket.writer
+
+        const takeUntil = (expected: string, seen = ""): Effect.Effect<string, unknown> =>
+          Effect.gen(function* () {
+            const next = seen + (yield* Queue.take(messages).pipe(Effect.timeout("5 seconds")))
+            if (next.includes(expected)) return next
+            return yield* takeUntil(expected, next)
+          })
+
+        expect(yield* takeUntil(`caller|plugin|plugin|xterm-256color|${cwd}`)).toContain(
+          `caller|plugin|plugin|xterm-256color|${cwd}`,
+        )
+        yield* write(new Socket.CloseEvent(1000, "done")).pipe(Effect.catch(() => Effect.void))
+        yield* HttpClientRequest.delete(PtyPaths.remove.replace(":ptyID", info.id)).pipe(
+          directoryHeader(dir),
+          HttpClient.execute,
+        )
+      }),
+    30000,
   )
 })

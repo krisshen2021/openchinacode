@@ -8,23 +8,15 @@ import { HttpApiMiddleware } from "effect/unstable/httpapi"
 
 export type LocationServices = Layer.Success<ReturnType<(typeof LocationServiceMap.Service)["get"]>>
 
+// Location scoping for the /api/* surface: resolve the location ref from the
+// deepObject location[...] query params or the x-opencode-* headers (what the
+// v2 SDK sends), then provide the request's location services from the shared
+// LocationServiceMap. Deliberately separate from WorkspaceRoutingMiddleware:
+// these routes predate workspace placement enforcement and must keep accepting
+// unknown workspace ids instead of 500ing on them.
 export class LocationMiddleware extends HttpApiMiddleware.Service<LocationMiddleware, { provides: LocationServices }>()(
   "@opencode/HttpApiLocation",
 ) {}
-
-export function response<A, E, R>(data: Effect.Effect<A, E, R>) {
-  return Effect.gen(function* () {
-    const location = yield* Location.Service
-    return {
-      location: new Location.Info({
-        directory: location.directory,
-        workspaceID: location.workspaceID,
-        project: location.project,
-      }),
-      data: yield* data,
-    }
-  })
-}
 
 function ref(request: HttpServerRequest.HttpServerRequest): Location.Ref {
   const query = new URL(request.url, "http://localhost").searchParams
@@ -46,7 +38,7 @@ function decode(input: string) {
   }
 }
 
-export const layer = Layer.effect(
+export const locationLayer = Layer.effect(
   LocationMiddleware,
   Effect.gen(function* () {
     const locations = yield* LocationServiceMap.Service

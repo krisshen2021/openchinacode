@@ -27,6 +27,16 @@ const Event = Schema.Struct({
   data: Schema.Unknown,
 })
 
+const GlobalEvent = Schema.Struct({
+  directory: Schema.optional(Schema.String),
+  workspace: Schema.optional(Schema.String),
+  payload: Schema.Struct({
+    id: Schema.String,
+    type: Schema.String,
+    properties: Schema.Unknown,
+  }),
+})
+
 async function* eventStream(body: ReadableStream<Uint8Array>) {
   const reader = body.getReader()
   const decoder = new TextDecoder()
@@ -47,7 +57,7 @@ async function* eventStream(body: ReadableStream<Uint8Array>) {
         .split(/\r\n|\r|\n/)
         .filter((line) => line.startsWith("data:"))
         .map((line) => line.slice(5).replace(/^ /, ""))
-      if (data.length) yield Schema.decodeUnknownSync(Event)(JSON.parse(data.join("\n")))
+      if (data.length) yield Schema.decodeUnknownSync(GlobalEvent)(JSON.parse(data.join("\n")))
     }
   } finally {
     try {
@@ -58,16 +68,16 @@ async function* eventStream(body: ReadableStream<Uint8Array>) {
   }
 }
 
-async function readEvent(reader: AsyncIterator<typeof Event.Type>) {
+async function readEvent(reader: AsyncIterator<typeof GlobalEvent.Type>) {
   const value = await reader.next()
   if (value.done) throw new Error("event stream closed")
   return value.value
 }
 
-async function readEventType(reader: AsyncIterator<typeof Event.Type>, type: string) {
+async function readEventType(reader: AsyncIterator<typeof GlobalEvent.Type>, type: string) {
   for (let index = 0; index < 20; index++) {
     const event = await readEvent(reader)
-    if (event.type === type) return event
+    if (event.payload.type === type) return event
   }
   throw new Error(`timed out waiting for ${type}`)
 }
@@ -105,22 +115,20 @@ describe("v2 location HttpApi", () => {
     }
   })
 
-  test("streams native EventV2 payloads across locations", async () => {
+  test("streams events across locations", async () => {
     await using subscriber = await tmpdir({ git: true })
     await using publisher = await tmpdir({ git: true })
-    const response = await request("/api/event", subscriber.path)
+    const response = await request("/global/event", subscriber.path)
     const reader = eventStream(response.body!)
     const connected = await readEvent(reader)
-    expect(connected.type).toBe("server.connected")
-    expect(connected.location).toBeUndefined()
+    expect(connected.payload.type).toBe("server.connected")
+    expect(connected.directory).toBeUndefined()
 
     const created = await request("/session", publisher.path, { method: "POST" })
     expect(created.status).toBe(200)
-    expect(await readEventType(reader, "session.created")).toMatchObject({
-      type: "session.created",
-      location: { directory: publisher.path },
-      data: { sessionID: expect.any(String) },
-    })
+    const event = await readEventType(reader, "session.created")
+    expect(event.directory).toBe(publisher.path)
+    expect(event.payload.properties).toMatchObject({ sessionID: expect.any(String) })
     await reader.return(undefined)
   })
 })

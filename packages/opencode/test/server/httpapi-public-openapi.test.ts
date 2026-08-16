@@ -57,14 +57,6 @@ function componentName(ref: string) {
   return ref.replace("#/components/schemas/", "")
 }
 
-function componentNames(response: OpenApiResponse | undefined) {
-  const schema = response?.content?.["application/json"]?.schema
-  if (!schema) return []
-  return [
-    ...new Set([schema, ...(schema.anyOf ?? [])].flatMap((item) => (item.$ref ? [componentName(item.$ref)] : []))),
-  ]
-}
-
 function isBuiltInEndpointError(name: string) {
   return name.startsWith("EffectHttpApiError") || name.startsWith("effect_HttpApiError_")
 }
@@ -101,89 +93,77 @@ describe("PublicApi OpenAPI v2 errors", () => {
     })
   })
 
-  test("names the v2 event union without the SSE string wrapper collision", () => {
+  test("documents exactly the ported location-scoped /api routes", () => {
     const spec = OpenApi.fromApi(PublicApi) as OpenApiSpec
+    const paths = Object.keys(spec.paths)
+      .filter((path) => path === "/api" || path.startsWith("/api/"))
+      .sort()
 
-    expect(spec.components.schemas.V2Event1).toBeUndefined()
-    expect(spec.components.schemas.V2Event?.anyOf?.length).toBeGreaterThan(0)
-    expect(spec.components.schemas.V2EventStream).toMatchObject({
-      type: "string",
-      contentMediaType: "application/json",
-      contentSchema: { $ref: "#/components/schemas/V2Event" },
-    })
-    expect(spec.paths["/api/event"]?.get?.responses?.["200"]?.content?.["text/event-stream"]?.schema).toEqual({
-      $ref: "#/components/schemas/V2Event",
-    })
+    expect(paths).toEqual([
+      "/api/agent",
+      "/api/command",
+      "/api/fs/find",
+      "/api/integration",
+      "/api/location",
+      "/api/model",
+      "/api/provider",
+      "/api/reference",
+      "/api/skill",
+    ])
+    for (const path of paths) {
+      const names = (spec.paths[path]?.get?.parameters ?? []).map((parameter) => parameter.name)
+      expect(names, path).toContain("location")
+    }
   })
 
-  test("preserves /api auth responses", () => {
+  test("treats /api auth metadata like legacy routes", () => {
     const spec = OpenApi.fromApi(PublicApi) as OpenApiSpec
 
     for (const route of v2Operations(spec)) {
-      expect(route.operation.responses?.["401"], `${route.method.toUpperCase()} ${route.path}`).toBeDefined()
-      expect(route.operation.security, `${route.method.toUpperCase()} ${route.path}`).toEqual([])
+      expect(route.operation.responses?.["401"], `${route.method.toUpperCase()} ${route.path}`).toBeUndefined()
+      expect(route.operation.security, `${route.method.toUpperCase()} ${route.path}`).toBeUndefined()
     }
   })
 
   test("documents references separately from filesystem routes", () => {
     const spec = OpenApi.fromApi(PublicApi) as OpenApiSpec
 
-    for (const path of ["/api/fs/read/*", "/api/fs/list"]) {
-      expect(spec.paths[path]?.get?.parameters, path).not.toContainEqual(expect.objectContaining({ name: "reference" }))
-    }
+    expect(spec.paths["/api/fs/find"]?.get?.parameters).not.toContainEqual(
+      expect.objectContaining({ name: "reference" }),
+    )
+    expect(spec.paths["/api/fs/read/*"]).toBeUndefined()
+    expect(spec.paths["/api/fs/list"]).toBeUndefined()
     expect(spec.paths["/api/reference"]?.get).toBeDefined()
   })
 
-  test("preserves required request bodies for v2 mutations", () => {
+  test("documents integration discovery routes only", () => {
     const spec = OpenApi.fromApi(PublicApi) as OpenApiSpec
 
+    expect(spec.paths["/api/integration"]?.get).toBeDefined()
     for (const path of [
-      "/api/session/{sessionID}/prompt",
-      "/api/session/{sessionID}/permission/{requestID}/reply",
-      "/api/session/{sessionID}/question/{requestID}/reply",
-    ]) {
-      expect(spec.paths[path]?.post?.requestBody?.required, path).toBe(true)
-    }
-  })
-
-  test("documents integration discovery and connection routes", () => {
-    const spec = OpenApi.fromApi(PublicApi) as OpenApiSpec
-
-    for (const [method, path] of [
-      ["get", "/api/integration"],
-      ["get", "/api/integration/{integrationID}"],
-      ["post", "/api/integration/{integrationID}/connect/key"],
-      ["post", "/api/integration/{integrationID}/connect/oauth"],
-      ["get", "/api/integration/attempt/{attemptID}"],
-      ["post", "/api/integration/attempt/{attemptID}/complete"],
-      ["delete", "/api/integration/attempt/{attemptID}"],
-      ["delete", "/api/credential/{credentialID}"],
-      ["patch", "/api/credential/{credentialID}"],
-    ] as const) {
-      expect(spec.paths[path]?.[method], `${method.toUpperCase()} ${path}`).toBeDefined()
-    }
-
-    for (const path of [
+      "/api/integration/{integrationID}",
       "/api/integration/{integrationID}/connect/key",
       "/api/integration/{integrationID}/connect/oauth",
+      "/api/integration/attempt/{attemptID}",
       "/api/integration/attempt/{attemptID}/complete",
+      "/api/credential/{credentialID}",
     ]) {
-      expect(spec.paths[path]?.post?.requestBody?.required, path).toBe(true)
+      expect(spec.paths[path], path).toBeUndefined()
     }
   })
 
-  test("does not rewrite /api endpoint errors to legacy error components", () => {
+  test("rewrites /api endpoint errors to legacy error components", () => {
     const spec = OpenApi.fromApi(PublicApi) as OpenApiSpec
-    const refs = v2Operations(spec)
-      .flatMap((route) =>
-        Object.entries(route.operation.responses ?? {}).flatMap(([status, response]) => {
-          const ref = responseRef(response)
-          return ref ? [`${route.method.toUpperCase()} ${route.path} ${status} ${componentName(ref)}`] : []
-        }),
-      )
-      .filter((entry) => entry.endsWith(" BadRequestError") || entry.endsWith(" NotFoundError"))
+    const refs = v2Operations(spec).flatMap((route) => {
+      const response = route.operation.responses?.["400"]
+      const ref = responseRef(response)
+      return ref ? [`${route.method.toUpperCase()} ${route.path} 400 ${componentName(ref)}`] : []
+    })
 
-    expect(refs).toEqual([])
+    expect(refs.length).toBeGreaterThan(0)
+    for (const entry of refs) {
+      expect(entry).toMatch(/ BadRequestError$/)
+    }
   })
 
   test("new /api endpoint errors cannot use built-in components without an explicit allowlist", () => {
@@ -212,52 +192,7 @@ describe("PublicApi OpenAPI v2 errors", () => {
     expect(componentName(responseRef(spec.paths["/api/model"]?.get?.responses?.["503"]) ?? "")).toBe(
       "ServiceUnavailableError",
     )
-    expect(componentName(responseRef(spec.paths["/api/provider/{providerID}"]?.get?.responses?.["404"]) ?? "")).toBe(
-      "ProviderNotFoundError",
-    )
-    expect(componentName(responseRef(spec.paths["/api/provider/{providerID}"]?.get?.responses?.["503"]) ?? "")).toBe(
-      "ServiceUnavailableError",
-    )
-  })
-
-  test("documents v2 session not-found errors", () => {
-    const spec = OpenApi.fromApi(PublicApi) as OpenApiSpec
-
-    for (const route of [
-      ["post", "/api/session/{sessionID}/prompt"],
-      ["post", "/api/session/{sessionID}/compact"],
-      ["post", "/api/session/{sessionID}/wait"],
-      ["get", "/api/session/{sessionID}/context"],
-      ["get", "/api/session/{sessionID}/message"],
-    ] as const) {
-      expect(componentNames(spec.paths[route[1]]?.[route[0]]?.responses?.["404"])).toContain("SessionNotFoundError")
-    }
-  })
-
-  test("documents v2 unfinished session mutation errors", () => {
-    const spec = OpenApi.fromApi(PublicApi) as OpenApiSpec
-
-    for (const route of [
-      ["post", "/api/session/{sessionID}/compact"],
-      ["post", "/api/session/{sessionID}/wait"],
-    ] as const) {
-      expect(componentName(responseRef(spec.paths[route[1]]?.[route[0]]?.responses?.["503"]) ?? "")).toBe(
-        "ServiceUnavailableError",
-      )
-    }
-  })
-
-  test("documents v2 session read data errors", () => {
-    const spec = OpenApi.fromApi(PublicApi) as OpenApiSpec
-
-    for (const route of [
-      ["get", "/api/session/{sessionID}/context"],
-      ["get", "/api/session/{sessionID}/message"],
-    ] as const) {
-      expect(componentName(responseRef(spec.paths[route[1]]?.[route[0]]?.responses?.["500"]) ?? "")).toMatch(
-        /^UnknownError\d*$/,
-      )
-    }
+    expect(spec.paths["/api/provider/{providerID}"]).toBeUndefined()
   })
 
   test("documents session busy errors", () => {
@@ -288,15 +223,6 @@ describe("PublicApi OpenAPI v2 errors", () => {
       expect(componentName(responseRef(spec.paths[route[1]]?.[route[0]]?.responses?.["404"]) ?? "")).toBe(
         "QuestionNotFoundError",
       )
-    }
-    for (const route of [
-      ["post", "/api/session/{sessionID}/question/{requestID}/reply"],
-      ["post", "/api/session/{sessionID}/question/{requestID}/reject"],
-    ] as const) {
-      expect(componentNames(spec.paths[route[1]]?.[route[0]]?.responses?.["404"])).toEqual([
-        "QuestionNotFoundError",
-        "SessionNotFoundError",
-      ])
     }
   })
 
