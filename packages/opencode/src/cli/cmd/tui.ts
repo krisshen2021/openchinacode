@@ -1,5 +1,5 @@
 import { cmd } from "@/cli/cmd/cmd"
-import { Rpc } from "@/util/rpc"
+import type { Rpc } from "@/util/rpc"
 import { type rpc } from "../tui/worker"
 import path from "path"
 import { fileURLToPath } from "url"
@@ -11,8 +11,6 @@ import { Filesystem } from "@/util/filesystem"
 import type { GlobalEvent } from "@opencode-ai/sdk/v2"
 import type { EventSource } from "@opencode-ai/tui/context/sdk"
 import { writeHeapSnapshot } from "v8"
-import { ServerAuth } from "@/server/auth"
-import { validateSession } from "../tui/validate-session"
 import { win32InstallCtrlCGuard } from "@opencode-ai/tui/terminal-win32"
 
 declare global {
@@ -195,6 +193,9 @@ export const TuiThreadCommand = cmd({
         return
       }
 
+      const { Rpc } = await import("@/util/rpc")
+      const { ServerAuth } = await import("@/server/auth")
+      const { validateSession } = await import("../tui/validate-session")
       // Resolve relative --project paths from PWD, then use the real cwd after
       // chdir so the thread and worker share the same directory key.
       const next = resolveThreadDirectory(args.project)
