@@ -1,7 +1,6 @@
 import type { Argv } from "yargs"
 import { UI } from "../ui"
-import * as prompts from "@clack/prompts"
-import { Installation } from "../../installation"
+import type { Installation } from "../../installation"
 import { InstallationVersion } from "@opencode-ai/core/installation/version"
 
 export const UpgradeCommand = {
@@ -21,6 +20,8 @@ export const UpgradeCommand = {
       })
   },
   handler: async (args: { target?: string; method?: string }) => {
+    const prompts = await import("@clack/prompts")
+    const { Installation } = await import("../../installation")
     UI.empty()
     UI.println(UI.logo("  "))
     UI.empty()
