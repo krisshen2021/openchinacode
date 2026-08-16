@@ -13,15 +13,20 @@ import { ServerAuth } from "@/server/auth"
 declare const OPENCODE_WORKER_PATH: string
 
 type SpawnOptions =
-  | { execPath: string; compiled: true; network?: string[] }
-  | { execPath: string; compiled: false; indexTs: string; network?: string[] }
+  | { execPath: string; compiled: true; network?: string[]; idleTimeoutMs?: number }
+  | { execPath: string; compiled: false; indexTs: string; network?: string[]; idleTimeoutMs?: number }
 
 export function spawnArgs(opts: SpawnOptions) {
   const base = opts.compiled
     ? [opts.execPath, "serve"]
     : [opts.execPath, "run", "--conditions=browser", opts.indexTs, "serve"]
-  return [...base, ...(opts.network ?? [])]
+  const idle = opts.idleTimeoutMs === undefined ? [] : ["--idle-timeout", String(opts.idleTimeoutMs)]
+  return [...base, ...(opts.network ?? []), ...idle]
 }
+
+// TUI-spawned servers self-exit after 60 minutes fully idle (no requests, no
+// bus events, no open SSE/WS connections); a manual `serve` stays resident.
+const IDLE_TIMEOUT_MS = 3_600_000
 
 export function reusable(
   entry: Entry | undefined,
@@ -76,12 +81,18 @@ export async function ensureServer(opts: { network?: { args: string[]; port: num
   const password = randomBytes(16).toString("hex")
   const compiled = typeof OPENCODE_WORKER_PATH !== "undefined"
   const argv = compiled
-    ? spawnArgs({ execPath: process.execPath, compiled: true, network: opts.network?.args })
+    ? spawnArgs({
+        execPath: process.execPath,
+        compiled: true,
+        network: opts.network?.args,
+        idleTimeoutMs: IDLE_TIMEOUT_MS,
+      })
     : spawnArgs({
         execPath: process.execPath,
         compiled: false,
         indexTs: fileURLToPath(new URL("../../index.ts", import.meta.url)),
         network: opts.network?.args,
+        idleTimeoutMs: IDLE_TIMEOUT_MS,
       })
 
   // The child outlives the TUI, so its output goes to a log file instead of a

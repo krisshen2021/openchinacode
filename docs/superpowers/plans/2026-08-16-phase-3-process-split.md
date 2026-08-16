@@ -452,6 +452,17 @@ git commit -m "docs: record phase 3 verification results"
 
 ---
 
+## Task 3.5: server idle self-shutdown — ✅ DONE (2026-08-16)
+
+**Behavior:** a `serve` process tracks activity process-globally (`src/server/idle.ts`, self-exported as `ServerIdle`). Three signals: (a) every HTTP request stamps `lastActivity` via a tiny global router middleware (`middleware/activity.ts`, registered in `httpapi/server.ts` — one hook, no per-route stamping); (b) open long-lived connections — SSE `/global/event` + `/event` and the PTY WebSocket — count as `openConnections` for their whole lifetime (disposer also stamps on close); (c) every GlobalBus event stamps, EXCEPT `models-dev.refreshed` — the only periodic publisher found (hourly ModelsDev cache refresh, `packages/core/src/models-dev.ts:361-381`, bridged onto GlobalBus by `event-v2-bridge.ts`; the SSE `server.heartbeat` events are stream-local and never reach GlobalBus). With `--idle-timeout <ms>` (default 0 = disabled, manual servers stay resident), a 30 s watcher logs `opencode server idle shutdown` and runs the exact SIGINT/SIGTERM shutdown path (ownership-guarded registry removal + `process.exit(0)`) once `openConnections === 0` and `now - lastActivity >= idleTimeout`. TUI-spawned children (shared AND dedicated) always get `--idle-timeout 3600000` from `spawnArgs` (`IDLE_TIMEOUT_MS` in `server-proc.ts`), so a server orphaned by a dead TUI self-reaps after 60 min fully idle.
+
+**Verification:**
+- Tests: `test/server/idle.test.ts` 6 new (TDD: red before `idle.ts` existed), `tui-server-proc` 15 (+2), `registry` 7 — green; `bun typecheck` clean; bench `--help` 146 MB (no regression; idle module only reachable via dynamic import in the serve handler).
+- Handler regressions green: `httpapi-event`, `httpapi-global`, `httpapi-pty`, `httpapi-v2-pty`, `httpapi-authorization`, `httpapi-compression`, `httpapi-cors`, `httpapi-cors-vary` — except `httpapi-v2-pty > applies plugin shell environment before forced PTY values`, which times out identically at pristine HEAD (verified via `git archive` extract; pre-existing, unrelated).
+- Manual smoke (dev entrypoint, `OPENCODE_APP_NAME=openchinacode-surgery`): `--idle-timeout 5000` → self-exit at ~33 s (first tick) with the log line, registry removed. `--idle-timeout 20000` + `/global/health` ping at +25 s → survived the +30 s tick, self-exited at the +60 s tick (a request resets the clock). No flag → resident at +45 s; SIGTERM → graceful exit ~2 s, registry removed. (Signal the pid recorded in `server.json`; a `bun run` wrapper owns a different pid.)
+
+---
+
 ## Verification results (2026-08-16, all gates passed)
 
 **Commits:** `44ff05768` feat (register serve/attach) · `3c4d036fb` feat (server registry) · `5b5e90b5c` feat (split) · `d9b5e3cd4` fix (ownership race + auth env align) · `a9b50c02e` fix (spawn convergence + lifecycle hardening) · `a2b8e60de` fix (portless-dedicated sentinel). Three review rounds per task; final verdict "ready".

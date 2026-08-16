@@ -111,6 +111,7 @@ import { instanceContextLayer } from "./middleware/instance-context"
 import { workspaceRoutingLayer } from "./middleware/workspace-routing"
 import { disposeMiddleware } from "./lifecycle"
 import { memoMap } from "@opencode-ai/core/effect/memo-map"
+import { activityLayer } from "./middleware/activity"
 import { compressionLayer } from "./middleware/compression"
 import { corsVaryFix } from "./middleware/cors-vary"
 import { errorLayer } from "./middleware/error"
@@ -285,6 +286,7 @@ export function createRoutes(
   ).pipe(
     Layer.provide([
       errorLayer,
+      activityLayer,
       compressionLayer,
       corsVaryFix,
       fenceLayer,

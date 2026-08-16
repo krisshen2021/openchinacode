@@ -4,7 +4,12 @@ import { withNetworkOptions, resolveNetworkOptions } from "../network"
 
 export const ServeCommand = effectCmd({
   command: "serve",
-  builder: (yargs) => withNetworkOptions(yargs),
+  builder: (yargs) =>
+    withNetworkOptions(yargs).option("idle-timeout", {
+      type: "number",
+      describe: "exit after this many ms fully idle (no requests, bus events, or open connections); 0 stays resident",
+      default: 0,
+    }),
   describe: "starts a headless opencode server",
   // Server loads instances per-request via x-opencode-directory header — no
   // need for an ambient project InstanceContext at startup.
@@ -34,9 +39,32 @@ export const ServeCommand = effectCmd({
     // Signal handlers (not process.on("exit")) so the async removal completes.
     // Ownership guard: only remove the entry if it still belongs to this process —
     // a slow shutdown may outlive the fresh server that replaced this one.
-    const shutdown = () => ServerRegistry.remove(Global.Path.data, process.pid).finally(() => process.exit(0))
+    let watcher: Timer | undefined
+    const shutdown = () => {
+      clearInterval(watcher)
+      return ServerRegistry.remove(Global.Path.data, process.pid).finally(() => process.exit(0))
+    }
     process.once("SIGINT", shutdown)
     process.once("SIGTERM", shutdown)
+
+    const idleTimeout = args["idle-timeout"]
+    if (idleTimeout > 0) {
+      const { ServerIdle } = yield* Effect.promise(() => import("../../server/idle"))
+      const { GlobalBus } = yield* Effect.promise(() => import("../../bus/global"))
+      // models-dev.refreshed fires hourly from the background ModelsDev refresh
+      // loop with no client attached; stamping it would defeat the timeout.
+      GlobalBus.on("event", (event) => {
+        if (event.payload?.type === "models-dev.refreshed") return
+        ServerIdle.stamp()
+      })
+      // The listener keeps the process alive, so a plain interval suffices; it
+      // is cleared by shutdown above.
+      watcher = setInterval(() => {
+        if (!ServerIdle.shouldIdle(Date.now(), idleTimeout)) return
+        console.log("opencode server idle shutdown")
+        void shutdown()
+      }, 30_000)
+    }
 
     yield* Effect.never
   }),

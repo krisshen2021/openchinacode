@@ -5,6 +5,7 @@ import { EventV2 } from "@opencode-ai/core/event"
 import { Installation } from "@/installation"
 import { disposeAllInstancesAndEmitGlobalDisposed } from "@/server/global-lifecycle"
 import { InstallationVersion } from "@opencode-ai/core/installation/version"
+import { ServerIdle } from "@/server/idle"
 import { Effect, Queue, Schema } from "effect"
 import * as Stream from "effect/Stream"
 import { HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
@@ -33,6 +34,9 @@ function parseBody(body: string) {
 function eventResponse() {
   return Effect.gen(function* () {
     yield* Effect.logInfo("global event connected")
+    // Tracked until the stream finalizes below; nothing yields between
+    // trackOpen and the response construction, so the count cannot leak.
+    const done = ServerIdle.trackOpen()
     const events = Stream.callback<GlobalBusEvent>((queue) => {
       const handler = (event: GlobalBusEvent) => Queue.offerUnsafe(queue, event)
       return Effect.acquireRelease(
@@ -51,7 +55,9 @@ function eventResponse() {
         Stream.map(eventData),
         Stream.pipeThroughChannel(Sse.encode()),
         Stream.encodeText,
-        Stream.ensuring(Effect.logInfo("global event disconnected")),
+        // An attached SSE client keeps the server alive; closing it stamps
+        // fresh activity so the idle clock restarts at disconnect.
+        Stream.ensuring(Effect.andThen(Effect.logInfo("global event disconnected"), Effect.sync(done))),
       ),
       {
         contentType: "text/event-stream",

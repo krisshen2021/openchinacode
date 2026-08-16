@@ -208,7 +208,7 @@ git merge memory-surgery
 
 ## Phase 3: TUI/backend process split — ✅ DONE (2026-08-16)
 
-Expanded into `2026-08-16-phase-3-process-split.md` (verification results there). Default TUI spawns-or-reuses a detached `serve` process over localhost HTTP+SSE (registry in `Global.Path.data/server.json`, ownership-guarded, version-matched, throwaway Basic password); `--in-process` keeps the old worker path. TUI exit leaves the server running; sessions survive TUI restarts. Measured: TUI 221 MB / server 334 MB (Phase 2 single-process was 455 MB).
+Expanded into `2026-08-16-phase-3-process-split.md` (verification results there). Default TUI spawns-or-reuses a detached `serve` process over localhost HTTP+SSE (registry in `Global.Path.data/server.json`, ownership-guarded, version-matched, throwaway Basic password); `--in-process` keeps the old worker path. TUI exit leaves the server running; sessions survive TUI restarts. Measured: TUI 221 MB / server 334 MB (Phase 2 single-process was 455 MB). Add-on (Task 3.5): TUI-spawned servers self-exit after 60 min fully idle (no requests, bus events, or open SSE/WS connections); a manual `serve` stays resident unless `--idle-timeout <ms>` is passed.
 
 ## Phase 4: Excise the experimental V2 session runtime (spec — expand at phase start)
 

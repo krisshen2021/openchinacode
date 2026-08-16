@@ -24,6 +24,7 @@ import { InstanceHttpApi } from "../api"
 import * as ApiError from "../errors"
 import { CursorQuery, PtyConnectApi } from "../groups/pty"
 import { WebSocketTracker } from "../websocket-tracker"
+import { ServerIdle } from "@/server/idle"
 
 function validOrigin(request: HttpServerRequest.HttpServerRequest, opts: CorsOptions | undefined) {
   return isAllowedRequestOrigin(request.headers.origin, request.headers.host, opts)
@@ -254,7 +255,9 @@ export const ptyConnectHandlers = HttpApiBuilder.group(PtyConnectApi, "pty-conne
         })
 
         // The reader runs concurrently with the writer; whichever finishes first ends the
-        // connection and the attachment is always released.
+        // connection and the attachment is always released. The socket counts as an open
+        // connection for idle tracking until then; done() also stamps fresh activity.
+        const done = ServerIdle.trackOpen()
         yield* Effect.race(
           drain,
           socket.runRaw((message) => {
@@ -263,7 +266,12 @@ export const ptyConnectHandlers = HttpApiBuilder.group(PtyConnectApi, "pty-conne
           }),
         ).pipe(
           Effect.catchReason("SocketError", "SocketCloseError", () => Effect.void),
-          Effect.ensuring(Effect.sync(() => attachment.detach())),
+          Effect.ensuring(
+            Effect.sync(() => {
+              attachment.detach()
+              done()
+            }),
+          ),
           Effect.orDie,
         )
         return HttpServerResponse.empty()
