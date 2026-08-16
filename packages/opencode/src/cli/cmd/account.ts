@@ -1,13 +1,14 @@
 import { cmd } from "./cmd"
 import { Duration, Effect, Match, Option } from "effect"
 import { UI } from "../ui"
-import { Account } from "@/account/account"
-import { AccountID, OrgID, PollExpired, type PollResult, type AccountError } from "@/account/schema"
+import type { AccountID, OrgID, PollResult, AccountError } from "@/account/schema"
 import { effectCmd } from "../effect-cmd"
-import * as Prompt from "../effect/prompt"
-import open from "open"
 
-const openBrowser = (url: string) => Effect.promise(() => open(url).catch(() => undefined))
+const openBrowser = (url: string) =>
+  Effect.promise(async () => {
+    const { default: open } = await import("open")
+    await open(url).catch(() => undefined)
+  })
 
 const println = (msg: string) => Effect.sync(() => UI.println(msg))
 
@@ -39,6 +40,9 @@ const isActiveOrgChoice = (
 ) => Option.isSome(active) && active.value.id === choice.accountID && active.value.active_org_id === choice.orgID
 
 const loginEffect = Effect.fn("login")(function* (url: string) {
+  const { Account } = yield* Effect.promise(() => import("@/account/account"))
+  const { PollExpired } = yield* Effect.promise(() => import("@/account/schema"))
+  const Prompt = yield* Effect.promise(() => import("../effect/prompt"))
   const service = yield* Account.Service
 
   yield* Prompt.intro("Log in")
@@ -80,6 +84,8 @@ const loginEffect = Effect.fn("login")(function* (url: string) {
 })
 
 const logoutEffect = Effect.fn("logout")(function* (email?: string) {
+  const { Account } = yield* Effect.promise(() => import("@/account/account"))
+  const Prompt = yield* Effect.promise(() => import("../effect/prompt"))
   const service = yield* Account.Service
   const accounts = yield* service.list()
   if (accounts.length === 0) return yield* println("Not logged in")
@@ -119,6 +125,8 @@ interface OrgChoice {
 }
 
 const switchEffect = Effect.fn("switch")(function* () {
+  const { Account } = yield* Effect.promise(() => import("@/account/account"))
+  const Prompt = yield* Effect.promise(() => import("../effect/prompt"))
   const service = yield* Account.Service
 
   const groups = yield* service.orgsByAccount()
@@ -148,6 +156,7 @@ const switchEffect = Effect.fn("switch")(function* () {
 })
 
 const orgsEffect = Effect.fn("orgs")(function* () {
+  const { Account } = yield* Effect.promise(() => import("@/account/account"))
   const service = yield* Account.Service
 
   const groups = yield* service.orgsByAccount()
@@ -165,6 +174,8 @@ const orgsEffect = Effect.fn("orgs")(function* () {
 })
 
 const openEffect = Effect.fn("open")(function* () {
+  const { Account } = yield* Effect.promise(() => import("@/account/account"))
+  const Prompt = yield* Effect.promise(() => import("../effect/prompt"))
   const service = yield* Account.Service
   const active = yield* service.active()
   if (Option.isNone(active)) return yield* println("No active account")
