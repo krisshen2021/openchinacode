@@ -85,9 +85,13 @@ export function make<
 >(
   input: MakeInput<Implementation, Items, T>,
 ): Node<Layer.Success<Implementation>, Layer.Error<Implementation> | Error<Items[number]>, T> {
+  const name = input.service !== undefined ? input.service.key : input.name
+  for (let i = 0; i < input.deps.length; i++) {
+    if (input.deps[i] === undefined) throw new Error(`LayerNode.make: ${name} has undefined dependency at index ${i}`)
+  }
   return {
     kind: "layer",
-    name: input.service !== undefined ? input.service.key : input.name,
+    name,
     service: input.service,
     implementation: input.layer,
     dependencies: input.deps,
@@ -108,6 +112,9 @@ export function unbound<R, Shape, const T extends Tag>(service: Context.Key<R, S
 export function group<const Items extends readonly AnyNode[]>(
   dependencies: Items,
 ): Node<Output<Items[number]>, Error<Items[number]>, NodeTag<Items[number]>> {
+  for (let i = 0; i < dependencies.length; i++) {
+    if (dependencies[i] === undefined) throw new Error(`LayerNode.group: undefined dependency at index ${i}`)
+  }
   return { kind: "group", name: "group", dependencies }
 }
 
