@@ -1,5 +1,5 @@
 import path from "path"
-import { chmod, rm, writeFile } from "node:fs/promises"
+import { chmod, rename, rm, writeFile } from "node:fs/promises"
 
 export interface Entry {
   pid: number
@@ -22,8 +22,13 @@ export async function read(dir: string): Promise<Entry | undefined> {
 }
 
 export async function write(dir: string, entry: Entry) {
-  // writeFile mode only applies on creation; chmod covers a pre-existing file
-  await writeFile(file(dir), JSON.stringify(entry), { mode: 0o600 })
+  // Atomic via write-then-rename so a concurrent reader never sees a partial
+  // file; the tmp name is per-process because two concurrent serve children
+  // (double launch) can write at the same time. writeFile mode applies on
+  // creation and rename preserves it; chmod covers umask drift.
+  const tmp = `${file(dir)}.${process.pid}.tmp`
+  await writeFile(tmp, JSON.stringify(entry), { mode: 0o600 })
+  await rename(tmp, file(dir))
   await chmod(file(dir), 0o600).catch(() => {})
 }
 

@@ -1,5 +1,6 @@
 import path from "path"
 import { closeSync, openSync } from "node:fs"
+import { readFile } from "node:fs/promises"
 import { randomBytes } from "node:crypto"
 import { setTimeout } from "node:timers/promises"
 import { fileURLToPath } from "node:url"
@@ -34,33 +35,35 @@ export function reusable(
   return healthy()
 }
 
-// A dedicated server (explicit network flags) never touches the shared
-// registry, so its port must be known up front: the caller keeps an explicit
-// --port, or reserves a free one here and forwards it explicitly. The tiny
-// race between reserving and the child binding is accepted; a lost race
-// surfaces as a spawn timeout with a clear error.
-export async function freePort() {
-  const listener = Bun.listen({ hostname: "127.0.0.1", port: 0, socket: { data() {} } })
-  const port = listener.port
-  listener.stop(true)
-  return port
+// A healthy same-version entry serves this launch when no --port was given, or
+// when it listens on the explicitly requested port. Drives both initial reuse
+// and mid-wait convergence between concurrent launches.
+export function matchesRequest(entry: Entry, requestedPort: number) {
+  if (requestedPort === 0) return true
+  return new URL(entry.url).port === String(requestedPort)
 }
 
-export async function ensureServer(opts: { network?: { args: string[]; url: string } }) {
-  if (!opts.network) {
-    const entry = await ServerRegistry.read(Global.Path.data)
-    if (entry) {
-      const ok = await healthy(entry.url, entry.password)
-      if (reusable(entry, InstallationVersion, ServerRegistry.alive, () => ok)) {
-        return {
-          url: entry.url,
-          headers: ServerAuth.headers({ password: entry.password }),
-          spawned: false,
-          pid: entry.pid,
-        }
+export async function ensureServer(opts: { network?: { args: string[]; port: number } }) {
+  const requestedPort = opts.network?.port ?? 0
+  const entry = await ServerRegistry.read(Global.Path.data)
+  if (entry) {
+    const ok = await healthy(entry.url, entry.password)
+    const compatible = reusable(entry, InstallationVersion, ServerRegistry.alive, () => ok)
+    if (compatible && matchesRequest(entry, requestedPort)) {
+      return {
+        url: entry.url,
+        headers: ServerAuth.headers({ password: entry.password }),
+        spawned: false,
+        pid: entry.pid,
       }
-      await terminate(entry.pid)
     }
+    // A compatible entry on a different port than explicitly requested is left
+    // running: the dedicated spawn below still starts as asked and overwrites
+    // the registry when it listens, so the registry then points at the newest
+    // server (the ownership guard in ServerRegistry.remove keeps the old
+    // server's shutdown from deleting that entry). Only incompatible entries
+    // get reclaimed.
+    if (!compatible) await terminate(entry.pid)
   }
 
   const password = randomBytes(16).toString("hex")
@@ -88,7 +91,6 @@ export async function ensureServer(opts: { network?: { args: string[]; url: stri
       // binaries that read only one of them.
       OPENCODE_SERVER_PASSWORD: password,
       OPENCHINACODE_SERVER_PASSWORD: password,
-      ...(opts.network ? { OPENCODE_SKIP_REGISTRY: "1" } : {}),
     },
     stdin: "ignore",
     stdout: fd,
@@ -97,19 +99,33 @@ export async function ensureServer(opts: { network?: { args: string[]; url: stri
   })
   closeSync(fd)
 
-  const url = await waitReady(child, opts.network, password)
-  if (!url) {
+  const winner = await waitReady(child, password, requestedPort)
+  if (!winner) {
+    const why = child.exitCode !== null ? `exited with code ${child.exitCode}` : "did not become ready within 15s"
     child.kill()
-    throw new Error(`opencode serve failed to start within 15s (see ${log})`)
+    throw new Error(`opencode serve ${why} (see ${log})`)
+  }
+  if (winner.pid !== child.pid) {
+    // Lost the spawn race to a concurrent launch: retire our own child (this
+    // process's fresh Bun.spawn, always safe to signal) and attach to the
+    // winner instead of keeping a duplicate server.
+    child.kill("SIGTERM")
+    return {
+      url: winner.url,
+      headers: ServerAuth.headers({ password: winner.password }),
+      spawned: false,
+      pid: winner.pid,
+    }
   }
 
   // No mid-session respawn in v1: the SSE backoff already surfaces the
-  // disconnect in the UI, so a dead server only gets a stderr warning.
+  // disconnect in the UI, so a dead server only gets a stderr warning. Only
+  // our own spawned child has a handle to watch; a reused server does not.
   void child.exited.then((code) => {
     console.error(`opencode server (pid ${child.pid}) exited with code ${code}`)
   })
 
-  return { url, headers: ServerAuth.headers({ password }), spawned: true, pid: child.pid }
+  return { url: winner.url, headers: ServerAuth.headers({ password }), spawned: true, pid: child.pid }
 }
 
 async function healthy(url: string, password: string | undefined) {
@@ -120,7 +136,20 @@ async function healthy(url: string, password: string | undefined) {
   return response?.ok === true
 }
 
+async function ownedByUs(pid: number) {
+  if (process.platform !== "linux") return false
+  const raw = await readFile(`/proc/${pid}/cmdline`, "utf8").catch(() => undefined)
+  if (!raw) return false
+  const args = raw.split("\0").filter((arg) => arg !== "")
+  return args.some((arg) => /openchinacode|opencode/i.test(arg)) && args.includes("serve")
+}
+
 async function terminate(pid: number) {
+  // The registry entry is the only evidence that pid was our server; after a
+  // reboot or pid reuse it may belong to an innocent process, so verify the
+  // cmdline before signalling. On mismatch the stale server leaks and the
+  // fresh spawn overwrites the registry — never kill innocents.
+  if (!(await ownedByUs(pid))) return
   try {
     process.kill(pid, "SIGTERM")
   } catch {
@@ -132,13 +161,21 @@ async function terminate(pid: number) {
   }
 }
 
-async function waitReady(child: Bun.Subprocess, network: { args: string[]; url: string } | undefined, password: string) {
+async function waitReady(child: Bun.Subprocess, password: string, requestedPort: number) {
   const deadline = Date.now() + 15_000
   while (Date.now() < deadline) {
     if (child.exitCode !== null) return undefined
-    const entry = network ? undefined : await ServerRegistry.read(Global.Path.data)
-    const url = network?.url ?? (entry?.pid === child.pid ? entry.url : undefined)
-    if (url && (await healthy(url, password))) return url
+    const entry = await ServerRegistry.read(Global.Path.data)
+    if (entry?.pid === child.pid && (await healthy(entry.url, password))) return entry
+    // Concurrent launch: another server registered first (or appeared while
+    // the initial read found none). Converge on it when it is healthy,
+    // same-version, and serves this launch's request — the caller retires our
+    // child — instead of keeping a duplicate; otherwise keep waiting for our
+    // own child until the timeout.
+    if (entry && matchesRequest(entry, requestedPort)) {
+      const ok = await healthy(entry.url, entry.password)
+      if (reusable(entry, InstallationVersion, ServerRegistry.alive, () => ok)) return entry
+    }
     await setTimeout(100)
   }
   return undefined

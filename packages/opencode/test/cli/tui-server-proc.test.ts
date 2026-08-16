@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { spawnArgs, reusable } from "../../src/cli/tui/server-proc"
+import { spawnArgs, reusable, matchesRequest } from "../../src/cli/tui/server-proc"
 
 describe("spawnArgs", () => {
   test("compiled build spawns self with serve", () => {
@@ -38,5 +38,19 @@ describe("reusable", () => {
   })
   test("missing entry = no reuse", () => {
     expect(reusable(undefined, "1", () => true, () => true)).toBe(false)
+  })
+})
+
+describe("matchesRequest", () => {
+  const entry = { pid: 1, url: "http://127.0.0.1:4096", version: "1", startedAt: 0 }
+
+  test("no explicit port matches any entry", () => {
+    expect(matchesRequest(entry, 0)).toBe(true)
+  })
+  test("matching explicit port = reuse serves the intent", () => {
+    expect(matchesRequest(entry, 4096)).toBe(true)
+  })
+  test("different explicit port = dedicated spawn instead", () => {
+    expect(matchesRequest(entry, 4519)).toBe(false)
   })
 })

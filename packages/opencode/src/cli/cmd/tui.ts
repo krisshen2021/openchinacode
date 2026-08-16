@@ -267,22 +267,20 @@ export const TuiThreadCommand = cmd({
       }
 
       const split = async (): Promise<Mode | undefined> => {
-        const { ensureServer, freePort } = await import("../tui/server-proc")
-        // A dedicated server skips the shared registry, so fix its port up
-        // front: keep an explicit --port, or reserve a free one and forward it.
-        const port = !external ? 0 : hasArg("--port") && args.port !== 0 ? args.port : await freePort()
-        const host = hasArg("--hostname") ? args.hostname : "127.0.0.1"
+        const { ensureServer } = await import("../tui/server-proc")
+        // Network flags mean a dedicated server with exactly those flags. It
+        // registers like any serve child, so a relaunch with the same flags
+        // reuses it instead of colliding with the orphan on the port.
         const dedicated = external
           ? {
               args: [
-                "--port",
-                String(port),
+                ...(hasArg("--port") ? ["--port", String(args.port)] : []),
                 ...(hasArg("--hostname") ? ["--hostname", args.hostname] : []),
                 ...(network.mdns ? ["--mdns"] : []),
                 ...(hasArg("--mdns-domain") ? ["--mdns-domain", args["mdns-domain"]] : []),
                 ...network.cors.flatMap((origin) => ["--cors", origin]),
               ],
-              url: `http://${host}:${port}`,
+              port: args.port,
             }
           : undefined
         const server = await ensureServer({ network: dedicated }).catch((error: unknown) => {
@@ -311,7 +309,12 @@ export const TuiThreadCommand = cmd({
         }
       }
 
+      // SIGUSR2's default action kills the process; the split-mode spawn can
+      // take seconds, so park a no-op until the real reload handler exists.
+      const parked = () => {}
+      process.on("SIGUSR2", parked)
       const mode = args["in-process"] === true ? await inProcess() : await split()
+      process.off("SIGUSR2", parked)
       if (!mode) return
       process.on("SIGUSR2", mode.reload)
 
