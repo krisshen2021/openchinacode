@@ -4,13 +4,13 @@ import { LayerNode } from "@opencode-ai/core/effect/layer-node"
 import { AppNodeBuilder } from "@opencode-ai/core/effect/app-node-builder"
 import { EventV2 } from "@opencode-ai/core/event"
 import { QuestionV2 } from "@opencode-ai/core/question"
-import { SessionV2 } from "@opencode-ai/core/session"
+import { SessionSchema } from "@opencode-ai/core/session/schema"
 import { testEffect } from "./lib/effect"
 
 const questions = AppNodeBuilder.build(LayerNode.group([EventV2.node, QuestionV2.node]))
 const it = testEffect(questions)
 
-const sessionID = SessionV2.ID.make("ses_question_test")
+const sessionID = SessionSchema.ID.make("ses_question_test")
 const question: QuestionV2.Info = {
   question: "Which option?",
   header: "Option",

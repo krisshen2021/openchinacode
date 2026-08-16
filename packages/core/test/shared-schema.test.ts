@@ -2,7 +2,6 @@ import { expect, test } from "bun:test"
 import { Schema } from "effect"
 import { AgentV2 } from "@opencode-ai/core/agent"
 import { ModelV2 } from "@opencode-ai/core/model"
-import { SessionV2 } from "@opencode-ai/core/session"
 import { Agent } from "@opencode-ai/schema/agent"
 import { Location } from "@opencode-ai/schema/location"
 import { Model } from "@opencode-ai/schema/model"
@@ -11,7 +10,6 @@ import { Provider } from "@opencode-ai/schema/provider"
 import { Project } from "@opencode-ai/schema/project"
 import { ProjectDirectories } from "@opencode-ai/schema/project-directories"
 import { PermissionV1 } from "@opencode-ai/schema/permission-v1"
-import { Session } from "@opencode-ai/schema/session"
 import { SessionInput } from "@opencode-ai/schema/session-input"
 import { SessionMessage } from "@opencode-ai/schema/session-message"
 import { Workspace } from "@opencode-ai/schema/workspace"
@@ -25,7 +23,6 @@ import { Permission } from "@opencode-ai/schema/permission"
 import { Plugin } from "@opencode-ai/schema/plugin"
 import { Pty } from "@opencode-ai/schema/pty"
 import { Reference } from "@opencode-ai/schema/reference"
-import { SessionTodo } from "@opencode-ai/schema/session-todo"
 import { Skill } from "@opencode-ai/schema/skill"
 import { AbsolutePath, DateTimeUtcFromMillis, optional, statics } from "@opencode-ai/schema/schema"
 import { ProviderV2 } from "@opencode-ai/core/provider"
@@ -48,7 +45,6 @@ test("Core reuses the canonical shared schemas", async () => {
     coreReference,
     coreSessionInput,
     coreSessionMessage,
-    coreSessionTodo,
     corePrompt,
     coreSkill,
     coreV2Schema,
@@ -70,7 +66,6 @@ test("Core reuses the canonical shared schemas", async () => {
     import("@opencode-ai/core/reference"),
     import("@opencode-ai/core/session/input"),
     import("@opencode-ai/core/session/message"),
-    import("@opencode-ai/core/session/todo"),
     import("@opencode-ai/core/session/prompt"),
     import("@opencode-ai/core/skill"),
     import("@opencode-ai/core/v2-schema"),
@@ -137,9 +132,6 @@ test("Core reuses the canonical shared schemas", async () => {
     [coreReference.LocalSource, Reference.LocalSource],
     [coreReference.GitSource, Reference.GitSource],
     [coreReference.Source, Reference.Source],
-    [SessionV2.ID, Session.ID],
-    [SessionV2.Info, Session.Info],
-    [SessionV2.ListAnchor, Session.ListAnchor],
     [coreSessionInput.Delivery, SessionInput.Delivery],
     [coreSessionInput.Admitted, SessionInput.Admitted],
     [coreSessionMessage.ID, SessionMessage.ID],
@@ -162,8 +154,6 @@ test("Core reuses the canonical shared schemas", async () => {
     [coreSessionMessage.Assistant, SessionMessage.Assistant],
     [coreSessionMessage.Compaction, SessionMessage.Compaction],
     [coreSessionMessage.Message, SessionMessage.Message],
-    [coreSessionTodo.Info, SessionTodo.Info],
-    [coreSessionTodo.Event, SessionTodo.Event],
     [corePrompt.Source, Source],
     [corePrompt.FileAttachment, FileAttachment],
     [corePrompt.AgentAttachment, AgentAttachment],

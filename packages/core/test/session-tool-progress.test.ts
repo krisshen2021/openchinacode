@@ -10,10 +10,10 @@ import { Project } from "@opencode-ai/core/project"
 import { ProjectTable } from "@opencode-ai/core/project/sql"
 import { ProviderV2 } from "@opencode-ai/core/provider"
 import { AbsolutePath } from "@opencode-ai/core/schema"
-import { SessionV2 } from "@opencode-ai/core/session"
 import { SessionEvent } from "@opencode-ai/core/session/event"
 import { SessionMessage } from "@opencode-ai/core/session/message"
 import { SessionProjector } from "@opencode-ai/core/session/projector"
+import { SessionSchema } from "@opencode-ai/core/session/schema"
 import { SessionTable, SessionMessageTable } from "@opencode-ai/core/session/sql"
 import { testEffect } from "./lib/effect"
 
@@ -28,7 +28,7 @@ describe("Tool.Progress", () => {
     Effect.gen(function* () {
       const { db } = yield* Database.Service
       const service = yield* EventV2.Service
-      const sessionID = SessionV2.ID.make("ses_tool_progress_projector")
+      const sessionID = SessionSchema.ID.make("ses_tool_progress_projector")
       yield* db
         .insert(ProjectTable)
         .values({ id: Project.ID.global, worktree: AbsolutePath.make("/project"), sandboxes: [] })

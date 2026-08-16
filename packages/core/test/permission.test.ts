@@ -12,9 +12,8 @@ import { PermissionSaved } from "@opencode-ai/core/permission/saved"
 import { Project } from "@opencode-ai/core/project"
 import { ProjectTable } from "@opencode-ai/core/project/sql"
 import { AbsolutePath } from "@opencode-ai/core/schema"
-import { SessionV2 } from "@opencode-ai/core/session"
+import { SessionSchema } from "@opencode-ai/core/session/schema"
 import { SessionTable } from "@opencode-ai/core/session/sql"
-import { SessionStore } from "@opencode-ai/core/session/store"
 import { eq } from "drizzle-orm"
 import { location } from "./fixture/location"
 import { testEffect } from "./lib/effect"
@@ -28,7 +27,6 @@ const it = testEffect(
     LayerNode.group([
       Database.node,
       EventV2.node,
-      SessionStore.node,
       PermissionSaved.node,
       AgentV2.node,
       PermissionV2.node,
@@ -49,7 +47,7 @@ function setup(rules: PermissionV2.Ruleset = []) {
     yield* db
       .insert(SessionTable)
       .values({
-        id: SessionV2.ID.make("ses_test"),
+        id: SessionSchema.ID.make("ses_test"),
         project_id: Project.ID.global,
         slug: "test",
         directory: "/project",
@@ -78,7 +76,7 @@ function setRules(rules: PermissionV2.Ruleset) {
 function assertion(input: Partial<PermissionV2.AssertInput> = {}) {
   return {
     id: PermissionV2.ID.create("per_test"),
-    sessionID: SessionV2.ID.make("ses_test"),
+    sessionID: SessionSchema.ID.make("ses_test"),
     action: "read",
     resources: ["src/index.ts"],
     ...input,
@@ -175,7 +173,7 @@ describe("PermissionV2", () => {
       yield* db
         .update(SessionTable)
         .set({ agent: null })
-        .where(eq(SessionTable.id, SessionV2.ID.make("ses_test")))
+        .where(eq(SessionTable.id, SessionSchema.ID.make("ses_test")))
         .run()
         .pipe(Effect.orDie)
       const agents = yield* AgentV2.Service
@@ -201,7 +199,7 @@ describe("PermissionV2", () => {
       yield* db
         .update(SessionTable)
         .set({ agent: null })
-        .where(eq(SessionTable.id, SessionV2.ID.make("ses_test")))
+        .where(eq(SessionTable.id, SessionSchema.ID.make("ses_test")))
         .run()
         .pipe(Effect.orDie)
       const agents = yield* AgentV2.Service
@@ -256,7 +254,7 @@ describe("PermissionV2", () => {
       const { service, fiber, request } = yield* waitForRequest()
       expect(yield* service.list()).toEqual([request])
       expect(yield* service.forSession(request.sessionID)).toEqual([request])
-      expect(yield* service.forSession(SessionV2.ID.make("ses_other"))).toEqual([])
+      expect(yield* service.forSession(SessionSchema.ID.make("ses_other"))).toEqual([])
       expect(yield* service.get(request.id)).toEqual(request)
       yield* service.reply({ requestID: request.id, reply: "once" })
       yield* Fiber.join(fiber)

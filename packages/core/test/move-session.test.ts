@@ -13,10 +13,9 @@ import { Project } from "@opencode-ai/core/project"
 import { ProjectTable } from "@opencode-ai/core/project/sql"
 import { ProjectDirectories } from "@opencode-ai/core/project/directories"
 import { AbsolutePath } from "@opencode-ai/core/schema"
-import { SessionV2 } from "@opencode-ai/core/session"
 import { SessionProjector } from "@opencode-ai/core/session/projector"
+import { SessionSchema } from "@opencode-ai/core/session/schema"
 import { SessionTable } from "@opencode-ai/core/session/sql"
-import { SessionStore } from "@opencode-ai/core/session/store"
 import { tmpdir } from "./fixture/tmpdir"
 import { testEffect } from "./lib/effect"
 
@@ -29,7 +28,6 @@ const it = testEffect(
       ProjectDirectories.node,
       Project.node,
       SessionProjector.node,
-      SessionStore.node,
     ]),
   ),
 )
@@ -69,7 +67,7 @@ describe("MoveSession", () => {
       yield* Effect.promise(() => fs.writeFile(path.join(source, "untracked.txt"), "new\n"))
 
       const projectID = (yield* Project.Service.use((service) => service.resolve(source))).id
-      const sessionID = SessionV2.ID.make("ses_move")
+      const sessionID = SessionSchema.ID.make("ses_move")
       const { db } = yield* Database.Service
       yield* db
         .insert(ProjectTable)
@@ -123,7 +121,7 @@ describe("MoveSession", () => {
       yield* Effect.promise(() => fs.writeFile(path.join(source, "untracked.txt"), "new\n"))
 
       const projectID = (yield* Project.Service.use((service) => service.resolve(source))).id
-      const sessionID = SessionV2.ID.make("ses_move_nested")
+      const sessionID = SessionSchema.ID.make("ses_move_nested")
       const { db } = yield* Database.Service
       yield* db
         .insert(ProjectTable)
@@ -189,7 +187,7 @@ describe("MoveSession", () => {
       yield* Effect.promise(() => fs.writeFile(path.join(source, "untracked.txt"), "unrelated\n"))
 
       const projectID = (yield* Project.Service.use((service) => service.resolve(source))).id
-      const sessionID = SessionV2.ID.make("ses_move_nested_checkout")
+      const sessionID = SessionSchema.ID.make("ses_move_nested_checkout")
       const { db } = yield* Database.Service
       yield* db
         .insert(ProjectTable)

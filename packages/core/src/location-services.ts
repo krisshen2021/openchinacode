@@ -23,9 +23,7 @@ import { ProjectCopy } from "./project/copy"
 import { Pty } from "./pty"
 import { QuestionV2 } from "./question"
 import { Reference } from "./reference"
-import { ReferenceGuidance } from "./reference/guidance"
 import { SkillV2 } from "./skill"
-import { SkillGuidance } from "./skill/guidance"
 import { Snapshot } from "./snapshot"
 
 export { LocationServiceMap } from "./location-service-map"
@@ -53,8 +51,6 @@ export const locationServices = LayerNode.group([
   FileMutation.node,
   PermissionV2.node,
   Image.node,
-  SkillGuidance.node,
-  ReferenceGuidance.node,
   QuestionV2.node,
   Snapshot.node,
 ])

@@ -4,7 +4,6 @@ import { RunCommand } from "./cli/cmd/run"
 import { TuiThreadCommand } from "./cli/cmd/tui"
 import { ProvidersCommand } from "./cli/cmd/providers"
 import { ModelsCommand } from "./cli/cmd/models"
-import { V2Command } from "./cli/cmd/v2"
 import { TestCommand } from "./cli/cmd/test"
 import { McpCommand } from "./cli/cmd/mcp"
 import { UpgradeCommand } from "./cli/cmd/upgrade"
@@ -74,7 +73,6 @@ const cli = yargs(args)
   .command(DebugCommand)
   .command(ProvidersCommand)
   .command(ModelsCommand)
-  .command(V2Command)
   .command(McpCommand)
   .command(TestCommand)
   .command(UpgradeCommand)

@@ -11,21 +11,19 @@ import { Project } from "@opencode-ai/core/project"
 import { ProjectTable } from "@opencode-ai/core/project/sql"
 import { ProviderV2 } from "@opencode-ai/core/provider"
 import { AbsolutePath } from "@opencode-ai/core/schema"
-import { SessionV2 } from "@opencode-ai/core/session"
 import { SessionEvent } from "@opencode-ai/core/session/event"
 import { SessionMessage } from "@opencode-ai/core/session/message"
 import { Prompt } from "@opencode-ai/core/session/prompt"
 import { SessionMessageUpdater } from "@opencode-ai/core/session/message-updater"
 import { SessionProjector } from "@opencode-ai/core/session/projector"
-import { SessionExecution } from "@opencode-ai/core/session/execution"
 import { SessionInput } from "@opencode-ai/core/session/input"
+import { SessionSchema } from "@opencode-ai/core/session/schema"
 import { SessionInputTable, SessionMessageTable, SessionTable } from "@opencode-ai/core/session/sql"
 import { testEffect } from "./lib/effect"
 import { Snapshot } from "@opencode-ai/core/snapshot"
 
 const it = testEffect(AppNodeBuilder.build(LayerNode.group([Database.node, EventV2.node, SessionProjector.node])))
-const sessionsLayer = AppNodeBuilder.build(SessionV2.node, [[SessionExecution.node, SessionExecution.noopLayer]])
-const sessionID = SessionV2.ID.make("ses_projector_test")
+const sessionID = SessionSchema.ID.make("ses_projector_test")
 const created = DateTime.makeUnsafe(0)
 const model = { id: ModelV2.ID.make("model"), providerID: ProviderV2.ID.make("provider") }
 const encodeMessage = Schema.encodeSync(SessionMessage.Message)
@@ -96,7 +94,7 @@ describe("SessionProjector", () => {
     }),
   )
 
-  it.effect("orders projected messages and context by durable aggregate sequence", () =>
+  it.effect("orders projected messages by durable aggregate sequence", () =>
     Effect.gen(function* () {
       const { db } = yield* Database.Service
       yield* db
@@ -141,28 +139,21 @@ describe("SessionProjector", () => {
         { id: EventV2.ID.make("evt_a") },
       )
 
-      const sessions = yield* SessionV2.Service
-      const firstPage = yield* sessions.messages({ sessionID, limit: 1, order: "asc" })
-      expect(firstPage.map((message) => (message.type === "user" ? message.text : message.type))).toEqual(["first"])
-      const secondPage = yield* sessions.messages({
-        sessionID,
-        limit: 1,
-        order: "asc",
-        cursor: { id: firstPage[0]!.id, direction: "next" },
-      })
-      expect(secondPage.map((message) => (message.type === "user" ? message.text : message.type))).toEqual(["second"])
-      expect(
-        (yield* sessions.messages({
-          sessionID,
-          limit: 1,
-          order: "asc",
-          cursor: { id: secondPage[0]!.id, direction: "previous" },
-        })).map((message) => (message.type === "user" ? message.text : message.type)),
-      ).toEqual(["first"])
-      expect(
-        (yield* sessions.context(sessionID)).map((message) => (message.type === "user" ? message.text : message.type)),
-      ).toEqual(["first", "second"])
-    }).pipe(Effect.provide(sessionsLayer)),
+      const rows = yield* db
+        .select()
+        .from(SessionMessageTable)
+        .where(eq(SessionMessageTable.session_id, sessionID))
+        .orderBy(asc(SessionMessageTable.seq))
+        .all()
+        .pipe(Effect.orDie)
+      const messages = rows.map((row) =>
+        Schema.decodeUnknownSync(SessionMessage.Message)({ ...row.data, id: row.id, type: row.type }),
+      )
+      expect(messages.map((message) => (message.type === "user" ? message.text : message.type))).toEqual([
+        "first",
+        "second",
+      ])
+    }),
   )
 
   it.effect("marks an inbox row promoted with the Prompted event sequence", () =>
