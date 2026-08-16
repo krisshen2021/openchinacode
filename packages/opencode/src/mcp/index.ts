@@ -574,6 +574,7 @@ const layer = Layer.effect(
               s.status[key] = result.status
               if (result.mcpClient) {
                 s.clients[key] = result.mcpClient
+                s.lastUsedAt[key] = Date.now()
                 s.defs[key] = result.defs!
                 if (result.instructions) s.instructions[key] = result.instructions
                 watch(s, key, result.mcpClient, bridge, mcp.timeout)

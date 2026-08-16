@@ -2220,6 +2220,7 @@ export type Config = {
     primary_tools?: Array<string>
     continue_loop_on_deny?: boolean
     mcp_timeout?: number
+    mcp_idle_timeout?: number
     policies?: Array<ConfigV2ExperimentalPolicy>
   }
 }

@@ -213,7 +213,7 @@ export const Info = Schema.Struct({
       mcp_timeout: Schema.optional(PositiveInt).annotate({
         description: "Timeout in milliseconds for model context protocol (MCP) requests",
       }),
-      mcp_idle_timeout: Schema.optional(PositiveInt).annotate({
+      mcp_idle_timeout: Schema.optional(NonNegativeInt).annotate({
         description:
           "Idle timeout in milliseconds for local MCP servers (default: 600000). Idle servers are closed and transparently respawned on next use; 0 disables reaping",
       }),
