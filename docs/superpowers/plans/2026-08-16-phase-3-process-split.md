@@ -460,12 +460,13 @@ git commit -m "docs: record phase 3 verification results"
 - Tests: `test/server/idle.test.ts` 6 new (TDD: red before `idle.ts` existed), `tui-server-proc` 15 (+2), `registry` 7 — green; `bun typecheck` clean; bench `--help` 146 MB (no regression; idle module only reachable via dynamic import in the serve handler).
 - Handler regressions green: `httpapi-event`, `httpapi-global`, `httpapi-pty`, `httpapi-v2-pty`, `httpapi-authorization`, `httpapi-compression`, `httpapi-cors`, `httpapi-cors-vary` — except `httpapi-v2-pty > applies plugin shell environment before forced PTY values`, which times out identically at pristine HEAD (verified via `git archive` extract; pre-existing, unrelated).
 - Manual smoke (dev entrypoint, `OPENCODE_APP_NAME=openchinacode-surgery`): `--idle-timeout 5000` → self-exit at ~33 s (first tick) with the log line, registry removed. `--idle-timeout 20000` + `/global/health` ping at +25 s → survived the +30 s tick, self-exited at the +60 s tick (a request resets the clock). No flag → resident at +45 s; SIGTERM → graceful exit ~2 s, registry removed. (Signal the pid recorded in `server.json`; a `bun run` wrapper owns a different pid.)
+- Compiled-binary gate (`0.0.0-memory-surgery-202608161205`): TUI-spawned serve child verified carrying `--idle-timeout 3600000` in its argv; TUI boots clean. Review verdict "ready" (two one-line polish items folded into `d5663eb35`).
 
 ---
 
 ## Verification results (2026-08-16, all gates passed)
 
-**Commits:** `44ff05768` feat (register serve/attach) · `3c4d036fb` feat (server registry) · `5b5e90b5c` feat (split) · `d9b5e3cd4` fix (ownership race + auth env align) · `a9b50c02e` fix (spawn convergence + lifecycle hardening) · `a2b8e60de` fix (portless-dedicated sentinel). Three review rounds per task; final verdict "ready".
+**Commits:** `44ff05768` feat (register serve/attach) · `3c4d036fb` feat (server registry) · `5b5e90b5c` feat (split) · `d9b5e3cd4` fix (ownership race + auth env align) · `a9b50c02e` fix (spawn convergence + lifecycle hardening) · `a2b8e60de` fix (portless-dedicated sentinel) · `c3ad43917` feat (idle self-shutdown) · `d5663eb35` fix (polish). Multiple review rounds per task; final verdict "ready".
 
 **Tests/typecheck:** `test/cli/tui-server-proc` 13 + `test/server/registry` 7 + `test/mcp` 83 green; typecheck clean in `packages/opencode` + `packages/tui`. CLI bench: `--help` 144 MB (no regression). Bonus: registering serve/attach flipped 12 pre-existing `test/cli` failures to pass.
 
