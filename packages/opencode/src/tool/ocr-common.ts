@@ -1,7 +1,7 @@
 import { Auth } from "@/auth"
 import { FSUtil } from "@opencode-ai/core/fs-util"
+import { Global } from "@opencode-ai/core/global"
 import { Effect } from "effect"
-import os from "os"
 import path from "path"
 import { fileURLToPath } from "url"
 import type { InstanceContext } from "@/project/instance-context"
@@ -9,7 +9,7 @@ import { json, safeFilename, timestampSlug } from "./media-common"
 
 export const BAIDU_OCR_AUTH_PROVIDER_ID = "baidu-unlimited-ocr"
 export const BAIDU_OCR_BASE_URL = "https://aip.baidubce.com"
-export const DEFAULT_OCR_ROOT = path.join(os.tmpdir(), "openchinacode", "ocr")
+export const DEFAULT_OCR_ROOT = path.join(Global.Path.tmp, "ocr")
 
 export const OCR_DOCUMENT_EXTENSIONS = [
   ".pdf",

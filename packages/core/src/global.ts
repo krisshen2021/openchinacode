@@ -7,7 +7,10 @@ import { Flock } from "./util/flock"
 import { Flag } from "./flag/flag"
 import { makeGlobalNode } from "./effect/app-node"
 
-const app = "openchinacode"
+declare const OPENCODE_APP_NAME: string
+
+const app =
+  typeof OPENCODE_APP_NAME === "string" ? OPENCODE_APP_NAME : (process.env.OPENCODE_APP_NAME ?? "openchinacode")
 const data = path.join(xdgData!, app)
 const cache = path.join(xdgCache!, app)
 const config = path.join(xdgConfig!, app)
