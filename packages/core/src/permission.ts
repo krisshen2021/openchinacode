@@ -2,12 +2,15 @@ export * as PermissionV2 from "./permission"
 
 import { makeLocationNode } from "./effect/app-node"
 import { Context, Deferred, Effect as EffectRuntime, Layer, Schema } from "effect"
+import { eq } from "drizzle-orm"
 import { Permission } from "@opencode-ai/schema/permission"
 import { EventV2 } from "./event"
 import { Location } from "./location"
 import { AgentV2 } from "./agent"
-import { SessionV2 } from "./session"
-import { SessionStore } from "./session/store"
+import { Database } from "./database/database"
+import { SessionError } from "./session/error"
+import { SessionSchema } from "./session/schema"
+import { SessionTable } from "./session/sql"
 import { Wildcard } from "./util/wildcard"
 import { PermissionSaved } from "./permission/saved"
 
@@ -90,11 +93,11 @@ export function merge(...rulesets: Permission.Ruleset[]): Permission.Ruleset {
 }
 
 export interface Interface {
-  readonly ask: (input: AssertInput) => EffectRuntime.Effect<AskResult, SessionV2.NotFoundError>
-  readonly assert: (input: AssertInput) => EffectRuntime.Effect<void, Error | SessionV2.NotFoundError>
+  readonly ask: (input: AssertInput) => EffectRuntime.Effect<AskResult, SessionError.NotFoundError>
+  readonly assert: (input: AssertInput) => EffectRuntime.Effect<void, Error | SessionError.NotFoundError>
   readonly reply: (input: ReplyInput) => EffectRuntime.Effect<void, NotFoundError>
   readonly get: (id: ID) => EffectRuntime.Effect<Request | undefined>
-  readonly forSession: (sessionID: SessionV2.ID) => EffectRuntime.Effect<ReadonlyArray<Request>>
+  readonly forSession: (sessionID: SessionSchema.ID) => EffectRuntime.Effect<ReadonlyArray<Request>>
   readonly list: () => EffectRuntime.Effect<ReadonlyArray<Request>>
 }
 
@@ -112,7 +115,7 @@ const layer = Layer.effect(
     const events = yield* EventV2.Service
     const location = yield* Location.Service
     const agents = yield* AgentV2.Service
-    const sessions = yield* SessionStore.Service
+    const { db } = yield* Database.Service
     const saved = yield* PermissionSaved.Service
     const pending = new Map<ID, Pending>()
 
@@ -135,12 +138,17 @@ const layer = Layer.effect(
     })
 
     const configured = EffectRuntime.fn("PermissionV2.configured")(function* (
-      sessionID: SessionV2.ID,
+      sessionID: SessionSchema.ID,
       agentID?: AgentV2.ID,
     ) {
-      const session = yield* sessions.get(sessionID)
-      if (!session) return yield* new SessionV2.NotFoundError({ sessionID })
-      const agent = yield* agents.resolve(agentID ?? session.agent)
+      const row = yield* db
+        .select({ agent: SessionTable.agent })
+        .from(SessionTable)
+        .where(eq(SessionTable.id, sessionID))
+        .get()
+        .pipe(EffectRuntime.orDie)
+      if (!row) return yield* new SessionError.NotFoundError({ sessionID })
+      const agent = yield* agents.resolve(agentID ?? (row.agent ? AgentV2.ID.make(row.agent) : undefined))
       return agent?.permissions ?? missingAgentPermissions
     })
 
@@ -292,7 +300,7 @@ const layer = Layer.effect(
       return pending.get(id)?.request
     })
 
-    const forSession = EffectRuntime.fn("PermissionV2.forSession")(function* (sessionID: SessionV2.ID) {
+    const forSession = EffectRuntime.fn("PermissionV2.forSession")(function* (sessionID: SessionSchema.ID) {
       return Array.from(pending.values(), (item) => item.request).filter((request) => request.sessionID === sessionID)
     })
 
@@ -305,5 +313,5 @@ export const locationLayer = layer.pipe(Layer.provideMerge(AgentV2.locationLayer
 export const node = makeLocationNode({
   service: Service,
   layer,
-  deps: [EventV2.node, Location.node, AgentV2.node, SessionStore.node, PermissionSaved.node],
+  deps: [EventV2.node, Location.node, AgentV2.node, Database.node, PermissionSaved.node],
 })

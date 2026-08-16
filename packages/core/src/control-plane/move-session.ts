@@ -1,15 +1,18 @@
 export * as MoveSession from "./move-session"
 
 import { Context, DateTime, Effect, Layer, Schema } from "effect"
+import { eq } from "drizzle-orm"
+import { Database } from "../database/database"
 import { makeGlobalNode } from "../effect/app-node"
 import { EventV2 } from "../event"
 import { Git } from "../git"
 import { Location } from "../location"
 import { ProjectV2 } from "../project"
-import { SessionV2 } from "../session"
+import { SessionError } from "../session/error"
 import { SessionEvent } from "../session/event"
+import { fromRow } from "../session/info"
 import { SessionSchema } from "../session/schema"
-import { SessionStore } from "../session/store"
+import { SessionTable } from "../session/sql"
 import { AbsolutePath, RelativePath } from "../schema"
 import path from "path"
 
@@ -54,7 +57,7 @@ export class ResetSourceChangesError extends Schema.TaggedErrorClass<ResetSource
 ) {}
 
 export type Error =
-  | SessionV2.NotFoundError
+  | SessionError.NotFoundError
   | DestinationProjectMismatchError
   | CaptureChangesError
   | ApplyChangesError
@@ -72,11 +75,17 @@ const layer = Layer.effect(
     const git = yield* Git.Service
     const events = yield* EventV2.Service
     const project = yield* ProjectV2.Service
-    const sessions = yield* SessionStore.Service
+    const { db } = yield* Database.Service
 
     const moveSession = Effect.fn("MoveSession.moveSession")(function* (input: Input) {
-      const current = yield* sessions.get(input.sessionID)
-      if (!current) return yield* new SessionV2.NotFoundError({ sessionID: input.sessionID })
+      const row = yield* db
+        .select()
+        .from(SessionTable)
+        .where(eq(SessionTable.id, input.sessionID))
+        .get()
+        .pipe(Effect.orDie)
+      if (!row) return yield* new SessionError.NotFoundError({ sessionID: input.sessionID })
+      const current = fromRow(row)
       const directory = AbsolutePath.make(input.destination.directory)
       if (current.location.directory === directory) return
 
@@ -144,5 +153,5 @@ const layer = Layer.effect(
 export const node = makeGlobalNode({
   service: Service,
   layer,
-  deps: [Git.node, EventV2.node, ProjectV2.node, SessionStore.node],
+  deps: [Git.node, EventV2.node, ProjectV2.node, Database.node],
 })
