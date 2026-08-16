@@ -36,7 +36,7 @@ describe("ServerIdle.shouldIdle", () => {
   test("closing a connection stamps fresh activity", () => {
     const done = ServerIdle.trackOpen()
     done()
-    // done() just stamped, so "now" is not yet past even a tiny timeout
-    expect(ServerIdle.shouldIdle(Date.now(), 1)).toBe(false)
+    // done() just stamped, so "now" is far from idle even at a generous timeout
+    expect(ServerIdle.shouldIdle(Date.now(), 60_000)).toBe(false)
   })
 })

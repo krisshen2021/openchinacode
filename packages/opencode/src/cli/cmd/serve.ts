@@ -57,8 +57,8 @@ export const ServeCommand = effectCmd({
         if (event.payload?.type === "models-dev.refreshed") return
         ServerIdle.stamp()
       })
-      // The listener keeps the process alive, so a plain interval suffices; it
-      // is cleared by shutdown above.
+      // The listening socket refs the event loop, so a plain interval suffices;
+      // it is cleared by shutdown above.
       watcher = setInterval(() => {
         if (!ServerIdle.shouldIdle(Date.now(), idleTimeout)) return
         console.log("opencode server idle shutdown")
