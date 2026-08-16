@@ -2,8 +2,6 @@ import { Effect } from "effect"
 import { UI } from "../ui"
 import { effectCmd } from "../effect-cmd"
 import { withNetworkOptions, resolveNetworkOptions } from "../network"
-import { Flag } from "@opencode-ai/core/flag/flag"
-import open from "open"
 import { networkInterfaces } from "os"
 
 function getNetworkIPs() {
@@ -37,6 +35,8 @@ export const WebCommand = effectCmd({
   instance: false,
   handler: Effect.fn("Cli.web")(function* (args) {
     const { Server } = yield* Effect.promise(() => import("../../server/server"))
+    const { Flag } = yield* Effect.promise(() => import("@opencode-ai/core/flag/flag"))
+    const { default: open } = yield* Effect.promise(() => import("open"))
     if (!Flag.OPENCODE_SERVER_PASSWORD) {
       UI.println(UI.Style.TEXT_WARNING_BOLD + "!  OPENCODE_SERVER_PASSWORD is not set; server is unsecured.")
     }
