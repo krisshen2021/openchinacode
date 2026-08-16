@@ -270,7 +270,10 @@ export const TuiThreadCommand = cmd({
         const { ensureServer } = await import("../tui/server-proc")
         // Network flags mean a dedicated server with exactly those flags. It
         // registers like any serve child, so a relaunch with the same flags
-        // reuses it instead of colliding with the orphan on the port.
+        // reuses it instead of colliding with the orphan on the port. The -1
+        // sentinel marks portless dedicated launches (bare --hostname/--mdns or
+        // an explicit --port 0): those must never reuse the loopback shared
+        // server — only an explicit nonzero --port may match a registry entry.
         const dedicated = external
           ? {
               args: [
@@ -280,7 +283,7 @@ export const TuiThreadCommand = cmd({
                 ...(hasArg("--mdns-domain") ? ["--mdns-domain", args["mdns-domain"]] : []),
                 ...network.cors.flatMap((origin) => ["--cors", origin]),
               ],
-              port: args.port,
+              port: hasArg("--port") && args.port !== 0 ? args.port : -1,
             }
           : undefined
         const server = await ensureServer({ network: dedicated }).catch((error: unknown) => {

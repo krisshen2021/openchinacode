@@ -35,12 +35,19 @@ export function reusable(
   return healthy()
 }
 
-// A healthy same-version entry serves this launch when no --port was given, or
-// when it listens on the explicitly requested port. Drives both initial reuse
-// and mid-wait convergence between concurrent launches.
+// Three requestedPort cases:
+//   0  — plain default launch (no network flags): any healthy entry serves it.
+//  -1  — sentinel for a dedicated launch without an explicit nonzero --port
+//        (bare --hostname/--mdns, or the user typed --port 0 for "random"):
+//        never reuse — the caller must spawn the requested listener.
+//  >0  — explicit --port: reuse only an entry listening on that port.
+// Entry URLs are always http today; URL.port elides the default port, so
+// normalize "" to "80" (https entries would elide 443, but none exist yet).
 export function matchesRequest(entry: Entry, requestedPort: number) {
+  if (requestedPort === -1) return false
   if (requestedPort === 0) return true
-  return new URL(entry.url).port === String(requestedPort)
+  const port = new URL(entry.url).port || "80"
+  return port === String(requestedPort)
 }
 
 export async function ensureServer(opts: { network?: { args: string[]; port: number } }) {

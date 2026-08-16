@@ -44,7 +44,7 @@ describe("reusable", () => {
 describe("matchesRequest", () => {
   const entry = { pid: 1, url: "http://127.0.0.1:4096", version: "1", startedAt: 0 }
 
-  test("no explicit port matches any entry", () => {
+  test("default launch (0) matches any entry", () => {
     expect(matchesRequest(entry, 0)).toBe(true)
   })
   test("matching explicit port = reuse serves the intent", () => {
@@ -52,5 +52,13 @@ describe("matchesRequest", () => {
   })
   test("different explicit port = dedicated spawn instead", () => {
     expect(matchesRequest(entry, 4519)).toBe(false)
+  })
+  test("sentinel -1 never matches, even for an otherwise compatible entry", () => {
+    // tui.ts maps portless dedicated launches (bare --hostname/--mdns) and an
+    // explicit --port 0 ("random port") to the -1 sentinel.
+    expect(matchesRequest(entry, -1)).toBe(false)
+  })
+  test("entry on default http port 80 matches an explicit --port 80", () => {
+    expect(matchesRequest({ ...entry, url: "http://127.0.0.1:80" }, 80)).toBe(true)
   })
 })
