@@ -9,6 +9,8 @@ import { TestCommand } from "./cli/cmd/test"
 import { McpCommand } from "./cli/cmd/mcp"
 import { UpgradeCommand } from "./cli/cmd/upgrade"
 import { GenerateCommand } from "./cli/cmd/generate"
+import { ServeCommand } from "./cli/cmd/serve"
+import { AttachCommand } from "./cli/cmd/attach"
 import { UI } from "./cli/ui"
 import { InstallationVersion } from "@opencode-ai/core/installation/version"
 import { FormatError } from "./cli/error"
@@ -77,6 +79,8 @@ const cli = yargs(args)
   .command(TestCommand)
   .command(UpgradeCommand)
   .command(GenerateCommand)
+  .command(ServeCommand)
+  .command(AttachCommand)
   .fail((msg, err) => {
     if (
       msg?.startsWith("Unknown argument") ||
