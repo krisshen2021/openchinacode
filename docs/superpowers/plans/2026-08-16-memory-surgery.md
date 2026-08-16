@@ -197,12 +197,12 @@ git merge memory-surgery
 
 ## Phase 2: Runtime service-graph laziness (spec — expand into full plan at phase start)
 
-**Scope:** the eager ~55-service `LayerNode.group` at `server/routes/instance/httpapi/server.ts:212-270`.
+**Scope:** the eager ~55-service `LayerNode.group` at `server/routes/instance/httpapi/server.ts:212-270`. Spec expanded into `2026-08-16-phase-2-runtime-laziness.md`. Findings:
 
-- **MCP idle reaping:** the playwright MCP child idles at ~193 MB. Find the spawn point (`packages/opencode/src/mcp/`), add idle-timeout teardown + respawn-on-demand. Verify: start TUI, confirm no MCP child until an MCP tool is invoked.
-- **LSP deferral:** `LSP.node` boots at server build; verify whether language servers spawn eagerly and gate on first edit/diagnostics request.
-- **Syntax highlighting on demand:** `packages/ui/src/context/marked.tsx` (marked + marked-shiki + shiki). Load grammars per-language on first fenced block of that language instead of any eager bundle. Verify: TUI startup RSS delta; render a markdown fixture with 3 languages.
-- **ModelsDev:** already background-refreshes (comment at `server.ts:308-311`); check the catalog is not parsed into memory at module import (probe showed +27 MB at import time — find and lazify that path).
+- **MCP idle reaping: implemented** (commits 248e5dd06, e86d6f305, f0d17f275) — per-instance reaper closes local stdio servers idle past `experimental.mcp_idle_timeout` (default 600000, 0 disables); transparent respawn via existing respawnClosed machinery.
+- **LSP: already lazy** — language servers spawn only on touchFile/run; boot change unnecessary.
+- **shiki/marked:** `packages/ui/src/context/marked.tsx` was already per-language lazy AND had zero consumers — deleted (commit 95b95207ab) with dep prune.
+- **ModelsDev:** the +27 MB import probe attributes the shared EventV2/Database/drizzle/platform-node subgraph; models-dev.ts's own top level is ~0 MB once deps warm. Structural split deferred.
 
 **Verification gate:** TUI idle RSS after GC (tmux + `ps` sampling as in diagnosis) — target ≤ 500 MB main process, 0 idle MCP children.
 
@@ -233,6 +233,9 @@ Not a single phase with an end date — the standing "重构" track on the slimm
 - **Trim V1's own fat:** audit `packages/opencode/src/session/` for dead/experimental modules (e.g. `soul.ts`, `judge/`) and unused paths.
 - **Port V2 ideas that solve real V1 pain:** durable prompt admission (crash recovery), explicit provider-turn boundaries, context-epoch baseline caching — port one at a time into `@/session/*`, driven by observed bugs or profile data, not by ideology.
 - **Session memory residency:** bound in-memory message/part graphs for long sessions (the 2 GB watchdog in `cli/heap.ts` exists for a reason).
+- **LSP idle reaping:** language servers spawned via `touchFile` live until instance disposal; add an idle-timeout reaper mirroring the MCP one (long sessions accumulate LSP children).
+- **ModelsDev light/heavy split:** keep schemas/pricing tables in `models-dev.ts`; move `Service`/`layer`/`node` + heavy imports to `models-dev/live.ts` so type-only consumers (e.g. `provider/model-status.ts`) stop paying the closure; optionally drop the EventV2 hard dep via `Effect.serviceOption`.
+- **MCP execution-time respawn:** keep tool defs cached across idle reaps and respawn at tool-execution time instead of enumeration time; also covers the stale-captured-client window (reap lands between `SessionTools.resolve` and execute → one retryable ConnectionClosed today).
 
 ---
 
