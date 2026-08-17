@@ -210,7 +210,9 @@ git merge memory-surgery
 
 Expanded into `2026-08-16-phase-3-process-split.md` (verification results there). Default TUI spawns-or-reuses a detached `serve` process over localhost HTTP+SSE (registry in `Global.Path.data/server.json`, ownership-guarded, version-matched, throwaway Basic password); `--in-process` keeps the old worker path. TUI exit leaves the server running; sessions survive TUI restarts. Measured: TUI 221 MB / server 334 MB (Phase 2 single-process was 455 MB). Add-on (Task 3.5): TUI-spawned servers self-exit after 60 min fully idle (no requests, bus events, or open SSE/WS connections); a manual `serve` stays resident unless `--idle-timeout <ms>` is passed.
 
-## Phase 4: Excise the experimental V2 session runtime (spec — expand at phase start)
+## Phase 4: Excise the experimental V2 session runtime — ✅ DONE (2026-08-17)
+
+Executed per the expanded plan `2026-08-16-phase-4-excise-v2.md`, audit-first: two explore agents settled the keep/delete lists, then Task 4.1 severed the six keep→V2 import edges before anything was deleted. ~18k lines removed across the V2 session runtime and the `@opencode-ai/protocol`/`@opencode-ai/server` packages; the live `/api/*` routes were folded into the opencode instance HttpApi (`groups/v2.ts` + `handlers/v2.ts`) with byte-compatible paths and wire shapes; the v2 SDK was regenerated. Commits: 4.1 `1bc3c9b70` (+ `548f6fdcf` test-preload fix), 4.2 `a53bd6e67`, 4.3 `5d16d6033`, 4.4 `1b8c34e0c` + `273a8de04` + `e062dcb96`.
 
 **Independent of Phases 1-3; may run earlier if desired. Zero user-visible behavior change expected — the live product is V1.**
 
@@ -233,7 +235,9 @@ Not a single phase with an end date — the standing "重构" track on the slimm
 - **LSP idle reaping:** language servers spawned via `touchFile` live until instance disposal; add an idle-timeout reaper mirroring the MCP one (long sessions accumulate LSP children).
 - **ModelsDev light/heavy split:** keep schemas/pricing tables in `models-dev.ts`; move `Service`/`layer`/`node` + heavy imports to `models-dev/live.ts` so type-only consumers (e.g. `provider/model-status.ts`) stop paying the closure; optionally drop the EventV2 hard dep via `Effect.serviceOption`.
 - **MCP execution-time respawn:** keep tool defs cached across idle reaps and respawn at tool-execution time instead of enumeration time; also covers the stale-captured-client window (reap lands between `SessionTools.resolve` and execute → one retryable ConnectionClosed today).
-- **Finish the server-auth env rename (one source of truth):** ServerAuth.Config and Flag.OPENCODE_SERVER_PASSWORD/_USERNAME now both accept OPENCHINACODE_* with OPENCODE_* fallback (identical precedence), and split-server spawn still exports both names for old-binary interop. Residual: pick the canonical name, drop the legacy fallback and the dual-env spawn in `cli/tui/server-proc.ts`; `@opencode-ai/server`'s ServerAuth (`packages/server/src/auth.ts`) still reads only OPENCODE_* — align it or let Task 4.2's deletion close it.
+- **Finish the server-auth env rename (one source of truth):** ServerAuth.Config and Flag.OPENCODE_SERVER_PASSWORD/_USERNAME now both accept OPENCHINACODE_* with OPENCODE_* fallback (identical precedence), and split-server spawn still exports both names for old-binary interop. Residual: pick the canonical name, drop the legacy fallback and the dual-env spawn in `cli/tui/server-proc.ts`. (The `@opencode-ai/server` half of this item was closed by Task 4.2's package deletion.)
+- **Test env-var plumbing audit:** several test preloads/fixtures still set old `OPENCODE_*` names the fork renamed to `OPENCHINACODE_*` (only `OPENCHINACODE_DB` was fixed in `548f6fdcf`) — audit the rest.
+- **httpapi-exercise harness:** still carries dead v2 scenarios (`v2.health.get`, credential, integration connect/attempt, event subscribe — routes that were not ported); clean up or delete.
 
 ---
 
