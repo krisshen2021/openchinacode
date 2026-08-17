@@ -11,7 +11,8 @@ import type {
 import { createStore } from "solid-js/store"
 import { createSimpleContext } from "./helper"
 import { useSDK } from "./sdk"
-import { createSignal, onMount } from "solid-js"
+import { useEvent } from "./event"
+import { createSignal, onCleanup, onMount } from "solid-js"
 
 type LocationData = {
   agent?: AgentV2Info[]
@@ -43,6 +44,7 @@ export const { use: useData, provider: DataProvider } = createSimpleContext({
     })
 
     const sdk = useSDK()
+    const events = useEvent()
     const [defaultLocation, setDefaultLocation] = createSignal<LocationRef>({
       directory: sdk.directory ?? process.cwd(),
     })
@@ -134,6 +136,28 @@ export const { use: useData, provider: DataProvider } = createSimpleContext({
         },
       },
     }
+
+    onMount(() => {
+      const unsub = events.subscribe((event, metadata) => {
+        const location = { directory: metadata.directory, workspaceID: metadata.workspace }
+        switch (event.type) {
+          case "catalog.updated":
+            void Promise.all([result.location.model.refresh(location), result.location.provider.refresh(location)])
+            break
+          case "integration.updated":
+            void Promise.all([
+              result.location.integration.refresh(location),
+              result.location.model.refresh(location),
+              result.location.provider.refresh(location),
+            ])
+            break
+          case "reference.updated":
+            void result.location.reference.refresh()
+            break
+        }
+      })
+      onCleanup(unsub)
+    })
 
     onMount(() => {
       void Promise.allSettled([
