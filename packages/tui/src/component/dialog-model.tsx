@@ -26,9 +26,9 @@ export function DialogModel(props: { providerID?: string }) {
   const toast = useToast()
 
   // Re-fetch provider state on open so models discovered since bootstrap show
-  // up without a restart. bootstrap is the only refetch the sync context
-  // exposes; fatal:false + catch keeps a transient failure from killing the TUI.
-  const refetch = () => sync.bootstrap({ fatal: false }).catch(() => undefined)
+  // up without a restart. refreshProviders is deliberately narrow — full
+  // bootstrap's project.sync() side effects close this dialog mid-refresh.
+  const refetch = () => sync.refreshProviders().catch(() => undefined)
   onMount(() => {
     void refetch()
   })
