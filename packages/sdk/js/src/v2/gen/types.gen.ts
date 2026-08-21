@@ -7514,7 +7514,8 @@ export type ProviderOauthCallbackResponse = ProviderOauthCallbackResponses[keyof
 export type ProviderDiscoverData = {
   body?: {
     baseURL: string
-    apiKey: string
+    apiKey?: string
+    providerID?: string
   }
   path?: never
   query?: {

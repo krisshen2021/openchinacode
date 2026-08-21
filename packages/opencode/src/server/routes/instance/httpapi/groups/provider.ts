@@ -91,7 +91,11 @@ export const ProviderApi = HttpApi.make("provider")
         ),
         HttpApiEndpoint.post("discover", `${root}/discover`, {
           query: WorkspaceRoutingQuery,
-          payload: Schema.Struct({ baseURL: Schema.String, apiKey: Schema.String }),
+          payload: Schema.Struct({
+            baseURL: Schema.String,
+            apiKey: Schema.optional(Schema.String),
+            providerID: Schema.optional(Schema.String),
+          }),
           success: described(
             Schema.Struct({ models: Schema.Array(Schema.Struct({ id: Schema.String, name: Schema.String })) }),
             "Discovered models",

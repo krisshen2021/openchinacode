@@ -3464,6 +3464,7 @@ export class Provider extends HeyApiClient {
       workspace?: string
       baseURL?: string
       apiKey?: string
+      providerID?: string
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -3476,6 +3477,7 @@ export class Provider extends HeyApiClient {
             { in: "query", key: "workspace" },
             { in: "body", key: "baseURL" },
             { in: "body", key: "apiKey" },
+            { in: "body", key: "providerID" },
           ],
         },
       ],

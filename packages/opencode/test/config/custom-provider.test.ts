@@ -56,7 +56,7 @@ describe("CustomProvider.save", () => {
     "volcengine-agent-plan": {
       "npm": "@ai-sdk/openai-compatible",
       "options": { "baseURL": "https://old.example/v3" },
-      "models": { "glm-5.3": { "name": "glm-5.3" } }
+      "models": { "glm-5.3": { "name": "glm-5.3", "reasoning": true, "limit": { "context": 200000, "output": 128000 } } }
     }
   }
 }
@@ -66,7 +66,7 @@ describe("CustomProvider.save", () => {
         yield* CustomProvider.save(dir, {
           id: "volcengine-agent-plan",
           baseURL: "https://ark.cn-beijing.volces.com/api/plan/v3",
-          models: ["glm-5.4"],
+          models: ["glm-5.3", "glm-5.4"],
           discover_models: true,
         })
         const text = yield* Effect.promise(() => readFile(file, "utf8"))
@@ -76,7 +76,11 @@ describe("CustomProvider.save", () => {
         expect(written.provider["volcengine-agent-plan"].options.baseURL).toBe(
           "https://ark.cn-beijing.volces.com/api/plan/v3",
         )
-        expect(Object.keys(written.provider["volcengine-agent-plan"].models)).toEqual(["glm-5.4"])
+        expect(Object.keys(written.provider["volcengine-agent-plan"].models)).toEqual(["glm-5.3", "glm-5.4"])
+        // hand-tuned metadata on the pre-existing model survives the edit
+        expect(written.provider["volcengine-agent-plan"].models["glm-5.3"].reasoning).toBe(true)
+        expect(written.provider["volcengine-agent-plan"].models["glm-5.3"].limit.context).toBe(200000)
+        expect(written.provider["volcengine-agent-plan"].models["glm-5.4"]).toEqual({ name: "glm-5.4" })
         expect(written.provider["volcengine-agent-plan"].discover_models).toBe(true)
       }),
     ),

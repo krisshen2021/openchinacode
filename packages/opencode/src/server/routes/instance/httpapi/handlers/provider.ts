@@ -12,6 +12,8 @@ import { Effect, Schema } from "effect"
 import { HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
 import { InstanceHttpApi } from "../api"
+import { markInstanceForDisposal } from "../lifecycle"
+import { InstanceState } from "@/effect/instance-state"
 import { ProviderAuthApiError, ProviderDiscoveryApiError } from "../groups/provider"
 import { ProviderV2 } from "@opencode-ai/core/provider"
 
@@ -110,9 +112,22 @@ export const providerHandlers = HttpApiBuilder.group(InstanceHttpApi, "provider"
     })
 
     const discover = Effect.fn("ProviderHttpApi.discover")(function* (ctx: {
-      payload: { baseURL: string; apiKey: string }
+      payload: { baseURL: string; apiKey?: string; providerID?: string }
     }) {
-      const models = yield* Discover.fetchModels(ctx.payload.baseURL, ctx.payload.apiKey).pipe(
+      // Edit flow: the TUI never sends the stored key back, so fall back to
+      // auth.json when a providerID is given and no key came in the payload.
+      const key =
+        ctx.payload.apiKey ||
+        (ctx.payload.providerID
+          ? yield* authSvc.get(ctx.payload.providerID).pipe(
+              Effect.map((info) => (info?.type === "api" ? info.key : undefined)),
+              Effect.orDie,
+            )
+          : undefined)
+      if (!key) {
+        return yield* new ProviderDiscoveryApiError({ kind: "BadRequest", message: "apiKey is required" })
+      }
+      const models = yield* Discover.fetchModels(ctx.payload.baseURL, key).pipe(
         Effect.mapError((error) => new ProviderDiscoveryApiError({ kind: error.kind, message: error.message })),
       )
       return { models }
@@ -148,7 +163,12 @@ export const providerHandlers = HttpApiBuilder.group(InstanceHttpApi, "provider"
       if (ctx.payload.apiKey) {
         yield* authSvc.set(ctx.params.providerID, { type: "api", key: ctx.payload.apiKey }).pipe(Effect.orDie)
       }
-      yield* provider.refresh()
+      // Config is read through two caches (the per-instance Config InstanceState
+      // and the infinite-TTL cachedGlobal), neither of which provider.refresh()
+      // can bust. Disposing the instance after the response is the established
+      // pattern for config changes (see ConfigHttpApi.update); the TUI's
+      // sync.bootstrap() afterwards rebuilds everything with the new provider.
+      yield* markInstanceForDisposal(yield* InstanceState.context)
       return { ok: true as const }
     })
 

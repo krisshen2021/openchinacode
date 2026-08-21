@@ -28,8 +28,13 @@ export const save = Effect.fn("CustomProvider.save")(function* (dir: string, inp
   const file = path.join(dir, FILE)
   const text = yield* fsys.readFileString(file).pipe(Effect.orElseSucceed(() => ""))
   const base = text.trim() ? text : '{\n  "$schema": "https://opencode.ai/config.json"\n}\n'
-  const models: Record<string, { name: string }> = {}
-  for (const id of input.models) models[id] = { name: id }
+  // Edit flows pass the full desired model id list; keep any hand-tuned
+  // per-model config (reasoning/limit/variants/...) for ids that already
+  // exist, stubbing only genuinely new ids.
+  const existing = (parseJsonc(base) as { provider?: Record<string, { models?: Record<string, unknown> }> } | undefined)
+    ?.provider?.[input.id]?.models
+  const models: Record<string, unknown> = {}
+  for (const id of input.models) models[id] = existing?.[id] ?? { name: id }
   const entry: Record<string, unknown> = {
     npm: "@ai-sdk/openai-compatible",
     options: { baseURL: input.baseURL },

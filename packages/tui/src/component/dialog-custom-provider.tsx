@@ -86,7 +86,11 @@ export function DialogCustomProvider() {
     let models: string[] = []
     let discovered = false
     if (mode === "auto") {
-      const result = await sdk.client.provider.discover({ baseURL: baseURL.trim(), apiKey: apiKey.trim() })
+      const result = await sdk.client.provider.discover({
+        baseURL: baseURL.trim(),
+        apiKey: apiKey.trim() || undefined,
+        providerID: editing?.id,
+      })
       if (result.error || !result.data || result.data.models.length === 0) {
         const message =
           result.error && typeof result.error === "object" && "message" in result.error
@@ -151,9 +155,7 @@ export function DialogCustomProvider() {
   function select<T>(input: { title: string; options: { title: string; value: T; description?: string }[] }) {
     return new Promise<T | null>((resolve) => {
       dialog.replace(
-        () => (
-          <DialogSelect title={input.title} options={input.options} onSelect={(option) => resolve(option.value)} />
-        ),
+        () => <DialogSelect title={input.title} options={input.options} onSelect={(option) => resolve(option.value)} />,
         () => resolve(null),
       )
     })

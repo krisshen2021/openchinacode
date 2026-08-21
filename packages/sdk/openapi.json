@@ -5606,9 +5606,12 @@
                   },
                   "apiKey": {
                     "type": "string"
+                  },
+                  "providerID": {
+                    "type": "string"
                   }
                 },
-                "required": ["baseURL", "apiKey"],
+                "required": ["baseURL"],
                 "additionalProperties": false
               }
             }
