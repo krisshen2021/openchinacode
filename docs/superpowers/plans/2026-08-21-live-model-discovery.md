@@ -1057,3 +1057,37 @@ git commit -m "docs: record live model discovery acceptance results"
 
 - Spec §1 discovery service → Tasks 2-3. §2 switch/scheduling → Tasks 1, 4 (boot-time build; hourly auto-refresh dropped in favor of on-demand refresh per user requirement "手动触发" — models.dev keeps its own hourly fiber). §3 CLI trigger → Task 7. §4 endpoints → Tasks 5-6. §5 TUI → Tasks 8-9. §6 live pickup → Task 4 (`Provider.refresh`) + Task 6 handlers + Task 8 (`sync.bootstrap`). §7 errors → Tasks 2, 6, 8. §8 testing → per-task tests + Task 10.
 - Dropped from spec during planning (call out to user in the final report): hourly auto-discovery fiber (manual trigger + boot + TTL cover it); multi-select checklist in TUI (all-or-nothing confirm — simpler, matches "拉列表" intent); `provider.updated` event pipeline (TUI re-fetches after its own actions; picker re-fetches on open).
+
+---
+
+## Results (2026-08-21, acceptance gate)
+
+Implementation: 9 task commits (`835f644ce`…`f192c73e8`) + 3 review-fix commits (`b2d41d05d`, `ba51e4aa8`, `11868d439`) on `memory-surgery`.
+
+### Review fixes found during acceptance (all verified by reproduction)
+
+1. **Config double-cache defeated the no-restart promise** — `customSave` originally called only `provider.refresh()`, but provider state rebuilds read config through TWO stale layers: the per-instance Config `InstanceState` and the infinite-TTL `cachedGlobal` (`config.ts:283-291,598-607`). Reproduced: PUT succeeded but the new provider was `MISSING` from `GET /provider`. Fixed by busting `cachedGlobal` (`cfg.invalidate()`) + marking the instance for post-response disposal (`markInstanceForDisposal`, the `ConfigHttpApi.update` precedent).
+2. **Edit + re-pull sent an empty key** — the TUI never returns the stored key when editing, so the discover probe 401'd. `POST /provider/discover` payload now accepts optional `apiKey` + `providerID` and falls back to auth.json. (Known limit: keys stored inline in config `options.apiKey` are not used by the probe fallback.)
+3. **Edit wiped hand-tuned model metadata** — `CustomProvider.save` replaced the whole models map with `{name}` stubs; the user's real `volcengine-agent-plan` entry has tuned `reasoning`/`limit`/`variants` per model. Now merges: existing per-model config is preserved, only genuinely new ids get stubs (test asserts it).
+4. **ctrl+r closed the picker** — full `sync.bootstrap()` runs `project.sync()`, whose side effects tear down open dialogs. Added narrow `sync.refreshProviders()` (only `config.providers` + `provider.list`) used by both the picker's on-mount refetch and ctrl+r.
+
+### Verification numbers (reproduced by reviewer)
+
+- `packages/core`: typecheck clean. `packages/tui`: typecheck clean. `packages/sdk`: typecheck clean.
+- `packages/opencode`: typecheck clean; `test/server/httpapi-provider-discovery.test.ts` 5/5, `test/provider/discover.test.ts` 10/10, `test/provider/discover-build.test.ts` 3/3, `test/config/custom-provider.test.ts` 3/3. Combined provider/config/server suite: 394 pass / 54 fail — the 54 are the pre-existing environmental group (Bedrock/digitalocean/OpenAI absent from the fork's filtered catalog; verified as a strict subset of the HEAD baseline, zero new failures).
+- Compiled binary `0.0.0-memory-surgery-202608211146`, smoke against the real surgery data dir + a local OpenAI-compatible stub (`Bun.serve`, port 8799):
+  - `POST /provider/discover` probes the stub → `{models:[smoke-model-1, smoke-model-2]}`; providerID-only probe correctly falls back to auth.json key.
+  - `PUT /provider/custom/smoke-test` (manual id) → provider appears in `GET /provider` connected list without restart; edit (pulled ids, no apiKey in payload) → models swap to `smoke-model-1/2`, again no restart.
+  - TUI: model picker shows the new provider's models; ctrl+r refreshes in place with the dialog staying open; Connect dialog lists `自定义 provider…` entry.
+  - Built-in trio live discovery at state build wrote `discovered-models.json`: zhipuai-pay2go 9 models, moonshotai-cn 12, deepseek 3. CLI `openchinacode-test models` lists live-discovered ids (e.g. `zhipuai-pay2go/glm-4.7`, `glm-4.7-flash`) that models.dev had not catalogued.
+  - Persistence: jsonc entry written with comments and the hand-tuned `volcengine-agent-plan` models untouched; apiKey in auth.json only; `GET /provider/custom` never exposes keys.
+  - `POST /provider/refresh` → `{added: []}` (correct: boot discovery had already merged everything).
+- Smoke pollution fully cleaned up afterwards (smoke-test removed from jsonc + auth.json, stub killed, tmux session killed, discovery cache deleted).
+
+### Deviations from this plan (accepted)
+
+- `Discover.makeCache` built in the outer Provider layer, not inside `InstanceState.make` (the `R = never` constraint requires it; the cache is a global file anyway).
+- CLI live-server call uses the real `ServerRegistry.read` + `ServerAuth.headers` (plan's inline Basic-auth guess had the wrong username) and passes `?directory=<cwd>`.
+- No `packages/client` in this fork — SDK regen via root `bun script/generate.ts`; 46 files of unrelated prettier churn restored from HEAD.
+- Picker on-mount refetch + ctrl+r use `sync.refreshProviders()` (added in review fix 4) instead of the plan's `sync.bootstrap()`.
+- Spec deviations recorded in the plan header remain: no hourly fiber, no multi-select checklist, no `provider.updated` event.
