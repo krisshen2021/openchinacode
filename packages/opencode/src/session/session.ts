@@ -533,6 +533,21 @@ const layer: Layer.Layer<
 
       yield* events.publish(SessionV1.Event.Created, { sessionID: result.id, info: result })
 
+      // Invariant: a committed create must be readable. 2026-08-21 a running
+      // server lost every durable write for ~10 min (created logged, zero
+      // session/message/event rows, no errors) — undetectable without this.
+      const projected = yield* db
+        .select({ id: SessionTable.id })
+        .from(SessionTable)
+        .where(eq(SessionTable.id, result.id))
+        .get()
+        .pipe(Effect.orDie)
+      if (!projected)
+        yield* Effect.logError("session missing from durable store after create", {
+          sessionID: result.id,
+          directory: result.directory,
+        })
+
       return result
     })
 
