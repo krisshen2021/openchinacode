@@ -163,11 +163,12 @@ export const providerHandlers = HttpApiBuilder.group(InstanceHttpApi, "provider"
       if (ctx.payload.apiKey) {
         yield* authSvc.set(ctx.params.providerID, { type: "api", key: ctx.payload.apiKey }).pipe(Effect.orDie)
       }
-      // Config is read through two caches (the per-instance Config InstanceState
-      // and the infinite-TTL cachedGlobal), neither of which provider.refresh()
-      // can bust. Disposing the instance after the response is the established
-      // pattern for config changes (see ConfigHttpApi.update); the TUI's
-      // sync.bootstrap() afterwards rebuilds everything with the new provider.
+      // Config is read through two caches: the infinite-TTL cachedGlobal and the
+      // per-instance Config InstanceState. Bust the global one now; the instance
+      // disposal after the response (same pattern as ConfigHttpApi.update) busts
+      // the per-instance one, so the TUI's sync.bootstrap() rebuilds provider
+      // state with the new provider visible.
+      yield* cfg.invalidate()
       yield* markInstanceForDisposal(yield* InstanceState.context)
       return { ok: true as const }
     })
