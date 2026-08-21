@@ -2221,6 +2221,7 @@ export type Config = {
     continue_loop_on_deny?: boolean
     mcp_timeout?: number
     mcp_idle_timeout?: number
+    event_retention_days?: number
     policies?: Array<ConfigV2ExperimentalPolicy>
   }
 }

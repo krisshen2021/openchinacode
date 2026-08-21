@@ -17747,6 +17747,10 @@
                 "type": "integer",
                 "minimum": 0
               },
+              "event_retention_days": {
+                "type": "integer",
+                "minimum": 0
+              },
               "policies": {
                 "type": "array",
                 "items": {
