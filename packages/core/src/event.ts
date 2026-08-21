@@ -266,8 +266,12 @@ export const layerWith = (options?: LayerOptions) =>
                               .where(and(eq(EventTable.aggregate_id, aggregateID), eq(EventTable.seq, input.seq)))
                               .get()
                               .pipe(Effect.orDie)
+                            // Retention sweeps prune event rows but keep event_sequence, so a stale
+                            // replay whose stored row is gone can no longer be verified. Treat it as
+                            // an idempotent skip; only an existing row can prove divergence.
+                            if (!stored) return
                             if (
-                              stored?.id === event.id &&
+                              stored.id === event.id &&
                               stored.type === versionedType(definition.type, durable.version) &&
                               isDeepStrictEqual(stored.data, encoded)
                             ) {
