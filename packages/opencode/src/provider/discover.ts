@@ -89,4 +89,53 @@ export const makeCache = (dir: string) =>
     return { read, write, expire, isFresh } satisfies Cache
   })
 
+const BUILTIN_DISCOVERY = ["zhipuai-pay2go", "moonshotai-cn", "deepseek"]
+
+export const enabled = (config: { discover_models?: boolean } | undefined, providerID: string): boolean =>
+  config?.discover_models ?? BUILTIN_DISCOVERY.includes(providerID)
+
+/**
+ * Merges discovered models into a provider state model map. Never overwrites
+ * existing entries (config-declared or previously merged). `catalogHit` is the
+ * state-shaped model cloned from a cross-provider models.dev match; when
+ * absent, conservative defaults are used (128k/8k, toolcall on). The caller
+ * completes provider-specific fields (`providerID`, `api.url`, `api.npm`).
+ */
+export const mergeInto = (
+  provider: { models: Record<string, unknown> },
+  discovered: Model[],
+  catalogHit: ((id: string) => unknown | undefined) | undefined,
+) => {
+  for (const model of discovered) {
+    if (provider.models[model.id]) continue
+    const hit = catalogHit?.(model.id)
+    if (hit) {
+      provider.models[model.id] = hit
+      continue
+    }
+    provider.models[model.id] = {
+      id: model.id,
+      name: model.name,
+      family: "",
+      api: { id: model.id },
+      status: "active",
+      headers: {},
+      options: {},
+      cost: { input: 0, output: 0, cache: { read: 0, write: 0 } },
+      limit: { context: 128000, output: 8192 },
+      capabilities: {
+        temperature: true,
+        reasoning: false,
+        attachment: false,
+        toolcall: true,
+        input: { text: true, audio: false, image: false, video: false, pdf: false },
+        output: { text: true, audio: false, image: false, video: false, pdf: false },
+        interleaved: false,
+      },
+      release_date: "",
+      variants: {},
+    }
+  }
+}
+
 export * as Discover from "./discover"

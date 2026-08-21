@@ -104,3 +104,59 @@ describe("Discover cache", () => {
     }),
   )
 })
+
+describe("Discover.mergeInto", () => {
+  const stateModel = (id: string, name = id): any => ({
+    id,
+    providerID: "volcengine-agent-plan",
+    name,
+    family: "",
+    api: { id, url: "https://ark.example/v3", npm: "@ai-sdk/openai-compatible" },
+    status: "active",
+    headers: {},
+    options: {},
+    cost: { input: 0, output: 0, cache: { read: 0, write: 0 } },
+    limit: { context: 128000, output: 8192 },
+    capabilities: {
+      temperature: true,
+      reasoning: false,
+      attachment: false,
+      toolcall: true,
+      input: { text: true, audio: false, image: false, video: false, pdf: false },
+      output: { text: true, audio: false, image: false, video: false, pdf: false },
+      interleaved: false,
+    },
+    release_date: "",
+    variants: {},
+  })
+
+  test("adds discovered models with defaults, never overwriting existing ones", () => {
+    const provider: any = { models: { declared: stateModel("declared") } }
+    Discover.mergeInto(provider, [{ id: "declared", name: "declared" }, { id: "new-model", name: "new-model" }], undefined)
+    expect(Object.keys(provider.models).sort()).toEqual(["declared", "new-model"])
+    expect(provider.models["new-model"].limit.context).toBe(128000)
+    expect(provider.models["new-model"].capabilities.toolcall).toBe(true)
+  })
+
+  test("clones metadata from a catalog match when provided", () => {
+    const provider: any = { models: {} }
+    const catalogHit: any = stateModel("glm-5.4", "GLM 5.4")
+    catalogHit.limit = { context: 200000, output: 128000 }
+    Discover.mergeInto(provider, [{ id: "glm-5.4", name: "glm-5.4" }], (id: string) =>
+      id === "glm-5.4" ? catalogHit : undefined,
+    )
+    expect(provider.models["glm-5.4"].limit.context).toBe(200000)
+    expect(provider.models["glm-5.4"].name).toBe("GLM 5.4")
+  })
+})
+
+describe("Discover.enabled", () => {
+  test("defaults on for the built-in trio, off for custom, config wins", () => {
+    expect(Discover.enabled(undefined, "zhipuai-pay2go")).toBe(true)
+    expect(Discover.enabled(undefined, "moonshotai-cn")).toBe(true)
+    expect(Discover.enabled(undefined, "deepseek")).toBe(true)
+    expect(Discover.enabled(undefined, "volcengine-agent-plan")).toBe(false)
+    expect(Discover.enabled({ discover_models: false }, "zhipuai-pay2go")).toBe(false)
+    expect(Discover.enabled({ discover_models: true }, "volcengine-agent-plan")).toBe(true)
+  })
+})
