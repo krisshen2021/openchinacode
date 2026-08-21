@@ -106,3 +106,35 @@ Full `packages/opencode` suite (both runs full-output, timing-normalized):
   fixed with an explicit 15s timeout (`b04a2943c`, verified 3/3 plus the
   diff above). **Zero real regressions; zero fixes to pre-existing
   failures** (the 194 are the known environmental/flaky baseline group).
+
+## Follow-up: the >43k death-loop on deepseek-v4-flash-vision-exp
+
+After the first round shipped, the user hit the remaining wall with one
+image uploaded: endless `Conversation history leaves too little output
+budget for this model; compacting before retry.` Log evidence: repeated
+`output budget requires compaction` at promptTokens 43k–49k —
+`128000 - promptTokens - 20000` can never reach the compaction summary's
+`minUsefulOutputTokens` (65,536), so neither normal turns nor compaction
+itself could proceed on the 128k-default model under the 131k deepseek-v4
+output policy.
+
+Three layers, two committed plus one live remediation:
+
+- **Live remediation (no rebuild):** config override in
+  `~/.config/openchinacode-surgery/openchinacode.jsonc` —
+  `provider.deepseek.models["deepseek-v4-flash-vision-exp"]` with
+  `limit {context: 1_000_000, output: 131_072}` + image modalities
+  (config wins over discovered defaults; verified via `GET /provider`).
+- **Committed** `57b8bdacf`: discovered models inherit context/output
+  limits from the longest family-prefix catalog entry
+  (`Discover.familyLimit`, separator-boundary matched), so future family
+  variants never fall into the 128k-defaults trap.
+- **Committed** `d267b5e2d`: a compaction summary that itself overflows
+  fails the turn instead of scheduling another compaction — the
+  death-loop breaks with one clear error even on genuinely small-context
+  models.
+
+Tests: `familyLimit` boundary cases (longest-prefix, separator required,
+no self-match), mergeInto precedence (catalog hit > prefix inherit >
+flat defaults), processor does-not-re-compact (fails pre-fix, passes
+post-fix).
