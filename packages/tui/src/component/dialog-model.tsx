@@ -1,4 +1,4 @@
-import { createMemo, createSignal } from "solid-js"
+import { createMemo, createSignal, onMount } from "solid-js"
 import { useLocal } from "../context/local"
 import { map, pipe, flatMap, entries, filter, sortBy, take } from "remeda"
 import { DialogSelect } from "../ui/dialog-select"
@@ -8,6 +8,9 @@ import { DialogVariant } from "./dialog-variant"
 import * as fuzzysort from "fuzzysort"
 import { useConnected } from "./use-connected"
 import { useSync } from "../context/sync"
+import { useSDK } from "../context/sdk"
+import { useToast } from "../ui/toast"
+import { useBindings } from "../keymap"
 
 const OPENCHINA_RECOMMENDED_ORDER = ["zhipuai-pay2go", "moonshotai-cn", "deepseek"]
 
@@ -19,6 +22,39 @@ export function DialogModel(props: { providerID?: string }) {
 
   const connected = useConnected()
   const providers = createDialogProviderOptions()
+  const sdk = useSDK()
+  const toast = useToast()
+
+  // Re-fetch provider state on open so models discovered since bootstrap show
+  // up without a restart. bootstrap is the only refetch the sync context
+  // exposes; fatal:false + catch keeps a transient failure from killing the TUI.
+  const refetch = () => sync.bootstrap({ fatal: false }).catch(() => undefined)
+  onMount(() => {
+    void refetch()
+  })
+
+  useBindings(() => ({
+    bindings: [
+      {
+        key: "ctrl+r",
+        desc: "刷新模型列表",
+        group: "Dialog",
+        cmd: async () => {
+          const result = await sdk.client.provider.refresh({})
+          if (result.error) {
+            toast.show({ variant: "error", message: JSON.stringify(result.error) })
+            return
+          }
+          await refetch()
+          const added = result.data?.added ?? []
+          toast.show({
+            variant: "info",
+            message: added.length ? `新增 ${added.length} 个模型: ${added.join(", ")}` : "模型列表已是最新",
+          })
+        },
+      },
+    ],
+  }))
 
   const showExtra = createMemo(() => connected() && !props.providerID)
 
