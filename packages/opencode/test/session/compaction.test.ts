@@ -475,6 +475,25 @@ describe("session.compaction.isOverflow", () => {
   )
 
   it.live(
+    "does not overflow a small-context model when the provider output policy exceeds its context",
+    provideTmpdirInstance(() =>
+      Effect.gen(function* () {
+        const compact = yield* SessionCompaction.Service
+        // deepseek-v4 models get a 131k output policy from china-transform;
+        // with a 128k context that made `usable` 0 and every turn an overflow.
+        const model = createModel({
+          context: 128_000,
+          output: 8_192,
+          id: ModelV2.ID.make("deepseek-v4-flash-vision-exp"),
+          providerID: ProviderV2.ID.make("deepseek"),
+        })
+        const tokens = { input: 23_000, output: 1_000, reasoning: 0, cache: { read: 0, write: 0 } }
+        expect(yield* compact.isOverflow({ tokens, model })).toBe(false)
+      }),
+    ),
+  )
+
+  it.live(
     "returns false when token count within usable context",
     provideTmpdirInstance(() =>
       Effect.gen(function* () {

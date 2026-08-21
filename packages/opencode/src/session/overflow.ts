@@ -11,12 +11,17 @@ export function usable(input: { cfg: ConfigV1.Info; model: Provider.Model; outpu
   const context = input.model.limit.context
   if (context === 0) return 0
 
+  // Provider output policies (e.g. deepseek-v4's 131k default) can exceed a
+  // small-context model's window; reserving the full policy output makes
+  // `usable` 0 so every turn looks like an overflow and the session
+  // auto-compacts forever. Bound the reservation to half the window so the
+  // trigger always leaves real room while preserving output headroom.
   const reserved =
     input.cfg.compaction?.reserved ??
     Math.min(COMPACTION_BUFFER, ProviderTransform.maxOutputTokens(input.model, input.outputTokenMax))
-  return input.model.limit.input
-    ? Math.max(0, input.model.limit.input - reserved)
-    : Math.max(0, context - ProviderTransform.maxOutputTokens(input.model, input.outputTokenMax))
+  if (input.model.limit.input) return Math.max(0, input.model.limit.input - reserved)
+  const outputMax = ProviderTransform.maxOutputTokens(input.model, input.outputTokenMax)
+  return Math.max(0, context - Math.min(outputMax, Math.floor(context / 2)))
 }
 
 export function isOverflow(input: {
