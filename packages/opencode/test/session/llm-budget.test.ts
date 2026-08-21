@@ -214,4 +214,31 @@ describe("OutputBudget.apply", () => {
       expect(result.availableOutputTokens).toBeGreaterThan(100_000)
     }
   })
+
+  test("does not count data URLs embedded inside larger text as prompt tokens", () => {
+    const embedded = `data:image/png;base64,${"a".repeat(1_200_000)}`
+    const result = OutputBudget.apply({
+      model: createModel(200_000, 131_072),
+      messages: [
+        {
+          role: "user",
+          content: `<openchinacode-attachment-router>\ndecision: visual\nImage reference(s):\n1. ${embedded}\n</openchinacode-attachment-router>`,
+        },
+      ] as any,
+      tools: {},
+      maxOutputTokens: 65_536,
+      outputDecision: {
+        tokens: 65_536,
+        level: "default",
+        mode: "heuristic",
+        reasons: ["vision-default"],
+        needsJudge: false,
+        policy: { default: 65_536, max: 131_072 },
+      },
+      outputLevel: "default",
+    })
+
+    expect(result.action).toBe("use")
+    expect(result.promptTokens).toBeLessThan(50_000)
+  })
 })

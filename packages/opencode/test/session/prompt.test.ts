@@ -511,6 +511,60 @@ it.instance("loop calls LLM and returns assistant message", () =>
   }),
 )
 
+it.instance("attachment router does not inline image data URLs into router text", () =>
+  Effect.gen(function* () {
+    const { llm } = yield* useServerConfig(providerCfg)
+    const prompt = yield* SessionPrompt.Service
+    const sessions = yield* Session.Service
+    const chat = yield* sessions.create({
+      title: "Pinned",
+      permission: [{ permission: "*", pattern: "*", action: "allow" }],
+    })
+    // A real (tiny) PNG — admission decodes/normalizes images, so a fake
+    // payload would fail before the router runs.
+    const png =
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+    yield* llm.text("an image, looks like")
+    yield* prompt.prompt({
+      sessionID: chat.id,
+      agent: "build",
+      parts: [
+        { type: "text", text: "whats in the image" },
+        { type: "file", mime: "image/png", filename: "clipboard.png", url: `data:image/png;base64,${png}` },
+      ],
+    })
+    yield* awaitWithTimeout(llm.wait(1), "llm request never arrived", "10 seconds")
+    const messages = yield* sessions.messages({ sessionID: chat.id })
+    const router = messages
+      .flatMap((message) => message.parts)
+      .find(
+        (part) =>
+          part.type === "text" &&
+          (part.metadata as Record<string, unknown> | undefined)?.kind === "openchinacode.attachment_router_decision",
+      )
+    expect(router).toBeDefined()
+    if (router?.type === "text") {
+      expect(router.text).not.toContain("base64,")
+      expect(router.text.length).toBeLessThan(2000)
+    }
+  }),
+)
+
+it.instance("resolvePromptParts labels image files with their real mime", () =>
+  Effect.gen(function* () {
+    const { directory: dir } = yield* TestInstance
+    yield* writeText(path.join(dir, "shot.png"), "not really a png")
+    yield* writeText(path.join(dir, "main.ts"), "const x = 1")
+    const prompt = yield* SessionPrompt.Service
+    const parts = yield* prompt.resolvePromptParts("look at @shot.png and @main.ts")
+    const file = (name: string) =>
+      parts.find((part): part is Extract<typeof part, { type: "file" }> => part.type === "file" && part.filename === name)
+    expect(file("shot.png")?.mime).toBe("image/png")
+    expect(file("main.ts")?.mime).toBe("text/plain")
+  }),
+  { git: true },
+)
+
 withMcpInstructions.instance(
   "loop includes MCP instructions in model system context",
   () =>

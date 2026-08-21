@@ -39,6 +39,8 @@ function isProbablyBase64(value: string) {
   return /^[A-Za-z0-9+/=_-]+$/.test(sample)
 }
 
+const EMBEDDED_DATA_URL = /data:[a-z][a-z0-9.+-]*\/[a-z0-9.+-]+;base64,[a-z0-9+/=]{512,}/gi
+
 function mediaEstimatePlaceholder(value: string) {
   const mime = value.match(/^data:([^;,]+);base64,/i)?.[1] ?? "application/octet-stream"
   return `[media payload omitted for token estimate: ${mime}, ${value.length} base64 chars]\n${"x".repeat(MEDIA_ESTIMATE_CHARS)}`
@@ -50,6 +52,9 @@ function normalizeForEstimate(value: unknown, key = "", depth = 0): unknown {
   if (typeof value === "string") {
     if (isDataUrl(value)) return mediaEstimatePlaceholder(value)
     if (["data", "blob", "image"].includes(key) && isProbablyBase64(value)) return mediaEstimatePlaceholder(value)
+    // Data URLs embedded inside larger strings (attachment-router text and
+    // similar templates) defeat the whole-string checks above.
+    if (value.includes("base64,")) return value.replace(EMBEDDED_DATA_URL, (match) => mediaEstimatePlaceholder(match))
     return value
   }
 

@@ -148,7 +148,20 @@ function promptPartSummary(parts: readonly PromptInput["parts"][number][]) {
 
 function filePartReference(part: Pick<SessionV1.FilePart, "source" | "url">) {
   if (part.source?.type === "file" && part.source.path) return part.source.path
+  // A data URL carries the full base64 payload; inlining it into the router
+  // text inflates that part to the payload size (~1M chars for one pasted
+  // image) and blows up token estimates/context on every later turn.
+  if (part.url.startsWith("data:")) return "(image attached inline)"
   return part.url
+}
+
+// Extension-based detection is trusted only for binary media; everything else
+// stays text/plain so source files keep the read-as-text path (and quirky
+// extension mappings like .ts -> video/mp2t can't leak through).
+function attachmentMime(filepath: string) {
+  const detected = FSUtil.mimeType(filepath)
+  if (detected.startsWith("image/") || detected === "application/pdf") return detected
+  return "text/plain"
 }
 
 function isOcrCapableImagePart(part: SessionV1.Part): part is SessionV1.FilePart {
@@ -271,7 +284,7 @@ const layer = Layer.effect(
             type: "file",
             url: pathToFileURL(filepath).href,
             filename: name,
-            mime: stat.type === "Directory" ? "application/x-directory" : "text/plain",
+            mime: stat.type === "Directory" ? "application/x-directory" : attachmentMime(filepath),
           })
         }),
         { concurrency: "unbounded", discard: true },
