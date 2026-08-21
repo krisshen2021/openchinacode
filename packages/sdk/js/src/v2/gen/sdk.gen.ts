@@ -146,12 +146,20 @@ import type {
   ProjectUpdateResponses,
   ProviderAuthErrors,
   ProviderAuthResponses,
+  ProviderCustomListErrors,
+  ProviderCustomListResponses,
+  ProviderCustomSaveErrors,
+  ProviderCustomSaveResponses,
+  ProviderDiscoverErrors,
+  ProviderDiscoverResponses,
   ProviderListErrors,
   ProviderListResponses,
   ProviderOauthAuthorizeErrors,
   ProviderOauthAuthorizeResponses,
   ProviderOauthCallbackErrors,
   ProviderOauthCallbackResponses,
+  ProviderRefreshErrors,
+  ProviderRefreshResponses,
   PtyConnectErrors,
   PtyConnectResponses,
   PtyConnectTokenErrors,
@@ -3311,6 +3319,81 @@ export class Oauth extends HeyApiClient {
   }
 }
 
+export class Custom extends HeyApiClient {
+  /**
+   * List config-declared custom providers (never includes apiKey)
+   */
+  public list<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<ProviderCustomListResponses, ProviderCustomListErrors, ThrowOnError>({
+      url: "/provider/custom",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Create or update a custom provider in the global config
+   */
+  public save<ThrowOnError extends boolean = false>(
+    parameters: {
+      providerID: string
+      directory?: string
+      workspace?: string
+      name?: string
+      baseURL?: string
+      models?: Array<string>
+      discover_models?: boolean
+      apiKey?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "providerID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "name" },
+            { in: "body", key: "baseURL" },
+            { in: "body", key: "models" },
+            { in: "body", key: "discover_models" },
+            { in: "body", key: "apiKey" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).put<ProviderCustomSaveResponses, ProviderCustomSaveErrors, ThrowOnError>({
+      url: "/provider/custom/{providerID}",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+}
+
 export class Provider extends HeyApiClient {
   /**
    * List providers
@@ -3372,9 +3455,79 @@ export class Provider extends HeyApiClient {
     })
   }
 
+  /**
+   * Probe an OpenAI-compatible endpoint for its model list
+   */
+  public discover<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+      baseURL?: string
+      apiKey?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "baseURL" },
+            { in: "body", key: "apiKey" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<ProviderDiscoverResponses, ProviderDiscoverErrors, ThrowOnError>({
+      url: "/provider/discover",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Refresh models.dev and discovered models, rebuilding provider state
+   */
+  public refresh<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<ProviderRefreshResponses, ProviderRefreshErrors, ThrowOnError>({
+      url: "/provider/refresh",
+      ...options,
+      ...params,
+    })
+  }
+
   private _oauth?: Oauth
   get oauth(): Oauth {
     return (this._oauth ??= new Oauth({ client: this.client }))
+  }
+
+  private _custom?: Custom
+  get custom(): Custom {
+    return (this._custom ??= new Custom({ client: this.client }))
   }
 }
 

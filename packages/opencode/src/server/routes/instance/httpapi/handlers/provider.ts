@@ -1,14 +1,18 @@
 import { ProviderAuth } from "@/provider/auth"
+import { Auth } from "@/auth"
 import { Config } from "@/config/config"
+import { CustomProvider } from "@/config/custom-provider"
 import { ModelsDev } from "@opencode-ai/core/models-dev"
 import { Provider } from "@/provider/provider"
+import { Discover } from "@/provider/discover"
+import { Global } from "@opencode-ai/core/global"
 
 import { mapValues } from "remeda"
 import { Effect, Schema } from "effect"
 import { HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
 import { InstanceHttpApi } from "../api"
-import { ProviderAuthApiError } from "../groups/provider"
+import { ProviderAuthApiError, ProviderDiscoveryApiError } from "../groups/provider"
 import { ProviderV2 } from "@opencode-ai/core/provider"
 
 function mapProviderAuthError<A, R>(self: Effect.Effect<A, ProviderAuth.Error, R>) {
@@ -36,6 +40,7 @@ export const providerHandlers = HttpApiBuilder.group(InstanceHttpApi, "provider"
     const cfg = yield* Config.Service
     const provider = yield* Provider.Service
     const svc = yield* ProviderAuth.Service
+    const authSvc = yield* Auth.Service
 
     const list = Effect.fn("ProviderHttpApi.list")(function* () {
       const config = yield* cfg.get()
@@ -104,10 +109,74 @@ export const providerHandlers = HttpApiBuilder.group(InstanceHttpApi, "provider"
       return true
     })
 
+    const discover = Effect.fn("ProviderHttpApi.discover")(function* (ctx: {
+      payload: { baseURL: string; apiKey: string }
+    }) {
+      const models = yield* Discover.fetchModels(ctx.payload.baseURL, ctx.payload.apiKey).pipe(
+        Effect.mapError((error) => new ProviderDiscoveryApiError({ kind: error.kind, message: error.message })),
+      )
+      return { models }
+    })
+
+    const customList = Effect.fn("ProviderHttpApi.customList")(function* () {
+      return yield* CustomProvider.list(Global.Path.config).pipe(Effect.orDie)
+    })
+
+    const customSave = Effect.fn("ProviderHttpApi.customSave")(function* (ctx: {
+      params: { providerID: string }
+      payload: { name?: string; baseURL: string; models: readonly string[]; discover_models: boolean; apiKey?: string }
+    }) {
+      if (!ctx.params.providerID.match(/^[a-z0-9][a-z0-9-]*$/)) {
+        return yield* new ProviderDiscoveryApiError({
+          kind: "BadRequest",
+          message: "provider id must be lowercase letters, digits, hyphens",
+        })
+      }
+      if (ctx.payload.models.length === 0) {
+        return yield* new ProviderDiscoveryApiError({
+          kind: "BadRequest",
+          message: "at least one model id is required",
+        })
+      }
+      yield* CustomProvider.save(Global.Path.config, {
+        id: ctx.params.providerID,
+        name: ctx.payload.name,
+        baseURL: ctx.payload.baseURL,
+        models: ctx.payload.models,
+        discover_models: ctx.payload.discover_models,
+      }).pipe(Effect.orDie)
+      if (ctx.payload.apiKey) {
+        yield* authSvc.set(ctx.params.providerID, { type: "api", key: ctx.payload.apiKey }).pipe(Effect.orDie)
+      }
+      yield* provider.refresh()
+      return { ok: true as const }
+    })
+
+    const refresh = Effect.fn("ProviderHttpApi.refresh")(function* () {
+      const before = new Set(
+        Object.entries(yield* provider.list()).flatMap(([pid, p]) => Object.keys(p.models).map((m) => `${pid}/${m}`)),
+      )
+      yield* ModelsDev.Service.use((s) => s.refresh(true))
+      const discoverCache = yield* Discover.makeCache(Global.Path.data)
+      for (const id of Object.keys(yield* provider.list())) {
+        yield* discoverCache.expire(id)
+      }
+      yield* provider.refresh()
+      const after = yield* provider.list()
+      const added = Object.entries(after)
+        .flatMap(([pid, p]) => Object.keys(p.models).map((m) => `${pid}/${m}`))
+        .filter((key) => !before.has(key))
+      return { added }
+    })
+
     return handlers
       .handle("list", list)
       .handle("auth", auth)
       .handleRaw("authorize", authorizeRaw)
       .handle("callback", callback)
+      .handle("discover", discover)
+      .handle("customList", customList)
+      .handle("customSave", customSave)
+      .handle("refresh", refresh)
   }),
 )

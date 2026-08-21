@@ -68,12 +68,14 @@ export const makeCache = (dir: string) =>
 
     const read = Effect.fnUntraced(function* () {
       const raw = yield* fsys.readJson(file).pipe(Effect.orElseSucceed(() => ({})))
-      return yield* decode(raw).pipe(Effect.orElseSucceed(() => ({})))
+      return yield* decode(raw).pipe(Effect.orElseSucceed((): CacheData => ({})))
     })
 
     const write = Effect.fnUntraced(function* (providerID: string, models: Model[]) {
       const data = yield* read()
-      yield* fsys.writeJson(file, { ...data, [providerID]: { fetchedAt: Date.now(), models } }, 0o600).pipe(Effect.orDie)
+      yield* fsys
+        .writeJson(file, { ...data, [providerID]: { fetchedAt: Date.now(), models } }, 0o600)
+        .pipe(Effect.orDie)
     })
 
     const expire = Effect.fnUntraced(function* (providerID: string) {

@@ -13,7 +13,7 @@ const withServer = <A>(handler: (req: Request) => Response | Promise<Response>, 
   (async () => {
     const server = Bun.serve({ port: 0, fetch: handler })
     try {
-      return await fn(server.port)
+      return await fn(server.port!)
     } finally {
       server.stop(true)
     }
@@ -28,10 +28,7 @@ describe("Discover.fetchModels", () => {
       () =>
         Response.json({
           object: "list",
-          data: [
-            { id: "glm-5.4", object: "model", created: 1, owned_by: "zhipu" },
-            { id: "glm-5.3-air" },
-          ],
+          data: [{ id: "glm-5.4", object: "model", created: 1, owned_by: "zhipu" }, { id: "glm-5.3-air" }],
         }),
       (port) => Effect.runPromise(Discover.fetchModels(`http://127.0.0.1:${port}/v4`, "sk-test")),
     )
@@ -50,7 +47,7 @@ describe("Discover.fetchModels", () => {
       },
       (port) => Effect.runPromise(Discover.fetchModels(`http://127.0.0.1:${port}`, "sk-secret")),
     )
-    expect(seen).toBe("Bearer sk-secret")
+    expect(seen ?? "").toBe("Bearer sk-secret")
     expect(models).toHaveLength(1)
   })
 
@@ -132,7 +129,14 @@ describe("Discover.mergeInto", () => {
 
   test("adds discovered models with defaults, never overwriting existing ones", () => {
     const provider: any = { models: { declared: stateModel("declared") } }
-    Discover.mergeInto(provider, [{ id: "declared", name: "declared" }, { id: "new-model", name: "new-model" }], undefined)
+    Discover.mergeInto(
+      provider,
+      [
+        { id: "declared", name: "declared" },
+        { id: "new-model", name: "new-model" },
+      ],
+      undefined,
+    )
     expect(Object.keys(provider.models).sort()).toEqual(["declared", "new-model"])
     expect(provider.models["new-model"].limit.context).toBe(128000)
     expect(provider.models["new-model"].capabilities.toolcall).toBe(true)

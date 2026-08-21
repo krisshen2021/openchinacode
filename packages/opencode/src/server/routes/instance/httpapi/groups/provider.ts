@@ -31,6 +31,14 @@ export class ProviderAuthApiError extends Schema.ErrorClass<ProviderAuthApiError
   { httpApiStatus: 400 },
 ) {}
 
+export class ProviderDiscoveryApiError extends Schema.ErrorClass<ProviderDiscoveryApiError>("ProviderDiscoveryError")(
+  {
+    kind: Schema.Literals(["Unsupported", "Auth", "Network", "BadRequest"]),
+    message: Schema.String,
+  },
+  { httpApiStatus: 400 },
+) {}
+
 export const ProviderApi = HttpApi.make("provider")
   .add(
     HttpApiGroup.make("provider")
@@ -79,6 +87,67 @@ export const ProviderApi = HttpApi.make("provider")
             identifier: "provider.oauth.callback",
             summary: "Handle OAuth callback",
             description: "Handle the OAuth callback from a provider after user authorization.",
+          }),
+        ),
+        HttpApiEndpoint.post("discover", `${root}/discover`, {
+          query: WorkspaceRoutingQuery,
+          payload: Schema.Struct({ baseURL: Schema.String, apiKey: Schema.String }),
+          success: described(
+            Schema.Struct({ models: Schema.Array(Schema.Struct({ id: Schema.String, name: Schema.String })) }),
+            "Discovered models",
+          ),
+          error: ProviderDiscoveryApiError,
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "provider.discover",
+            summary: "Probe an OpenAI-compatible endpoint for its model list",
+          }),
+        ),
+        HttpApiEndpoint.get("customList", `${root}/custom`, {
+          query: WorkspaceRoutingQuery,
+          success: described(
+            Schema.Array(
+              Schema.Struct({
+                id: Schema.String,
+                name: Schema.optional(Schema.String),
+                baseURL: Schema.String,
+                models: Schema.Array(Schema.String),
+                discover_models: Schema.Boolean,
+              }),
+            ),
+            "Custom providers declared in config",
+          ),
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "provider.custom.list",
+            summary: "List config-declared custom providers (never includes apiKey)",
+          }),
+        ),
+        HttpApiEndpoint.put("customSave", `${root}/custom/:providerID`, {
+          params: { providerID: Schema.String },
+          query: WorkspaceRoutingQuery,
+          payload: Schema.Struct({
+            name: Schema.optional(Schema.String),
+            baseURL: Schema.String,
+            models: Schema.Array(Schema.String),
+            discover_models: Schema.Boolean,
+            apiKey: Schema.optional(Schema.String),
+          }),
+          success: described(Schema.Struct({ ok: Schema.Literal(true) }), "Saved"),
+          error: ProviderDiscoveryApiError,
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "provider.custom.save",
+            summary: "Create or update a custom provider in the global config",
+          }),
+        ),
+        HttpApiEndpoint.post("refresh", `${root}/refresh`, {
+          query: WorkspaceRoutingQuery,
+          success: described(Schema.Struct({ added: Schema.Array(Schema.String) }), "Newly discovered models"),
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "provider.refresh",
+            summary: "Refresh models.dev and discovered models, rebuilding provider state",
           }),
         ),
       )

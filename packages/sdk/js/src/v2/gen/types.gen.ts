@@ -1905,6 +1905,7 @@ export type ProviderConfig = {
   npm?: string
   whitelist?: Array<string>
   blacklist?: Array<string>
+  discover_models?: boolean
   options?: {
     apiKey?: string
     baseURL?: string
@@ -2749,6 +2750,11 @@ export type ProviderAuthError1 = {
     message?: string
     kind?: string
   }
+}
+
+export type ProviderDiscoveryError = {
+  kind: "Unsupported" | "Auth" | "Network" | "BadRequest"
+  message: string
 }
 
 export type NotFoundError = {
@@ -7504,6 +7510,144 @@ export type ProviderOauthCallbackResponses = {
 }
 
 export type ProviderOauthCallbackResponse = ProviderOauthCallbackResponses[keyof ProviderOauthCallbackResponses]
+
+export type ProviderDiscoverData = {
+  body?: {
+    baseURL: string
+    apiKey: string
+  }
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/provider/discover"
+}
+
+export type ProviderDiscoverErrors = {
+  /**
+   * ProviderDiscoveryError | InvalidRequestError
+   */
+  400: ProviderDiscoveryError | InvalidRequestError
+}
+
+export type ProviderDiscoverError = ProviderDiscoverErrors[keyof ProviderDiscoverErrors]
+
+export type ProviderDiscoverResponses = {
+  /**
+   * Discovered models
+   */
+  200: {
+    models: Array<{
+      id: string
+      name: string
+    }>
+  }
+}
+
+export type ProviderDiscoverResponse = ProviderDiscoverResponses[keyof ProviderDiscoverResponses]
+
+export type ProviderCustomListData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/provider/custom"
+}
+
+export type ProviderCustomListErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type ProviderCustomListError = ProviderCustomListErrors[keyof ProviderCustomListErrors]
+
+export type ProviderCustomListResponses = {
+  /**
+   * Custom providers declared in config
+   */
+  200: Array<{
+    id: string
+    name?: string
+    baseURL: string
+    models: Array<string>
+    discover_models: boolean
+  }>
+}
+
+export type ProviderCustomListResponse = ProviderCustomListResponses[keyof ProviderCustomListResponses]
+
+export type ProviderCustomSaveData = {
+  body?: {
+    name?: string
+    baseURL: string
+    models: Array<string>
+    discover_models: boolean
+    apiKey?: string
+  }
+  path: {
+    providerID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/provider/custom/{providerID}"
+}
+
+export type ProviderCustomSaveErrors = {
+  /**
+   * ProviderDiscoveryError | InvalidRequestError
+   */
+  400: ProviderDiscoveryError | InvalidRequestError
+}
+
+export type ProviderCustomSaveError = ProviderCustomSaveErrors[keyof ProviderCustomSaveErrors]
+
+export type ProviderCustomSaveResponses = {
+  /**
+   * Saved
+   */
+  200: {
+    ok: true
+  }
+}
+
+export type ProviderCustomSaveResponse = ProviderCustomSaveResponses[keyof ProviderCustomSaveResponses]
+
+export type ProviderRefreshData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/provider/refresh"
+}
+
+export type ProviderRefreshErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type ProviderRefreshError = ProviderRefreshErrors[keyof ProviderRefreshErrors]
+
+export type ProviderRefreshResponses = {
+  /**
+   * Newly discovered models
+   */
+  200: {
+    added: Array<string>
+  }
+}
+
+export type ProviderRefreshResponse = ProviderRefreshResponses[keyof ProviderRefreshResponses]
 
 export type SessionListData = {
   body?: never
