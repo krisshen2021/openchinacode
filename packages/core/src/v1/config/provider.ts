@@ -85,6 +85,10 @@ export const Info = Schema.Struct({
   npm: Schema.optional(Schema.String),
   whitelist: Schema.optional(Schema.mutable(Schema.Array(Schema.String))),
   blacklist: Schema.optional(Schema.mutable(Schema.Array(Schema.String))),
+  discover_models: Schema.optional(Schema.Boolean).annotate({
+    description:
+      "Fetch the model list from this provider's OpenAI-compatible GET {baseURL}/models endpoint at provider-state build (cached 1h on disk). Built-in China providers default to true; custom providers default to false. Explicitly declared models always take precedence over discovered ones.",
+  }),
   options: Schema.optional(
     Schema.StructWithRest(
       Schema.Struct({
