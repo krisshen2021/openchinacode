@@ -10,6 +10,7 @@ import { useTheme } from "../context/theme"
 import { TextAttributes } from "@opentui/core"
 import type { ProviderAuthAuthorization, ProviderAuthMethod } from "@opencode-ai/sdk/v2"
 import { DialogModel } from "./dialog-model"
+import { DialogCustomProvider } from "./dialog-custom-provider"
 import { useToast } from "../ui/toast"
 import { isConsoleManagedProvider } from "../util/provider-origin"
 import { useConnected } from "./use-connected"
@@ -66,7 +67,7 @@ export function createDialogProviderOptions() {
   const onboarded = useConnected()
 
   const options = createMemo(() => {
-    return pipe(
+    const mapped = pipe(
       providerOptions(sync.data.provider_next.all),
       map((provider) => {
         const providerID = provider.providerID
@@ -159,6 +160,18 @@ export function createDialogProviderOptions() {
         }
       }),
     )
+    return [
+      ...mapped,
+      {
+        title: "自定义 provider…",
+        value: "__custom__",
+        description: "baseURL + apiKey,可拉取或手动输入模型",
+        category: "Configured providers",
+        onSelect() {
+          dialog.replace(() => <DialogCustomProvider />)
+        },
+      },
+    ]
   })
   return options
 }
