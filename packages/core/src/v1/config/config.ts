@@ -217,6 +217,10 @@ export const Info = Schema.Struct({
         description:
           "Idle timeout in milliseconds for local MCP servers (default: 600000). Idle servers are closed and transparently respawned on next use; 0 disables reaping",
       }),
+      event_retention_days: Schema.optional(NonNegativeInt).annotate({
+        description:
+          "Days to keep durable event log rows for archived or idle sessions without a workspace binding (default: 7). event_sequence is always preserved; 0 disables the hourly sweep",
+      }),
       policies: Schema.optional(Schema.mutable(Schema.Array(ConfigExperimental.Policy))).annotate({
         description: "Policy statements applied to supported resources, such as provider access",
       }),
