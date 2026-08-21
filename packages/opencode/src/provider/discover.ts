@@ -103,16 +103,48 @@ export const enabled = (config: { discover_models?: boolean } | undefined, provi
 const VISION_MODEL_ID = /vision|(?:^|[-_.])vl(?:[-_.]|$)|\d+v(?:[-_.]|$)/i
 
 /**
+ * Finds context/output limits for `modelID` from the longest catalog model id
+ * that prefixes it at a separator boundary (same model family, e.g.
+ * deepseek-v4-flash-vision-exp <- deepseek-v4-flash). Returns undefined when
+ * no family sibling matches. Conservative flat defaults are dangerous for
+ * family variants: a 128k context under the deepseek-v4 131k output policy
+ * made every turn unbudgetable.
+ */
+export const familyLimit = (
+  models: Iterable<readonly [string, { limit?: { context?: number; output?: number } | undefined }]>,
+  modelID: string,
+) => {
+  let best: { context: number; output: number } | undefined
+  let bestLen = 0
+  for (const [catalogID, catalogModel] of models) {
+    if (catalogID.length <= bestLen || modelID.length <= catalogID.length) continue
+    if (!modelID.startsWith(catalogID)) continue
+    const next = modelID.charAt(catalogID.length)
+    if (next !== "-" && next !== "_" && next !== ".") continue
+    const limit = catalogModel?.limit
+    if (limit?.context && limit?.output) {
+      best = { context: limit.context, output: limit.output }
+      bestLen = catalogID.length
+    }
+  }
+  return best
+}
+
+/**
  * Merges discovered models into a provider state model map. Never overwrites
  * existing entries (config-declared or previously merged). `catalogHit` is the
  * state-shaped model cloned from a cross-provider models.dev match; when
- * absent, conservative defaults are used (128k/8k, toolcall on). The caller
+ * absent, conservative defaults are used (128k/8k, toolcall on), except that
+ * `prefixLimit` may inherit context/output limits from the longest catalog
+ * model id that prefixes the discovered id with a separator (same model
+ * family, e.g. deepseek-v4-flash-vision-exp <- deepseek-v4-flash). The caller
  * completes provider-specific fields (`providerID`, `api.url`, `api.npm`).
  */
 export const mergeInto = (
   provider: { models: Record<string, unknown> },
   discovered: Model[],
   catalogHit: ((id: string) => unknown | undefined) | undefined,
+  prefixLimit?: (id: string) => { context: number; output: number } | undefined,
 ) => {
   for (const model of discovered) {
     if (provider.models[model.id]) continue
@@ -131,7 +163,7 @@ export const mergeInto = (
       headers: {},
       options: {},
       cost: { input: 0, output: 0, cache: { read: 0, write: 0 } },
-      limit: { context: 128000, output: 8192 },
+      limit: prefixLimit?.(model.id) ?? { context: 128000, output: 8192 },
       capabilities: {
         temperature: true,
         reasoning: false,

@@ -172,6 +172,46 @@ describe("Discover.mergeInto", () => {
     expect(provider.models["deepseek-v4-flash"].capabilities.input.image).toBe(false)
     expect(provider.models["deepseek-v4-flash"].capabilities.attachment).toBe(false)
   })
+
+  test("inherits limits from the longest family-prefix catalog entry", () => {
+    const catalog: Array<readonly [string, { limit: { context: number; output: number } }]> = [
+      ["deepseek-v4-flash", { limit: { context: 1000000, output: 384000 } }],
+      ["deepseek-v4", { limit: { context: 500000, output: 100000 } }],
+    ]
+    expect(Discover.familyLimit(catalog, "deepseek-v4-flash-vision-exp")).toEqual({
+      context: 1000000,
+      output: 384000,
+    })
+    expect(Discover.familyLimit(catalog, "deepseek-v4-pro")).toEqual({ context: 500000, output: 100000 })
+    expect(Discover.familyLimit(catalog, "deepseek-v4-flash")).toEqual({ context: 500000, output: 100000 })
+    expect(Discover.familyLimit(catalog, "deepseek")).toBeUndefined()
+    expect(Discover.familyLimit(catalog, "glm-4.5")).toBeUndefined()
+  })
+
+  test("family-prefix requires a separator boundary", () => {
+    const catalog: Array<readonly [string, { limit: { context: number; output: number } }]> = [
+      ["glm-5", { limit: { context: 200000, output: 32000 } }],
+    ]
+    expect(Discover.familyLimit(catalog, "glm-55-special")).toBeUndefined()
+    expect(Discover.familyLimit(catalog, "glm-5.3")).toEqual({ context: 200000, output: 32000 })
+  })
+
+  test("prefix-inherited limits apply only when there is no catalog hit", () => {
+    const provider: any = { models: {} }
+    const prefixLimit = (id: string) =>
+      id === "deepseek-v4-flash-vision-exp" ? { context: 1000000, output: 384000 } : undefined
+    Discover.mergeInto(
+      provider,
+      [
+        { id: "deepseek-v4-flash-vision-exp", name: "deepseek-v4-flash-vision-exp" },
+        { id: "other-model", name: "other-model" },
+      ],
+      undefined,
+      prefixLimit,
+    )
+    expect(provider.models["deepseek-v4-flash-vision-exp"].limit).toEqual({ context: 1000000, output: 384000 })
+    expect(provider.models["other-model"].limit).toEqual({ context: 128000, output: 8192 })
+  })
 })
 
 describe("Discover.enabled", () => {

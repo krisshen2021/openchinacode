@@ -1608,13 +1608,22 @@ const layer = Layer.effect(
             )
           })
           const before = new Set(Object.keys(provider.models))
-          Discover.mergeInto(provider, models, (modelID) => {
-            for (const entry of Object.values(catalog)) {
-              const match = entry.models[modelID]
-              if (match) return structuredClone(match)
-            }
-            return undefined
-          })
+          Discover.mergeInto(
+            provider,
+            models,
+            (modelID) => {
+              for (const entry of Object.values(catalog)) {
+                const match = entry.models[modelID]
+                if (match) return structuredClone(match)
+              }
+              return undefined
+            },
+            (modelID) =>
+              Discover.familyLimit(
+                Object.values(catalog).flatMap((entry) => Object.entries(entry.models)),
+                modelID,
+              ),
+          )
           for (const model of models) {
             if (before.has(model.id)) continue
             const added = provider.models[model.id] as Model | undefined
