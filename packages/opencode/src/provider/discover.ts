@@ -96,6 +96,12 @@ const BUILTIN_DISCOVERY = ["zhipuai-pay2go", "moonshotai-cn", "deepseek"]
 export const enabled = (config: { discover_models?: boolean } | undefined, providerID: string): boolean =>
   config?.discover_models ?? BUILTIN_DISCOVERY.includes(providerID)
 
+// Models absent from the models.dev catalog fall back to these defaults.
+// Vision support is inferred from the model id so pasted-image routing
+// (which keys off capabilities.input.image) keeps working for vision
+// variants the catalog doesn't know yet (e.g. deepseek-v4-flash-vision-exp).
+const VISION_MODEL_ID = /vision|(?:^|[-_.])vl(?:[-_.]|$)|\d+v(?:[-_.]|$)/i
+
 /**
  * Merges discovered models into a provider state model map. Never overwrites
  * existing entries (config-declared or previously merged). `catalogHit` is the
@@ -115,6 +121,7 @@ export const mergeInto = (
       provider.models[model.id] = hit
       continue
     }
+    const vision = VISION_MODEL_ID.test(model.id)
     provider.models[model.id] = {
       id: model.id,
       name: model.name,
@@ -128,9 +135,9 @@ export const mergeInto = (
       capabilities: {
         temperature: true,
         reasoning: false,
-        attachment: false,
+        attachment: vision,
         toolcall: true,
-        input: { text: true, audio: false, image: false, video: false, pdf: false },
+        input: { text: true, audio: false, image: vision, video: false, pdf: false },
         output: { text: true, audio: false, image: false, video: false, pdf: false },
         interleaved: false,
       },

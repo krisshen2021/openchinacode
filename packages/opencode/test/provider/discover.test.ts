@@ -152,6 +152,26 @@ describe("Discover.mergeInto", () => {
     expect(provider.models["glm-5.4"].limit.context).toBe(200000)
     expect(provider.models["glm-5.4"].name).toBe("GLM 5.4")
   })
+
+  test("infers vision capability from the model id when no catalog metadata exists", () => {
+    const provider: any = { models: {} }
+    Discover.mergeInto(
+      provider,
+      [
+        { id: "deepseek-v4-flash-vision-exp", name: "deepseek-v4-flash-vision-exp" },
+        { id: "glm-5v-turbo", name: "glm-5v-turbo" },
+        { id: "qwen-vl-max", name: "qwen-vl-max" },
+        { id: "deepseek-v4-flash", name: "deepseek-v4-flash" },
+      ],
+      undefined,
+    )
+    expect(provider.models["deepseek-v4-flash-vision-exp"].capabilities.input.image).toBe(true)
+    expect(provider.models["deepseek-v4-flash-vision-exp"].capabilities.attachment).toBe(true)
+    expect(provider.models["glm-5v-turbo"].capabilities.input.image).toBe(true)
+    expect(provider.models["qwen-vl-max"].capabilities.input.image).toBe(true)
+    expect(provider.models["deepseek-v4-flash"].capabilities.input.image).toBe(false)
+    expect(provider.models["deepseek-v4-flash"].capabilities.attachment).toBe(false)
+  })
 })
 
 describe("Discover.enabled", () => {
