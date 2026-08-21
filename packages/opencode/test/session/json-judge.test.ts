@@ -35,6 +35,7 @@ describe("JsonJudge.selectJudgeModel", () => {
     ])
     const provider = Provider.Service.of({
       list: Effect.fn("TestProvider.list")(() => Effect.succeed({})),
+      refresh: Effect.fn("TestProvider.refresh")(() => Effect.void),
       getProvider: Effect.fn("TestProvider.getProvider")(() => Effect.die(new Error("not used"))),
       getModel: Effect.fn("TestProvider.getModel")((providerID, modelID) => {
         const model = models.get(`${providerID}/${modelID}`)

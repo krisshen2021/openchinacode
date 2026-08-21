@@ -32,6 +32,7 @@ import { ConfigTaskPolicy } from "@opencode-ai/core/config/task-policy"
 import { ModelStatus } from "./model-status"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { ProviderError } from "./error"
+import { Discover } from "./discover"
 
 const OPENAI_HEADER_TIMEOUT_DEFAULT = 10_000
 
@@ -1123,6 +1124,7 @@ export type Error = ModelNotFoundError | InitError | NoProvidersError | NoModels
 
 export interface Interface {
   readonly list: () => Effect.Effect<Record<ProviderV2.ID, Info>>
+  readonly refresh: () => Effect.Effect<void>
   readonly getProvider: (providerID: ProviderV2.ID) => Effect.Effect<Info>
   readonly getModel: (providerID: ProviderV2.ID, modelID: ModelV2.ID) => Effect.Effect<Model, ModelNotFoundError>
   readonly getLanguage: (model: Model) => Effect.Effect<LanguageModelV3, ModelNotFoundError>
@@ -1304,6 +1306,10 @@ const layer = Layer.effect(
     const plugin = yield* Plugin.Service
     const modelsDevSvc = yield* ModelsDev.Service
     const runtimeFlags = yield* RuntimeFlags.Service
+    // Built once outside the per-instance state: the discovery cache is a global
+    // on-disk file, and yielding FSUtil inside InstanceState.make would leak the
+    // service requirement into every Provider method.
+    const discoverCache = yield* Discover.makeCache(Global.Path.data)
 
     const state = yield* InstanceState.make<State>(() =>
       Effect.gen(function* () {
@@ -1570,6 +1576,55 @@ const layer = Layer.effect(
           })
         }
 
+        // generic OpenAI-compatible discovery (built-in trio defaults on, see Discover.enabled)
+        const discoveredData = yield* discoverCache.read()
+        for (const [id, provider] of Object.entries(providers)) {
+          const providerID = ProviderV2.ID.make(id)
+          if (!isProviderAllowed(providerID)) continue
+          if (!Discover.enabled(cfg.provider?.[id], id)) continue
+          const entry = discoveredData[id]
+          const baseURL =
+            (typeof provider.options?.baseURL === "string" && provider.options.baseURL) ||
+            cfg.provider?.[id]?.api ||
+            modelsDev[id]?.api ||
+            undefined
+          const npm = cfg.provider?.[id]?.npm ?? modelsDev[id]?.npm ?? "@ai-sdk/openai-compatible"
+          const models = yield* Effect.gen(function* () {
+            if (discoverCache.isFresh(entry)) return entry.models
+            const key =
+              (typeof provider.options?.apiKey === "string" && provider.options.apiKey) ||
+              (yield* dep.auth(id).pipe(Effect.map((a) => (a?.type === "api" ? a.key : undefined))))
+            if (!baseURL || !key) return entry?.models ?? []
+            return yield* Discover.fetchModels(baseURL, key).pipe(
+              Effect.tap((models) => (models.length > 0 ? discoverCache.write(id, models) : Effect.void)),
+              Effect.tapError((error) =>
+                Effect.logWarning("model discovery failed", {
+                  provider: id,
+                  kind: error.kind,
+                  message: error.message,
+                }),
+              ),
+              Effect.orElseSucceed(() => entry?.models ?? []),
+            )
+          })
+          const before = new Set(Object.keys(provider.models))
+          Discover.mergeInto(provider, models, (modelID) => {
+            for (const entry of Object.values(catalog)) {
+              const match = entry.models[modelID]
+              if (match) return structuredClone(match)
+            }
+            return undefined
+          })
+          for (const model of models) {
+            if (before.has(model.id)) continue
+            const added = provider.models[model.id] as Model | undefined
+            if (!added) continue
+            added.providerID = providerID
+            added.api.npm = npm
+            added.api.url = baseURL ?? ""
+          }
+        }
+
         for (const [id, provider] of Object.entries(providers)) {
           const providerID = ProviderV2.ID.make(id)
           if (!isProviderAllowed(providerID)) {
@@ -1628,6 +1683,8 @@ const layer = Layer.effect(
     )
 
     const list = Effect.fn("Provider.list")(() => InstanceState.use(state, (s) => s.providers))
+
+    const refresh = Effect.fn("Provider.refresh")(() => InstanceState.invalidate(state))
 
     async function resolveSDK(model: Model, s: State, envs: Record<string, string | undefined>) {
       try {
@@ -1951,7 +2008,7 @@ const layer = Layer.effect(
       }
     })
 
-    return Service.of({ list, getProvider, getModel, getLanguage, closest, getSmallModel, defaultModel })
+    return Service.of({ list, refresh, getProvider, getModel, getLanguage, closest, getSmallModel, defaultModel })
   }),
 )
 
