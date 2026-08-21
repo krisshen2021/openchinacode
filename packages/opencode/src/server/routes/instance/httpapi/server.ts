@@ -53,8 +53,10 @@ import { MoveSession } from "@opencode-ai/core/control-plane/move-session"
 import { Database } from "@opencode-ai/core/database/database"
 import { AppNodeBuilderV1 } from "@/effect/app-node-builder-v1"
 import { LayerNode } from "@opencode-ai/core/effect/layer-node"
+import { makeGlobalNode } from "@opencode-ai/core/effect/app-node"
 import { httpClient } from "@opencode-ai/core/effect/app-node-platform"
 import { EventV2 } from "@opencode-ai/core/event"
+import { EventRetention } from "@opencode-ai/core/event/retention"
 import { ModelsDev } from "@opencode-ai/core/models-dev"
 import { Npm } from "@opencode-ai/core/npm"
 import { PermissionSaved } from "@opencode-ai/core/permission/saved"
@@ -189,6 +191,22 @@ const uiRoute = HttpRouter.use((router) =>
   }),
 ).pipe(Layer.provide(authOnlyRouterLayer))
 
+const eventRetentionOptionsNode = makeGlobalNode({
+  service: EventRetention.Options,
+  layer: Layer.effect(
+    EventRetention.Options,
+    Effect.gen(function* () {
+      const config = yield* Config.Service
+      // The sweep is process-global like the database it prunes, so it reads the
+      // global config. Config.get() requires a request-scoped InstanceRef and
+      // cannot run at graph build time.
+      const cfg = yield* config.getGlobal()
+      return { retentionDays: cfg.experimental?.event_retention_days ?? EventRetention.DEFAULT_RETENTION_DAYS }
+    }),
+  ),
+  deps: [Config.node],
+})
+
 type RouteRequirements =
   | HttpRouter.HttpRouter
   | HttpRouter.Request<"Error", unknown>
@@ -251,6 +269,7 @@ const app = LayerNode.group([
   InstanceStore.node,
   httpClient,
   EventV2.node,
+  EventRetention.node,
   ProjectV2.node,
   ProjectCopy.node,
   PtyTicket.node,
@@ -261,14 +280,7 @@ export function createRoutes(
 ): Layer.Layer<never, EffectConfig.ConfigError, RouteRequirements> {
   const locationServiceMapV2 = buildLocationServiceMap()
 
-  return Layer.mergeAll(
-    rootApiRoutes,
-    eventApiRoutes,
-    ptyConnectApiRoutes,
-    instanceRoutes,
-    docRoute,
-    uiRoute,
-  ).pipe(
+  return Layer.mergeAll(rootApiRoutes, eventApiRoutes, ptyConnectApiRoutes, instanceRoutes, docRoute, uiRoute).pipe(
     Layer.provide([
       errorLayer,
       activityLayer,
@@ -282,7 +294,7 @@ export function createRoutes(
     Layer.provide(Layer.succeed(CorsConfig)(corsOptions)),
     Layer.provide(locationServiceMapV2),
 
-    Layer.provide(AppNodeBuilderV1.build(app)),
+    Layer.provide(AppNodeBuilderV1.build(app, [[EventRetention.optionsNode, eventRetentionOptionsNode]])),
     // Must stay last: layers provided later in this pipe build beneath earlier ones,
     // so Observability must come after every service graph. Otherwise eagerly forked
     // fibers (e.g. the ModelsDev background refresh) capture Effect's default stdout
