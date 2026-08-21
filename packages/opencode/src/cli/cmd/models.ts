@@ -27,7 +27,44 @@ export const ModelsCommand = effectCmd({
     const { ModelsDev } = yield* Effect.promise(() => import("@opencode-ai/core/models-dev"))
     const { ProviderV2 } = yield* Effect.promise(() => import("@opencode-ai/core/provider"))
     if (args.refresh) {
+      const { Discover } = yield* Effect.promise(() => import("@/provider/discover"))
+      const { Global } = yield* Effect.promise(() => import("@opencode-ai/core/global"))
+      const { ServerAuth } = yield* Effect.promise(() => import("@/server/auth"))
+      const { ServerRegistry } = yield* Effect.promise(() => import("@/server/registry"))
       yield* ModelsDev.Service.use((s) => s.refresh(true))
+      const discoverCache = yield* Discover.makeCache(Global.Path.data)
+      if (args.provider) {
+        yield* discoverCache.expire(args.provider)
+      } else {
+        const data = yield* discoverCache.read()
+        for (const id of Object.keys(data)) yield* discoverCache.expire(id)
+      }
+      // Best-effort: if a server is running, trigger its live refresh so a
+      // running TUI picks up new models without restart.
+      const entry = yield* Effect.promise(() => ServerRegistry.read(Global.Path.data))
+      if (entry?.url && entry.password) {
+        const result = yield* Effect.tryPromise({
+          try: async () => {
+            const response = await fetch(
+              `${entry.url}/provider/refresh?directory=${encodeURIComponent(process.cwd())}`,
+              {
+                method: "POST",
+                headers: ServerAuth.headers({ password: entry.password }),
+                signal: AbortSignal.timeout(5000),
+              },
+            )
+            return response.ok ? ((await response.json()) as { added: string[] }) : undefined
+          },
+          catch: () => undefined,
+        }).pipe(Effect.orElseSucceed(() => undefined))
+        if (result?.added?.length) {
+          UI.println(
+            UI.Style.TEXT_SUCCESS_BOLD +
+              `Live server picked up ${result.added.length} new model(s): ${result.added.join(", ")}` +
+              UI.Style.TEXT_NORMAL,
+          )
+        }
+      }
       UI.println(UI.Style.TEXT_SUCCESS_BOLD + "Models cache refreshed" + UI.Style.TEXT_NORMAL)
     }
 
