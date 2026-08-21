@@ -621,7 +621,9 @@ const layer = Layer.effect(
         })
         const error = parse(e)
         if (SessionV1.ContextOverflowError.isInstance(error)) {
-          if ((yield* config.get()).compaction?.auto === false && !ctx.assistantMessage.summary) {
+          // A compaction summary that itself overflows must not schedule
+          // another compaction — fail the turn instead of looping forever.
+          if (ctx.assistantMessage.summary === true || (yield* config.get()).compaction?.auto === false) {
             ctx.assistantMessage.error = error
             ctx.assistantMessage.finish = "error"
             yield* events.publish(Session.Event.Error, { sessionID: ctx.sessionID, error })
