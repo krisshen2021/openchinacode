@@ -167,6 +167,17 @@ export default {
         );
       `)
       yield* tx.run(`
+        CREATE TABLE \`session_memory\` (
+          \`session_id\` text PRIMARY KEY,
+          \`content\` text NOT NULL,
+          \`source\` text NOT NULL,
+          \`version\` integer DEFAULT 1 NOT NULL,
+          \`time_created\` integer NOT NULL,
+          \`time_updated\` integer NOT NULL,
+          CONSTRAINT \`fk_session_memory_session_id_session_id_fk\` FOREIGN KEY (\`session_id\`) REFERENCES \`session\`(\`id\`) ON DELETE CASCADE
+        );
+      `)
+      yield* tx.run(`
         CREATE TABLE \`session_message\` (
           \`id\` text PRIMARY KEY,
           \`session_id\` text NOT NULL,
