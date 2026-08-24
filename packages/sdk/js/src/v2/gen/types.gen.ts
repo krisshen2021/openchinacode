@@ -2223,6 +2223,7 @@ export type Config = {
     mcp_timeout?: number
     mcp_idle_timeout?: number
     event_retention_days?: number
+    memory_retention_days?: number
     policies?: Array<ConfigV2ExperimentalPolicy>
   }
 }
@@ -7866,6 +7867,89 @@ export type SessionUpdateResponses = {
 }
 
 export type SessionUpdateResponse = SessionUpdateResponses[keyof SessionUpdateResponses]
+
+export type SessionMemoryData = {
+  body?: never
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/memory"
+}
+
+export type SessionMemoryErrors = {
+  /**
+   * BadRequest | InvalidRequestError
+   */
+  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
+}
+
+export type SessionMemoryError = SessionMemoryErrors[keyof SessionMemoryErrors]
+
+export type SessionMemoryResponses = {
+  /**
+   * Session memory
+   */
+  200: {
+    available: boolean
+    content?: {
+      state: {
+        objective: string
+        status: "active" | "blocked-on-user" | "waiting-verify" | "done"
+        kind: "debug" | "implement" | "refactor" | "review" | "research" | "plan" | "mixed"
+        files: Array<{
+          path: string
+          role: "created" | "modified" | "referenced"
+          note: string
+        }>
+        verified: Array<string>
+        failures: Array<{
+          error: string
+          resolved: boolean
+          fix?: string
+        }>
+        next_actions: Array<string>
+        open_questions: Array<{
+          q: string
+          owner: "user" | "investigate"
+        }>
+      }
+      log: {
+        decisions: Array<{
+          decision: string
+          rationale: string
+          rejected: Array<string>
+          at: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+        }>
+        constraints: Array<string>
+        pitfalls: Array<{
+          trap: string
+          why: string
+          workaround: string
+          at: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+        }>
+        milestones: Array<string>
+      }
+      refs?: {
+        head_commit?: string
+        branch?: string
+      }
+    }
+    rendered?: string
+    source?: string
+    version?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    updated_at?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  }
+}
+
+export type SessionMemoryResponse = SessionMemoryResponses[keyof SessionMemoryResponses]
 
 export type SessionChildrenData = {
   body?: never

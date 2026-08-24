@@ -3,6 +3,7 @@ import { Permission } from "@/permission"
 import { SessionV1 } from "@opencode-ai/core/v1/session"
 
 import { Session } from "@/session/session"
+import { SessionMemory } from "@opencode-ai/core/session/memory"
 import { MessageV2 } from "@/session/message-v2"
 import { SessionPrompt } from "@/session/prompt"
 import { SessionRevert } from "@/session/revert"
@@ -76,10 +77,20 @@ export const PermissionResponsePayload = Schema.Struct({
   response: PermissionV1.Reply,
 })
 
+export const MemoryInfo = Schema.Struct({
+  available: Schema.Boolean,
+  content: Schema.optional(SessionMemory.Content),
+  rendered: Schema.optional(Schema.String),
+  source: Schema.optional(Schema.String),
+  version: Schema.optional(Schema.Number),
+  updated_at: Schema.optional(Schema.Number),
+})
+
 export const SessionPaths = {
   list: root,
   status: `${root}/status`,
   get: `${root}/:sessionID`,
+  memory: `${root}/:sessionID/memory`,
   children: `${root}/:sessionID/children`,
   todo: `${root}/:sessionID/todo`,
   diff: `${root}/:sessionID/diff`,
@@ -140,6 +151,18 @@ export const SessionApi = HttpApi.make("session")
             identifier: "session.get",
             summary: "Get session",
             description: "Retrieve detailed information about a specific OpenCode session.",
+          }),
+        ),
+        HttpApiEndpoint.get("memory", SessionPaths.memory, {
+          params: { sessionID: SessionID },
+          query: WorkspaceRoutingQuery,
+          success: described(MemoryInfo, "Session memory"),
+          error: [HttpApiError.BadRequest, ApiNotFoundError],
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "session.memory",
+            summary: "Get session memory",
+            description: "Retrieve the structured working memory document for a session, if one has been recorded.",
           }),
         ),
         HttpApiEndpoint.get("children", SessionPaths.children, {

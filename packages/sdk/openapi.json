@@ -6430,6 +6430,366 @@
         ]
       }
     },
+    "/session/{sessionID}/memory": {
+      "get": {
+        "tags": ["session"],
+        "operationId": "session.memory",
+        "parameters": [
+          {
+            "name": "sessionID",
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "pattern": "^ses"
+            },
+            "required": true
+          },
+          {
+            "name": "directory",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          },
+          {
+            "name": "workspace",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Session memory",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "available": {
+                      "type": "boolean"
+                    },
+                    "content": {
+                      "type": "object",
+                      "properties": {
+                        "state": {
+                          "type": "object",
+                          "properties": {
+                            "objective": {
+                              "type": "string"
+                            },
+                            "status": {
+                              "type": "string",
+                              "enum": ["active", "blocked-on-user", "waiting-verify", "done"]
+                            },
+                            "kind": {
+                              "type": "string",
+                              "enum": ["debug", "implement", "refactor", "review", "research", "plan", "mixed"]
+                            },
+                            "files": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "path": {
+                                    "type": "string"
+                                  },
+                                  "role": {
+                                    "type": "string",
+                                    "enum": ["created", "modified", "referenced"]
+                                  },
+                                  "note": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["path", "role", "note"],
+                                "additionalProperties": false
+                              }
+                            },
+                            "verified": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "failures": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "error": {
+                                    "type": "string"
+                                  },
+                                  "resolved": {
+                                    "type": "boolean"
+                                  },
+                                  "fix": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["error", "resolved"],
+                                "additionalProperties": false
+                              }
+                            },
+                            "next_actions": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "open_questions": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "q": {
+                                    "type": "string"
+                                  },
+                                  "owner": {
+                                    "type": "string",
+                                    "enum": ["user", "investigate"]
+                                  }
+                                },
+                                "required": ["q", "owner"],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "required": [
+                            "objective",
+                            "status",
+                            "kind",
+                            "files",
+                            "verified",
+                            "failures",
+                            "next_actions",
+                            "open_questions"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "log": {
+                          "type": "object",
+                          "properties": {
+                            "decisions": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "decision": {
+                                    "type": "string"
+                                  },
+                                  "rationale": {
+                                    "type": "string"
+                                  },
+                                  "rejected": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "at": {
+                                    "anyOf": [
+                                      {
+                                        "type": "number"
+                                      },
+                                      {
+                                        "type": "string",
+                                        "enum": ["NaN"]
+                                      },
+                                      {
+                                        "type": "string",
+                                        "enum": ["Infinity"]
+                                      },
+                                      {
+                                        "type": "string",
+                                        "enum": ["-Infinity"]
+                                      },
+                                      {
+                                        "type": "string",
+                                        "enum": ["Infinity", "-Infinity", "NaN"]
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": ["decision", "rationale", "rejected", "at"],
+                                "additionalProperties": false
+                              }
+                            },
+                            "constraints": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "pitfalls": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "trap": {
+                                    "type": "string"
+                                  },
+                                  "why": {
+                                    "type": "string"
+                                  },
+                                  "workaround": {
+                                    "type": "string"
+                                  },
+                                  "at": {
+                                    "anyOf": [
+                                      {
+                                        "type": "number"
+                                      },
+                                      {
+                                        "type": "string",
+                                        "enum": ["NaN"]
+                                      },
+                                      {
+                                        "type": "string",
+                                        "enum": ["Infinity"]
+                                      },
+                                      {
+                                        "type": "string",
+                                        "enum": ["-Infinity"]
+                                      },
+                                      {
+                                        "type": "string",
+                                        "enum": ["Infinity", "-Infinity", "NaN"]
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": ["trap", "why", "workaround", "at"],
+                                "additionalProperties": false
+                              }
+                            },
+                            "milestones": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "required": ["decisions", "constraints", "pitfalls", "milestones"],
+                          "additionalProperties": false
+                        },
+                        "refs": {
+                          "type": "object",
+                          "properties": {
+                            "head_commit": {
+                              "type": "string"
+                            },
+                            "branch": {
+                              "type": "string"
+                            }
+                          },
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": ["state", "log"],
+                      "additionalProperties": false
+                    },
+                    "rendered": {
+                      "type": "string"
+                    },
+                    "source": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "string",
+                          "enum": ["NaN"]
+                        },
+                        {
+                          "type": "string",
+                          "enum": ["Infinity"]
+                        },
+                        {
+                          "type": "string",
+                          "enum": ["-Infinity"]
+                        },
+                        {
+                          "type": "string",
+                          "enum": ["Infinity", "-Infinity", "NaN"]
+                        }
+                      ]
+                    },
+                    "updated_at": {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "string",
+                          "enum": ["NaN"]
+                        },
+                        {
+                          "type": "string",
+                          "enum": ["Infinity"]
+                        },
+                        {
+                          "type": "string",
+                          "enum": ["-Infinity"]
+                        },
+                        {
+                          "type": "string",
+                          "enum": ["Infinity", "-Infinity", "NaN"]
+                        }
+                      ]
+                    }
+                  },
+                  "required": ["available"],
+                  "additionalProperties": false,
+                  "description": "Session memory"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "BadRequest | InvalidRequestError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/effect_HttpApiError_BadRequest"
+                    },
+                    {
+                      "$ref": "#/components/schemas/InvalidRequestError"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
+          }
+        },
+        "description": "Retrieve the structured working memory document for a session, if one has been recorded.",
+        "summary": "Get session memory",
+        "x-codeSamples": [
+          {
+            "lang": "js",
+            "source": "import { createOpencodeClient } from \"@opencode-ai/sdk\n\nconst client = createOpencodeClient()\nawait client.session.memory({\n  ...\n})"
+          }
+        ]
+      }
+    },
     "/session/{sessionID}/children": {
       "get": {
         "tags": ["session"],
@@ -18105,6 +18465,10 @@
                 "minimum": 0
               },
               "event_retention_days": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "memory_retention_days": {
                 "type": "integer",
                 "minimum": 0
               },

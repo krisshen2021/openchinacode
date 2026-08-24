@@ -205,6 +205,8 @@ import type {
   SessionInitResponses,
   SessionListErrors,
   SessionListResponses,
+  SessionMemoryErrors,
+  SessionMemoryResponses,
   SessionMessageErrors,
   SessionMessageResponses,
   SessionMessagesErrors,
@@ -3771,6 +3773,38 @@ export class Session2 extends HeyApiClient {
         ...options?.headers,
         ...params.headers,
       },
+    })
+  }
+
+  /**
+   * Get session memory
+   *
+   * Retrieve the structured working memory document for a session, if one has been recorded.
+   */
+  public memory<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<SessionMemoryResponses, SessionMemoryErrors, ThrowOnError>({
+      url: "/session/{sessionID}/memory",
+      ...options,
+      ...params,
     })
   }
 
