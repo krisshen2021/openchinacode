@@ -65,6 +65,8 @@ import { ProjectCopy } from "@opencode-ai/core/project/copy"
 import { PtyTicket } from "@opencode-ai/core/pty/ticket"
 import { Ripgrep } from "@opencode-ai/core/ripgrep"
 import { SessionProjector } from "@opencode-ai/core/session/projector"
+import { SessionMemory } from "@opencode-ai/core/session/memory"
+import { MemoryRetention } from "@opencode-ai/core/session/memory-retention"
 import { lazy } from "@/util/lazy"
 import { CorsConfig, isAllowedCorsOrigin, type CorsOptions } from "@/server/shared/cors"
 import { serveUIEffect } from "@/server/shared/ui"
@@ -207,6 +209,19 @@ const eventRetentionOptionsNode = makeGlobalNode({
   deps: [Config.node],
 })
 
+const memoryRetentionOptionsNode = makeGlobalNode({
+  service: MemoryRetention.Options,
+  layer: Layer.effect(
+    MemoryRetention.Options,
+    Effect.gen(function* () {
+      const config = yield* Config.Service
+      const cfg = yield* config.getGlobal()
+      return { retentionDays: cfg.experimental?.memory_retention_days ?? MemoryRetention.DEFAULT_RETENTION_DAYS }
+    }),
+  ),
+  deps: [Config.node],
+})
+
 type RouteRequirements =
   | HttpRouter.HttpRouter
   | HttpRouter.Request<"Error", unknown>
@@ -270,6 +285,8 @@ const app = LayerNode.group([
   httpClient,
   EventV2.node,
   EventRetention.node,
+  SessionMemory.node,
+  MemoryRetention.node,
   ProjectV2.node,
   ProjectCopy.node,
   PtyTicket.node,
@@ -294,7 +311,12 @@ export function createRoutes(
     Layer.provide(Layer.succeed(CorsConfig)(corsOptions)),
     Layer.provide(locationServiceMapV2),
 
-    Layer.provide(AppNodeBuilderV1.build(app, [[EventRetention.optionsNode, eventRetentionOptionsNode]])),
+    Layer.provide(
+      AppNodeBuilderV1.build(app, [
+        [EventRetention.optionsNode, eventRetentionOptionsNode],
+        [MemoryRetention.optionsNode, memoryRetentionOptionsNode],
+      ]),
+    ),
     // Must stay last: layers provided later in this pipe build beneath earlier ones,
     // so Observability must come after every service graph. Otherwise eagerly forked
     // fibers (e.g. the ModelsDev background refresh) capture Effect's default stdout

@@ -221,6 +221,10 @@ export const Info = Schema.Struct({
         description:
           "Days to keep durable event log rows for archived or idle sessions without a workspace binding (default: 7). event_sequence is always preserved; 0 disables the hourly sweep",
       }),
+      memory_retention_days: Schema.optional(NonNegativeInt).annotate({
+        description:
+          "Days to keep session memory rows for archived or idle sessions without a workspace binding (default: 0 = keep until the session is deleted; session delete always cascades)",
+      }),
       policies: Schema.optional(Schema.mutable(Schema.Array(ConfigExperimental.Policy))).annotate({
         description: "Policy statements applied to supported resources, such as provider access",
       }),
