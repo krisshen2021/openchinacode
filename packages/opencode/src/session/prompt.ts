@@ -14,6 +14,7 @@ import { Provider } from "@/provider/provider"
 import { type Tool as AITool, tool, jsonSchema } from "ai"
 import type { JSONSchema7 } from "@ai-sdk/provider"
 import { SessionCompaction } from "./compaction"
+import { SessionMemory } from "@opencode-ai/core/session/memory"
 import { SystemPrompt } from "./system"
 import { Instruction } from "./instruction"
 import { Plugin } from "../plugin"
@@ -221,6 +222,7 @@ const layer = Layer.effect(
     const provider = yield* Provider.Service
     const processor = yield* SessionProcessor.Service
     const compaction = yield* SessionCompaction.Service
+    const memory = yield* SessionMemory.Service
     const plugin = yield* Plugin.Service
     const commands = yield* Command.Service
     const config = yield* Config.Service
@@ -1559,11 +1561,14 @@ const layer = Layer.effect(
 
             yield* plugin.trigger("experimental.chat.messages.transform", {}, { messages: msgs })
 
-            const [skills, env, instructions, mcpInstructions, modelMsgs] = yield* Effect.all([
+            const [skills, env, instructions, mcpInstructions, memoryDoc, modelMsgs] = yield* Effect.all([
               sys.skills(agent),
               sys.environment(model),
               instruction.system().pipe(Effect.orDie),
               sys.mcp(agent, session.permission),
+              // Memory reads must never break a prompt build; a failed read just
+              // skips injection for this turn.
+              memory.rendered(sessionID).pipe(Effect.catchCause(() => Effect.succeed(undefined))),
               MessageV2.toModelMessagesEffect(msgs, model, {
                 // Retention windows are session-scoped (session.metadata.compaction),
                 // opt-in, and off by default (full history kept). Null disables
@@ -1587,9 +1592,20 @@ const layer = Layer.effect(
             ])
             const system = [
               // Volatile content (env block contains today's date) goes last so the
-              // static prefix (instructions, MCP, skills) stays byte-identical across
-              // days and keeps hitting provider prompt caches (GLM/DeepSeek).
+              // static prefix (instructions, memory, MCP, skills) stays byte-identical
+              // across days and keeps hitting provider prompt caches (GLM/DeepSeek).
+              // Memory only changes on compaction/tool writes, so it stays on the
+              // cache-friendly side of the env block.
               ...instructions,
+              ...(memoryDoc
+                ? [
+                    [
+                      "The following structured session memory is maintained automatically across compactions.",
+                      "Treat it as the authoritative current state of this session.",
+                      `<session-memory>\n${memoryDoc}\n</session-memory>`,
+                    ].join("\n"),
+                  ]
+                : []),
               ...(mcpInstructions ? [mcpInstructions] : []),
               ...(skills ? [skills] : []),
               ...env,
@@ -1961,6 +1977,7 @@ export const node = LayerNode.make({
     EventV2Bridge.node,
     RuntimeFlags.node,
     Database.node,
+    SessionMemory.node,
   ],
 })
 
