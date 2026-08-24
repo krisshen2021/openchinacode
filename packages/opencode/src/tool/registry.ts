@@ -12,6 +12,7 @@ import { ReadTool } from "./read"
 import { TaskTool } from "./task"
 import { Database } from "@opencode-ai/core/database/database"
 import { TodoWriteTool } from "./todo"
+import { MemoryWriteTool } from "./memory-write"
 import { WebFetchTool } from "./webfetch"
 import { WriteTool } from "./write"
 import { InvalidTool } from "./invalid"
@@ -61,6 +62,7 @@ import { MCP } from "@/mcp"
 import { PermissionV1 } from "@opencode-ai/core/v1/permission"
 import { McpCatalog } from "@/mcp/catalog"
 import { ManagedProcess } from "@opencode-ai/core/managed-process"
+import { SessionMemory } from "@opencode-ai/core/session/memory"
 
 export function webSearchEnabled(providerID: ProviderV2.ID, flags = { exa: false, parallel: false }) {
   return providerID === ProviderV2.ID.opencode || flags.exa || flags.parallel
@@ -105,6 +107,7 @@ const layer = Layer.effect(
     const read = yield* ReadTool
     const question = yield* QuestionTool
     const todo = yield* TodoWriteTool
+    const memoryWrite = yield* MemoryWriteTool
     const lsptool = yield* LspTool
     const plan = yield* PlanExitTool
     const webfetch = yield* WebFetchTool
@@ -227,6 +230,7 @@ const layer = Layer.effect(
           task: Tool.init(task),
           fetch: Tool.init(webfetch),
           todo: Tool.init(todo),
+          memoryWrite: Tool.init(memoryWrite),
           search: Tool.init(websearch),
           skill: Tool.init(skilltool),
           patch: Tool.init(patchtool),
@@ -262,6 +266,7 @@ const layer = Layer.effect(
             tool.ocrExtract,
             tool.fetch,
             tool.todo,
+            tool.memoryWrite,
             tool.search,
             tool.skill,
             tool.patch,
@@ -476,6 +481,7 @@ export const node = LayerNode.make({
     Database.node,
     Ripgrep.node,
     ManagedProcess.node,
+    SessionMemory.node,
     Auth.node,
   ],
 })

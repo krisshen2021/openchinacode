@@ -1,0 +1,8 @@
+Maintains this session's structured working memory. Use it to record facts that must survive context compaction:
+
+- decisions: a decision with its rationale and any rejected alternatives
+- pitfalls: a trap that cost real debugging time — record only when resolved (or a workaround is known), non-obvious, and reusable
+- constraints: rules the user issued (they never expire)
+- objective / status / files / next_actions: keep the current task state accurate
+
+Log entries (decisions, pitfalls, constraints, milestones) are append-only; you cannot edit or remove them. State fields you pass are overwritten; omitted fields keep their current values. Everything you write is injected into the system prompt on every subsequent turn, so keep entries short and exact: paths, identifiers, error strings.
