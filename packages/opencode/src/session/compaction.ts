@@ -13,7 +13,7 @@ import { Plugin } from "@/plugin"
 import { Config } from "@/config/config"
 import { NotFoundError } from "@/storage/storage"
 
-import { Effect, Layer, Context } from "effect"
+import { Cause, Effect, Layer, Context } from "effect"
 import { InstanceState } from "@/effect/instance-state"
 import { isOverflow as overflow, usable } from "./overflow"
 import { serviceUse } from "@opencode-ai/core/effect/service-use"
@@ -24,6 +24,7 @@ import { ModelV2 } from "@opencode-ai/core/model"
 import { SessionCompactionEvent } from "@opencode-ai/schema/session-compaction-event"
 import { TaskPolicy } from "./task-policy"
 import { CompactionProfile, type ActiveTaskEssential, type Decision } from "./compaction-profile"
+import { SessionMemory } from "@opencode-ai/core/session/memory"
 import { JsonJudge } from "./judge/json-judge"
 
 export const Event = SessionCompactionEvent
@@ -57,7 +58,7 @@ type ProfileJudgeResult = {
 }
 type ActiveTaskExtractResult = {
   status: NonNullable<ProgressJudge>["status"]
-  activeTask?: ActiveTaskEssential
+  memory?: SessionMemory.Content
   model?: NonNullable<ProgressModel>
   elapsedMs?: number
   error?: string
@@ -227,6 +228,7 @@ const layer = Layer.effect(
     const provider = yield* Provider.Service
     const events = yield* EventV2Bridge.Service
     const flags = yield* RuntimeFlags.Service
+    const memory = yield* SessionMemory.Service
 
     const publishProgress = Effect.fn("SessionCompaction.progress")(function* (input: {
       sessionID: SessionID
@@ -423,23 +425,25 @@ const layer = Layer.effect(
       currentModel: Provider.Model
       sessionID: SessionID
       decision: Decision
+      previousMemory?: SessionMemory.Content
     }) {
       const cfg = yield* config.get()
-      if (!input.decision.active_task.present) {
+      if (!input.decision.active_task.present && !input.previousMemory) {
         return { status: "skipped" } satisfies ActiveTaskExtractResult
       }
 
-      const result = yield* JsonJudge.runJsonJudge<ActiveTaskEssential>({
+      const result = yield* JsonJudge.runJsonJudge<SessionMemory.Content>({
         name: "compaction active task extraction",
         sessionID: input.sessionID,
         provider,
         config: cfg.task_policy?.judges?.compaction_active_task,
-        messages: CompactionProfile.activeTaskMessages({
+        messages: CompactionProfile.memoryMessages({
           messages: input.messages,
           previousSummary: input.previousSummary,
           decision: input.decision,
+          previousMemory: input.previousMemory,
         }),
-        parse: (text) => CompactionProfile.parseActiveTaskOutput(text, input.decision),
+        parse: (text) => CompactionProfile.parseMemoryOutput(text),
         modelCandidates: ACTIVE_TASK_EXTRACT_FALLBACKS,
         currentModel: input.currentModel,
         includeCurrentModel: false,
@@ -454,7 +458,7 @@ const layer = Layer.effect(
           publishProgress({
             sessionID: input.sessionID,
             stage: "active_task_extract_started",
-            message: "Active task essential extraction started",
+            message: "Session memory merge started",
             model: modelProgress(model),
             judge: {
               status: "skipped",
@@ -478,26 +482,26 @@ const layer = Layer.effect(
           ? { error: result.status === "invalid" ? `invalid output: ${result.error}` : result.error }
           : {}),
       }
-      const activeTask = result.decision ?? CompactionProfile.fallbackActiveTask({ decision: input.decision })
+      const memory = result.decision
       yield* publishProgress({
         sessionID: input.sessionID,
         stage: "active_task_extract_result",
         message:
-          result.status === "valid"
-            ? CompactionProfile.describeActiveTaskEssential(activeTask)
+          result.status === "valid" && memory
+            ? `Session memory merged: ${memory.state.kind} - ${memory.state.objective || memory.state.status}`
             : result.status === "disabled"
-              ? "Active task extraction disabled; using profile fallback"
+              ? "Session memory merge disabled; keeping previous memory"
               : result.status === "unavailable"
-                ? "Active task extraction unavailable; using profile fallback"
+                ? "Session memory merge unavailable; keeping previous memory"
                 : result.status === "invalid"
-                  ? "Active task extraction returned invalid JSON; using profile fallback"
-                  : "Active task extraction failed; using profile fallback",
+                  ? "Session memory merge returned invalid JSON; keeping previous memory"
+                  : "Session memory merge failed; keeping previous memory",
         model,
         judge: progressJudge,
       })
       return {
         status: progressJudge.status,
-        activeTask,
+        memory,
         model,
         elapsedMs: result.elapsedMs,
         error: result.error,
@@ -677,14 +681,34 @@ const layer = Layer.effect(
             ? `${readyProfile.active_task.kind}, window ${readyProfile.active_task.window_turns} turns - ${readyProfile.active_task.reason}`
             : "none detected",
         })
+        const previousMemory = yield* memory
+          .get(input.sessionID)
+          .pipe(Effect.catchCause(() => Effect.succeed(undefined)))
         const extracted = yield* extractActiveTask({
           messages: visibleHistory,
           previousSummary,
           currentModel: model,
           sessionID: input.sessionID,
           decision: readyProfile,
+          previousMemory,
         })
-        activeTask = extracted.activeTask
+        const memoryContent =
+          extracted.memory ?? CompactionProfile.fallbackMemory({ decision: readyProfile, previousMemory })
+        if (readyProfile.active_task.present || previousMemory) {
+          const instance = yield* InstanceState.context
+          yield* memory
+            .put({
+              sessionID: input.sessionID,
+              content: { ...memoryContent, refs: SessionMemory.gitRefs(instance.directory) },
+              source: "judge",
+            })
+            .pipe(
+              Effect.catchCause((cause) =>
+                Effect.logWarning("session memory write failed; keeping previous", { cause: Cause.pretty(cause) }),
+              ),
+            )
+          activeTask = extracted.memory ? CompactionProfile.projectActiveTask(memoryContent) : undefined
+        }
       }
       if (profile) {
         yield* Effect.logInfo("compaction profile", {
@@ -953,6 +977,7 @@ export const node = LayerNode.make({
     Provider.node,
     EventV2Bridge.node,
     RuntimeFlags.node,
+    SessionMemory.node,
   ],
 })
 

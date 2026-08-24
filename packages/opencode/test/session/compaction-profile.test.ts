@@ -197,3 +197,75 @@ describe("CompactionProfile", () => {
     expect(invalid).toBeUndefined()
   })
 })
+
+import { SessionMemory } from "@opencode-ai/core/session/memory"
+
+describe("session memory merge", () => {
+  test("parseMemoryOutput decodes, fills at, and normalizes", () => {
+    const json = JSON.stringify({
+      state: {
+        objective: "obj",
+        status: "active",
+        kind: "implement",
+        files: [{ path: "a.ts", role: "modified", note: "half done" }],
+        verified: [],
+        failures: [],
+        next_actions: ["next"],
+        open_questions: [],
+      },
+      log: {
+        decisions: [{ decision: "x", rationale: "y", rejected: [], at: 0 }],
+        constraints: [],
+        pitfalls: [],
+        milestones: [],
+      },
+    })
+    const parsed = CompactionProfile.parseMemoryOutput(`\`\`\`json\n${json}\n\`\`\``)
+    expect(parsed?.state.objective).toBe("obj")
+    expect(parsed?.log.decisions[0]?.at).toBeGreaterThan(0)
+  })
+
+  test("parseMemoryOutput rejects garbage", () => {
+    expect(CompactionProfile.parseMemoryOutput("not json")).toBeUndefined()
+    expect(CompactionProfile.parseMemoryOutput('{"state":{"status":"bogus"}}')).toBeUndefined()
+  })
+
+  test("fallbackMemory keeps previous memory and seeds objective from decision", () => {
+    const previous = SessionMemory.empty()
+    const withObjective: SessionMemory.Content = {
+      ...previous,
+      state: { ...previous.state, objective: "old objective" },
+      log: { ...previous.log, decisions: [{ decision: "keep me", rationale: "", rejected: [], at: 5 }] },
+    }
+    const decision = CompactionProfile.normalize({
+      active_task: { present: true, kind: "debug", window_turns: 4, reason: "debugging flakes" },
+    })
+    const merged = CompactionProfile.fallbackMemory({ decision, previousMemory: withObjective })
+    expect(merged.state.objective).toBe("old objective")
+    expect(merged.log.decisions[0]?.decision).toBe("keep me")
+    const fresh = CompactionProfile.fallbackMemory({ decision })
+    expect(fresh.state.objective).toBe("debugging flakes")
+    expect(fresh.state.kind).toBe("debug")
+  })
+
+  test("projectActiveTask maps memory state into ActiveTaskEssential", () => {
+    const base = SessionMemory.empty()
+    const content: SessionMemory.Content = {
+      ...base,
+      state: {
+        ...base.state,
+        objective: "obj",
+        kind: "refactor",
+        files: [{ path: "a.ts", role: "modified", note: "wip" }],
+        verified: ["typecheck clean"],
+        next_actions: ["ship it"],
+        open_questions: [{ q: "ok?", owner: "user" }],
+      },
+    }
+    const projected = CompactionProfile.projectActiveTask(content)
+    expect(projected.kind).toBe("refactor")
+    expect(projected.files[0]).toContain("a.ts")
+    expect(projected.findings).toContain("typecheck clean")
+    expect(projected.open_questions[0]).toBe("[user] ok?")
+  })
+})

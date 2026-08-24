@@ -33,6 +33,7 @@ import { LLMEvent, Usage } from "@opencode-ai/llm"
 import { ProviderV2 } from "@opencode-ai/core/provider"
 import { ModelV2 } from "@opencode-ai/core/model"
 import { AppNodeBuilder } from "@opencode-ai/core/effect/app-node-builder"
+import { SessionMemory } from "@opencode-ai/core/session/memory"
 import { LayerNode } from "@opencode-ai/core/effect/layer-node"
 
 const summary = Layer.succeed(
@@ -309,6 +310,7 @@ const compactionTestNode = LayerNode.group([
   Database.node,
   EventV2Bridge.node,
   CrossSpawnSpawner.node,
+  SessionMemory.node,
 ])
 const env = AppNodeBuilder.build(compactionTestNode, [
   [Provider.node, defaultProvider.layer],
@@ -1938,4 +1940,41 @@ describe("SessionNs.getUsage", () => {
     expect(result.tokens.cache.read).toBe(200)
     expect(result.tokens.cache.write).toBe(300)
   })
+})
+
+describe("session memory persistence", () => {
+  it.instance(
+    "compaction writes a session memory row",
+    Effect.gen(function* () {
+      const ssn = yield* SessionNs.Service
+      const session = yield* ssn.create({})
+      const msg = yield* createUserMessage(
+        session.id,
+        "edit src/auth.ts to add jwt refresh, then run the test suite",
+      )
+      const msgs = yield* ssn.messages({ sessionID: session.id })
+
+      const result = yield* SessionCompaction.use.process({
+        parentID: msg.id,
+        messages: msgs,
+        sessionID: session.id,
+        auto: false,
+      })
+      expect(result).toBe("continue")
+
+      const memory = yield* SessionMemory.Service
+      const row = yield* memory.getRow(session.id)
+      expect(row).toBeDefined()
+      expect(row?.source).toBe("judge")
+      expect(row?.content.state.kind).toBeOneOf([
+        "debug",
+        "implement",
+        "refactor",
+        "review",
+        "research",
+        "plan",
+        "mixed",
+      ])
+    }),
+  )
 })

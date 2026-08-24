@@ -1,4 +1,6 @@
 import type { SessionV1 } from "@opencode-ai/core/v1/session"
+import { Schema } from "effect"
+import { SessionMemory } from "@opencode-ai/core/session/memory"
 
 export const ProfileTypes = [
   "debug_trace",
@@ -645,4 +647,115 @@ export const CompactionProfile = {
   normalizeActiveTaskEssential,
   describeActiveTaskEssential,
   buildPrompt,
+  memoryMessages,
+  parseMemoryOutput,
+  fallbackMemory,
+  projectActiveTask,
+}
+
+const MEMORY_PREVIOUS_CHARS = 8_000
+
+export function memoryMessages(input: {
+  messages: readonly SessionV1.WithParts[]
+  previousSummary?: string
+  decision: Decision
+  previousMemory?: SessionMemory.Content
+}) {
+  const decision = normalize(input.decision)
+  const previousSummary = tail(input.previousSummary ?? "", ACTIVE_TASK_PREVIOUS_SUMMARY_CHARS)
+  const recentConversation = tail(messageText(input.messages), ACTIVE_TASK_RECENT_CONTEXT_CHARS)
+  const previousMemory = input.previousMemory ? tail(JSON.stringify(input.previousMemory), MEMORY_PREVIOUS_CHARS) : ""
+  const now = Date.now()
+  return [
+    {
+      role: "system" as const,
+      content: [
+        "You are OpenChinaCode's session memory curator.",
+        "Maintain one structured JSON memory document for this coding session. It has two zones:",
+        '- "state": the CURRENT task state. Rewrite it to reflect now; drop stale items.',
+        '- "log": append-only history. Keep previous entries, append new ones; when a list nears its cap, merge the oldest entries into shorter combined entries instead of dropping them.',
+        "You receive the previous memory document (possibly empty) and the recent conversation delta. Merge; do not copy the delta verbatim.",
+        "Return one compact JSON object only. Do not include Markdown, commentary, analysis, or explanatory text.",
+        "Do not invent facts. Leave arrays empty when unknown.",
+        `Set "at" to ${now} for new log entries; keep existing entries' "at" unchanged.`,
+        "Schema:",
+        '{"state":{"objective":"specific current objective","status":"active|blocked-on-user|waiting-verify|done","kind":"debug|implement|refactor|review|research|plan|mixed","files":[{"path":"repo-relative path","role":"created|modified|referenced","note":"one-line current state"}],"verified":["fact @ evidence, passed checks only"],"failures":[{"error":"exact error","resolved":false,"fix":"what fixed it"}],"next_actions":["priority ordered"],"open_questions":[{"q":"...","owner":"user|investigate"}]},"log":{"decisions":[{"decision":"...","rationale":"why","rejected":["rejected alternative"],"at":0}],"constraints":["user-issued rule, never expires"],"pitfalls":[{"trap":"what bit us","why":"root cause","workaround":"how to avoid","at":0}],"milestones":["major checkpoint"]}}',
+        "Pitfall admission requires ALL of: resolved or workaround known; non-obvious (costly to rediscover); reusable later. Unresolved issues stay in state.failures.",
+        "Caps: files ≤12, verified ≤14, failures ≤10, next_actions ≤8, open_questions ≤8, decisions ≤50, constraints ≤20, pitfalls ≤30, milestones ≤20.",
+        "Keep strings short but preserve exact file paths, symbols, identifiers, and error strings.",
+      ].join("\n"),
+    },
+    {
+      role: "user" as const,
+      content: JSON.stringify({
+        compaction_profile: {
+          profiles: decision.profiles,
+          must_preserve: decision.must_preserve,
+          active_task: decision.active_task,
+          risk: decision.risk,
+          source: decision.source,
+        },
+        previous_memory: previousMemory || null,
+        previous_summary_excerpt: previousSummary,
+        recent_conversation_delta: recentConversation,
+      }),
+    },
+  ]
+}
+
+export function parseMemoryOutput(text: string): SessionMemory.Content | undefined {
+  const json = extractJsonObject(text)
+  if (!json) return undefined
+  try {
+    const decoded = Schema.decodeUnknownSync(SessionMemory.Content)(JSON.parse(json))
+    const now = Date.now()
+    const fill = <T extends { at: number }>(entry: T): T => (entry.at > 0 ? entry : { ...entry, at: now })
+    return SessionMemory.normalize({
+      ...decoded,
+      log: {
+        ...decoded.log,
+        decisions: decoded.log.decisions.map(fill),
+        pitfalls: decoded.log.pitfalls.map(fill),
+      },
+    })
+  } catch {
+    return undefined
+  }
+}
+
+export function fallbackMemory(input: {
+  decision: Decision
+  previousMemory?: SessionMemory.Content
+}): SessionMemory.Content {
+  const base = input.previousMemory ?? SessionMemory.empty()
+  const decision = normalize(input.decision)
+  if (!decision.active_task.present) return base
+  return SessionMemory.normalize({
+    ...base,
+    state: {
+      ...base.state,
+      objective: base.state.objective || decision.active_task.reason,
+      kind: base.state.objective ? base.state.kind : decision.active_task.kind,
+    },
+  })
+}
+
+export function projectActiveTask(content: SessionMemory.Content): ActiveTaskEssential {
+  return {
+    present: true,
+    kind: content.state.kind,
+    objective: content.state.objective,
+    status: content.state.status,
+    focus: [],
+    files: content.state.files.map((f) => `${f.path} (${f.role})${f.note ? ` — ${f.note}` : ""}`),
+    decisions: content.log.decisions.slice(-8).map((d) => d.decision),
+    findings: [...content.state.verified],
+    changes: [],
+    commands: [],
+    failures: content.state.failures.map((f) => (f.resolved && f.fix ? `${f.error} → ${f.fix}` : f.error)),
+    next_actions: [...content.state.next_actions],
+    risks: [],
+    open_questions: content.state.open_questions.map((q) => `[${q.owner}] ${q.q}`),
+    source: "llm",
+  }
 }
