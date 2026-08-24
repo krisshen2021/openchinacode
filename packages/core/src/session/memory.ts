@@ -1,7 +1,12 @@
 export * as SessionMemory from "./memory"
 
-import { Schema } from "effect"
+import { Context, Effect, Layer, Schema } from "effect"
 import { spawnSync } from "node:child_process"
+import { eq } from "drizzle-orm"
+import { Database } from "../database/database"
+import { makeGlobalNode } from "../effect/app-node"
+import { SessionMemoryTable } from "./sql"
+import type { SessionSchema } from "./schema"
 
 export const STATUS = ["active", "blocked-on-user", "waiting-verify", "done"] as const
 export const KIND = ["debug", "implement", "refactor", "review", "research", "plan", "mixed"] as const
@@ -217,3 +222,100 @@ export function gitRefs(directory: string): Content["refs"] {
   const name = branch.status === 0 ? branch.stdout.trim() : ""
   return { head_commit: head.stdout.trim(), ...(name ? { branch: name } : {}) }
 }
+
+export interface Interface {
+  readonly get: (sessionID: SessionSchema.ID) => Effect.Effect<Content | undefined>
+  readonly getRow: (
+    sessionID: SessionSchema.ID,
+  ) => Effect.Effect<{ content: Content; source: string; version: number; updated_at: number } | undefined>
+  readonly rendered: (sessionID: SessionSchema.ID) => Effect.Effect<string | undefined>
+  readonly put: (input: { sessionID: SessionSchema.ID; content: Content; source: Source }) => Effect.Effect<void>
+  readonly append: (input: {
+    sessionID: SessionSchema.ID
+    state?: Partial<State>
+    log?: Partial<Log>
+  }) => Effect.Effect<Content>
+}
+
+export class Service extends Context.Service<Service, Interface>()("@opencode/SessionMemory") {}
+
+function defined<S extends Record<string, unknown>>(input: S | undefined): Partial<S> {
+  if (!input) return {}
+  return Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined)) as Partial<S>
+}
+
+const layer = Layer.effect(
+  Service,
+  Effect.gen(function* () {
+    const database = yield* Database.Service
+    const db = database.db
+
+    const getRow: Interface["getRow"] = Effect.fn("SessionMemory.getRow")(function* (sessionID) {
+      const row = yield* db
+        .select()
+        .from(SessionMemoryTable)
+        .where(eq(SessionMemoryTable.session_id, sessionID))
+        .get()
+        .pipe(Effect.orDie)
+      if (!row) return undefined
+      return { content: row.content, source: row.source, version: row.version, updated_at: row.time_updated }
+    })
+
+    const get: Interface["get"] = Effect.fn("SessionMemory.get")(function* (sessionID) {
+      const row = yield* getRow(sessionID)
+      return row?.content
+    })
+
+    const rendered: Interface["rendered"] = Effect.fn("SessionMemory.rendered")(function* (sessionID) {
+      const content = yield* get(sessionID)
+      if (!content) return undefined
+      return render(content)
+    })
+
+    const put: Interface["put"] = Effect.fn("SessionMemory.put")(function* (input) {
+      const content = normalize(input.content)
+      yield* db
+        .transaction((tx) =>
+          Effect.gen(function* () {
+            const existing = yield* tx
+              .select()
+              .from(SessionMemoryTable)
+              .where(eq(SessionMemoryTable.session_id, input.sessionID))
+              .get()
+              .pipe(Effect.orDie)
+            const version = (existing?.version ?? 0) + 1
+            yield* tx
+              .insert(SessionMemoryTable)
+              .values({ session_id: input.sessionID, content, source: input.source, version })
+              .onConflictDoUpdate({
+                target: SessionMemoryTable.session_id,
+                set: { content, source: input.source, version },
+              })
+              .run()
+              .pipe(Effect.orDie)
+          }),
+        )
+        .pipe(Effect.orDie)
+    })
+
+    const append: Interface["append"] = Effect.fn("SessionMemory.append")(function* (input) {
+      const current = (yield* get(input.sessionID)) ?? empty()
+      const merged: Content = {
+        ...current,
+        state: { ...current.state, ...defined(input.state) },
+        log: {
+          decisions: [...current.log.decisions, ...(input.log?.decisions ?? [])],
+          constraints: [...current.log.constraints, ...(input.log?.constraints ?? [])],
+          pitfalls: [...current.log.pitfalls, ...(input.log?.pitfalls ?? [])],
+          milestones: [...current.log.milestones, ...(input.log?.milestones ?? [])],
+        },
+      }
+      yield* put({ sessionID: input.sessionID, content: merged, source: "tool" })
+      return normalize(merged)
+    })
+
+    return Service.of({ get, getRow, rendered, put, append })
+  }),
+)
+
+export const node = makeGlobalNode({ service: Service, layer, deps: [Database.node] })
