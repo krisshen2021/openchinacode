@@ -43,6 +43,7 @@ import { DialogModel } from "./component/dialog-model"
 import { useConnected } from "./component/use-connected"
 import { DialogMcp } from "./component/dialog-mcp"
 import { DialogStatus } from "./component/dialog-status"
+import { DialogMemory } from "./component/dialog-memory"
 import { DialogDebug } from "./component/dialog-debug"
 import { DialogThemeList } from "./component/dialog-theme-list"
 import { DialogHelp } from "./ui/dialog-help"
@@ -769,6 +770,17 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
           dialog.replace(() => <DialogStatus />)
         },
         category: "System",
+      },
+      {
+        name: "session.memory",
+        title: "View session memory",
+        slashName: "memory",
+        run: () => {
+          if (route.data.type !== "session") return
+          const sessionID = route.data.sessionID
+          dialog.replace(() => <DialogMemory sessionID={sessionID} />)
+        },
+        category: "Session",
       },
       {
         name: "opencode.debug",
