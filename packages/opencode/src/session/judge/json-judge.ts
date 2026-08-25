@@ -34,6 +34,7 @@ export type RunJsonJudgeInput<T> = {
   smallModelProviderID?: Provider.Model["providerID"]
   timeoutMs: number
   maxOutputTokens: number | ((model: Provider.Model) => number)
+  retries?: number
   abort?: AbortSignal
   log?: Record<string, unknown>
   onSelected?: (model: Provider.Model) => Effect.Effect<void>
@@ -199,65 +200,76 @@ export const runJsonJudge = Effect.fn("JsonJudge.run")(function* <T>(input: RunJ
 
   const started = Date.now()
   try {
-    const exit = yield* Effect.exit(
-      Effect.tryPromise(() =>
-        generateText({
-          model: selected.language,
-          maxOutputTokens,
-          abortSignal: ctrl.signal,
-          messages: input.messages,
-        }),
-      ),
-    )
-    const elapsedMs = Date.now() - started
-    if (Exit.isFailure(exit)) {
-      const error = Cause.squash(exit.cause)
-      const message = failureMessage(error, { timedOut, externallyAborted, timeoutMs })
-      yield* Effect.logWarning(`${input.name} judge failed`, {
+    const retries = input.retries ?? 0
+    let round = 0
+    while (true) {
+      const exit = yield* Effect.exit(
+        Effect.tryPromise(() =>
+          generateText({
+            model: selected.language,
+            maxOutputTokens,
+            abortSignal: ctrl.signal,
+            messages: input.messages,
+          }),
+        ),
+      )
+      const elapsedMs = Date.now() - started
+      if (Exit.isFailure(exit)) {
+        const error = Cause.squash(exit.cause)
+        const message = failureMessage(error, { timedOut, externallyAborted, timeoutMs })
+        yield* Effect.logWarning(`${input.name} judge failed`, {
+          "session.id": input.sessionID,
+          providerID: selected.model.providerID,
+          modelID: selected.model.id,
+          elapsedMs,
+          error: message,
+          ...input.log,
+        })
+        return {
+          status: "failed",
+          decision: undefined,
+          model: selected.model,
+          elapsedMs,
+          error: message,
+        } satisfies JsonJudgeResult<T>
+      }
+
+      const raw = exit.value.text
+      const decision = input.parse(raw)
+      const status = decision ? "valid" : "invalid"
+      const preview = decision ? undefined : rawPreview(raw)
+      const usage = exit.value.usage
+      yield* Effect.logInfo(`${input.name} judge`, {
         "session.id": input.sessionID,
         providerID: selected.model.providerID,
         modelID: selected.model.id,
         elapsedMs,
-        error: message,
+        decision: status,
+        finishReason: exit.value.finishReason,
+        maxOutputTokens,
+        rawChars: raw.length,
+        "usage.inputTokens": usageMetric(usage, "inputTokens"),
+        "usage.outputTokens": usageMetric(usage, "outputTokens"),
+        "usage.reasoningTokens": reasoningTokens(usage),
+        "usage.totalTokens": usageMetric(usage, "totalTokens"),
+        ...(preview ? { rawPreview: preview } : {}),
         ...input.log,
       })
-      return {
-        status: "failed",
-        decision: undefined,
+      const result = {
+        status,
+        decision,
         model: selected.model,
         elapsedMs,
-        error: message,
+        ...(preview ? { rawPreview: preview, error: preview } : {}),
       } satisfies JsonJudgeResult<T>
+      if (status !== "invalid" || round === retries) return result
+      yield* Effect.logInfo(`${input.name} judge retrying after invalid output`, {
+        "session.id": input.sessionID,
+        attempt: round + 1,
+        ...input.log,
+      })
+      round++
     }
-
-    const raw = exit.value.text
-    const decision = input.parse(raw)
-    const status = decision ? "valid" : "invalid"
-    const preview = decision ? undefined : rawPreview(raw)
-    const usage = exit.value.usage
-    yield* Effect.logInfo(`${input.name} judge`, {
-      "session.id": input.sessionID,
-      providerID: selected.model.providerID,
-      modelID: selected.model.id,
-      elapsedMs,
-      decision: status,
-      finishReason: exit.value.finishReason,
-      maxOutputTokens,
-      rawChars: raw.length,
-      "usage.inputTokens": usageMetric(usage, "inputTokens"),
-      "usage.outputTokens": usageMetric(usage, "outputTokens"),
-      "usage.reasoningTokens": reasoningTokens(usage),
-      "usage.totalTokens": usageMetric(usage, "totalTokens"),
-      ...(preview ? { rawPreview: preview } : {}),
-      ...input.log,
-    })
-    return {
-      status,
-      decision,
-      model: selected.model,
-      elapsedMs,
-      ...(preview ? { rawPreview: preview, error: preview } : {}),
-    } satisfies JsonJudgeResult<T>
   } finally {
     clearTimeout(timeout)
     input.abort?.removeEventListener("abort", parentAbort)

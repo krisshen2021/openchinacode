@@ -446,6 +446,7 @@ const layer = Layer.effect(
         includeCurrentModel: false,
         smallModelProviderID: input.currentModel.providerID,
         timeoutMs: ACTIVE_TASK_EXTRACT_TIMEOUT_MS,
+        retries: 1,
         maxOutputTokens: (model) =>
           Math.min(
             ProviderTransform.maxOutputTokens(model, flags.outputTokenMax),

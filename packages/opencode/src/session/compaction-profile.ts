@@ -675,6 +675,7 @@ export function memoryMessages(input: {
         '- "state": the CURRENT task state. Rewrite it to reflect now; drop stale items.',
         '- "log": append-only history. Keep previous entries, append new ones; when a list nears its cap, merge the oldest entries into shorter combined entries instead of dropping them.',
         "You receive the previous memory document (possibly empty) and the recent conversation delta. Merge; do not copy the delta verbatim.",
+        "If there is nothing worth adding or changing, return the previous memory document unchanged (or an empty-zoned document when there was no previous memory).",
         "Return one compact JSON object only. Do not include Markdown, commentary, analysis, or explanatory text.",
         "Do not invent facts. Leave arrays empty when unknown.",
         `Set "at" to ${now} for new log entries; keep existing entries' "at" unchanged.`,
@@ -729,7 +730,16 @@ export function fallbackMemory(input: {
 }): SessionMemory.Content {
   const base = input.previousMemory ?? SessionMemory.empty()
   const decision = normalize(input.decision)
-  if (!decision.active_task.present) return base
+  // A successful profile judge always yields must_preserve rules; seeding them
+  // as constraints guarantees a non-empty first write even when the merge judge
+  // itself flakes. The next successful merge reclassifies them properly.
+  const constraints = [
+    ...base.log.constraints,
+    ...decision.must_preserve.filter((item) => !base.log.constraints.includes(item)),
+  ]
+  if (!decision.active_task.present) {
+    return SessionMemory.normalize({ ...base, log: { ...base.log, constraints } })
+  }
   return SessionMemory.normalize({
     ...base,
     state: {
@@ -737,6 +747,7 @@ export function fallbackMemory(input: {
       objective: base.state.objective || decision.active_task.reason,
       kind: base.state.objective ? base.state.kind : decision.active_task.kind,
     },
+    log: { ...base.log, constraints },
   })
 }
 

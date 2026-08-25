@@ -269,3 +269,20 @@ describe("session memory merge", () => {
     expect(projected.open_questions[0]).toBe("[user] ok?")
   })
 })
+
+test("fallbackMemory seeds must_preserve as constraints so first write is non-empty", () => {
+  const decision = CompactionProfile.normalize({
+    must_preserve: ["keep jwt", "never delete vdi"],
+  })
+  const merged = CompactionProfile.fallbackMemory({ decision })
+  expect(merged.log.constraints).toEqual(["keep jwt", "never delete vdi"])
+  expect(SessionMemory.isEmpty(merged)).toBe(false)
+
+  const previous = SessionMemory.empty()
+  const withConstraints: SessionMemory.Content = {
+    ...previous,
+    log: { ...previous.log, constraints: ["keep jwt"] },
+  }
+  const again = CompactionProfile.fallbackMemory({ decision, previousMemory: withConstraints })
+  expect(again.log.constraints).toEqual(["keep jwt", "never delete vdi"])
+})

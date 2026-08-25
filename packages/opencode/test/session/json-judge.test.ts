@@ -67,3 +67,89 @@ describe("JsonJudge.selectJudgeModel", () => {
     expect(seen).toEqual(["deepseek/deepseek-v4-flash"])
   })
 })
+
+describe("JsonJudge.runJsonJudge retries", () => {
+  function providerWith(texts: string[], calls: string[]) {
+    const lang = {
+      specificationVersion: "v3",
+      provider: "test",
+      modelId: "m",
+      supportedUrls: {},
+      doGenerate: () => {
+        calls.push("call")
+        const text = texts.shift() ?? "{}"
+        return Promise.resolve({
+          content: [{ type: "text" as const, text }],
+          finishReason: { unified: "stop" as const, raw: undefined },
+          usage: {
+            inputTokens: { total: 1, noCache: 1, cacheRead: undefined, cacheWrite: undefined },
+            outputTokens: { total: 1, text: 1, reasoning: undefined },
+          },
+          warnings: [],
+        })
+      },
+      doStream: () => Promise.reject(new Error("not used")),
+    } satisfies LanguageModelV3
+    const model = ProviderTest.model({
+      providerID: ProviderV2.ID.make("deepseek"),
+      id: ModelV2.ID.make("deepseek-v4-flash"),
+    })
+    return Provider.Service.of({
+      list: Effect.fn("TestProvider.list")(() => Effect.succeed({})),
+      refresh: Effect.fn("TestProvider.refresh")(() => Effect.void),
+      getProvider: Effect.fn("TestProvider.getProvider")(() => Effect.die(new Error("not used"))),
+      getModel: Effect.fn("TestProvider.getModel")(() => Effect.succeed(model)),
+      getLanguage: Effect.fn("TestProvider.getLanguage")(() => Effect.succeed(lang)),
+      closest: Effect.fn("TestProvider.closest")(() => Effect.succeed(undefined)),
+      getSmallModel: Effect.fn("TestProvider.getSmallModel")(() => Effect.succeed(model)),
+      defaultModel: Effect.fn("TestProvider.defaultModel")(() =>
+        Effect.succeed({ providerID: model.providerID, modelID: model.id }),
+      ),
+    })
+  }
+
+  const parse = (text: string): { ok: boolean } | undefined => {
+    if (!text.startsWith("{")) return undefined
+    return JSON.parse(text)
+  }
+
+  test("retries once on invalid output and returns the second parse", async () => {
+    const calls: string[] = []
+    // Effect.fn with a generic generator widens the effect to unknown/any;
+    // production callers consume it through generators, so pin the type here.
+    const result = await Effect.runPromise(
+      JsonJudge.runJsonJudge<{ ok: boolean }>({
+        name: "test judge",
+        sessionID: "ses_retry",
+        provider: providerWith(["garbage", '{"ok":true}'], calls),
+        messages: [{ role: "user", content: "hi" }],
+        parse,
+        modelCandidates: ["deepseek/deepseek-v4-flash"],
+        timeoutMs: 5000,
+        maxOutputTokens: 100,
+        retries: 1,
+      }) as Effect.Effect<JsonJudge.JsonJudgeResult<{ ok: boolean }>>,
+    )
+    expect(result.status).toBe("valid")
+    expect(result.decision?.ok).toBe(true)
+    expect(calls.length).toBe(2)
+  })
+
+  test("no retry when retries is unset", async () => {
+    const calls: string[] = []
+    const result = await Effect.runPromise(
+      JsonJudge.runJsonJudge<{ ok: boolean }>({
+        name: "test judge",
+        sessionID: "ses_noretry",
+        provider: providerWith(["garbage", '{"ok":true}'], calls),
+        messages: [{ role: "user", content: "hi" }],
+        parse,
+        modelCandidates: ["deepseek/deepseek-v4-flash"],
+        timeoutMs: 5000,
+        maxOutputTokens: 100,
+      }) as Effect.Effect<JsonJudge.JsonJudgeResult<{ ok: boolean }>>,
+    )
+    expect(result.status).toBe("invalid")
+    expect(calls.length).toBe(1)
+  })
+})
