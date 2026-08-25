@@ -15,17 +15,13 @@ function withLog(partial: Partial<SessionMemory.Log>): SessionMemory.Content {
 
 describe("normalize", () => {
   test("caps decisions at 50 by dropping oldest", () => {
-    const result = SessionMemory.normalize(
-      withLog({ decisions: Array.from({ length: 60 }, (_, i) => decision(i)) }),
-    )
+    const result = SessionMemory.normalize(withLog({ decisions: Array.from({ length: 60 }, (_, i) => decision(i)) }))
     expect(result.log.decisions.length).toBe(50)
     expect(result.log.decisions[0]!.decision).toBe("d10")
   })
 
   test("never evicts constraints", () => {
-    const result = SessionMemory.normalize(
-      withLog({ constraints: Array.from({ length: 30 }, (_, i) => `rule ${i}`) }),
-    )
+    const result = SessionMemory.normalize(withLog({ constraints: Array.from({ length: 30 }, (_, i) => `rule ${i}`) }))
     expect(result.log.constraints.length).toBeGreaterThan(0)
     expect(result.log.constraints[0]).toBe("rule 0")
   })
@@ -55,7 +51,10 @@ describe("render", () => {
     const base = withState({ objective: "ship ep0", status: "active" })
     const content: SessionMemory.Content = {
       ...base,
-      log: { ...base.log, pitfalls: [{ trap: "pm2 revives port", why: "watchdog", workaround: "pm2 delete first", at: 1 }] },
+      log: {
+        ...base.log,
+        pitfalls: [{ trap: "pm2 revives port", why: "watchdog", workaround: "pm2 delete first", at: 1 }],
+      },
     }
     const out = SessionMemory.render(content)
     expect(out).toContain("## Objective")
@@ -165,4 +164,14 @@ describe("service", () => {
       expect(yield* svc.rendered(id)).toContain("visible")
     }),
   )
+})
+
+describe("isEmpty", () => {
+  test("empty document is empty, any content makes it non-empty", () => {
+    expect(SessionMemory.isEmpty(SessionMemory.empty())).toBe(true)
+    expect(SessionMemory.isEmpty(withState({ objective: "x" }))).toBe(false)
+    expect(
+      SessionMemory.isEmpty(withLog({ pitfalls: [{ trap: "t", why: "w", workaround: "x", at: 1 }] })),
+    ).toBe(false)
+  })
 })

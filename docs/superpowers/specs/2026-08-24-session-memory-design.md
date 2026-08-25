@@ -36,13 +36,13 @@ User-confirmed framing: the three hard problems of external memory are **what to
 
 New table `session_memory`, one row per session:
 
-| column | type | notes |
-|---|---|---|
-| `session_id` | text PK, FK → session | cascade delete in the same transaction as session delete |
-| `content` | text (JSON) | the structured document below, hard cap 8 KB |
-| `source` | text | last writer: `judge` (compaction merge) \| `tool` (`memory_write`) |
-| `version` | integer | incremented per write; debugging/optimism |
-| `updated_at` | integer | ms epoch |
+| column       | type                  | notes                                                              |
+| ------------ | --------------------- | ------------------------------------------------------------------ |
+| `session_id` | text PK, FK → session | cascade delete in the same transaction as session delete           |
+| `content`    | text (JSON)           | the structured document below, hard cap 8 KB                       |
+| `source`     | text                  | last writer: `judge` (compaction merge) \| `tool` (`memory_write`) |
+| `version`    | integer               | incremented per write; debugging/optimism                          |
+| `updated_at` | integer               | ms epoch                                                           |
 
 Additive migration only. If the migration or a read fails, the feature disables itself with a warn log and compaction behaves exactly as today.
 
@@ -80,6 +80,7 @@ On write overflow (> 8 KB), the writer (judge prompt or tool validation) must se
 ### 3. Write path
 
 - **Compaction-time (floor):** `activeTaskMessages` changes from "extract from recent conversation" to "merge delta into existing memory": input = previous memory content + conversation delta since last compaction. The judge chain, fallbacks, timeouts, and progress events are reused unchanged. On judge failure the previous memory is kept — a failed write never wipes.
+- **Write gate (revised 2026-08-25):** the merge runs on every compaction, unconditionally. The row is persisted when `previousMemory` exists OR the merged content is non-empty (`SessionMemory.isEmpty`). The earlier gate on the judge's `active_task.present` dead-ended sessions whose judge conservatively reports "none detected": no first write → no previous memory → every later compaction skipped again (observed live on a 246-message dev session).
 - **Pitfall promotion:** during the same merge, entries in `state.failures` that are resolved and meet the admission criteria are promoted into `log.pitfalls`.
 - **`memory_write` tool (ceiling):** agent-facing tool accepting partial state/log updates; validated through the same normalize/clamp path; tagged `source: "tool"`. Log-zone fields are append-only through the tool as well.
 - Harness fills `refs`, `updated_at`, `source` deterministically at write time.

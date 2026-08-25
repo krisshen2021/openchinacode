@@ -428,9 +428,6 @@ const layer = Layer.effect(
       previousMemory?: SessionMemory.Content
     }) {
       const cfg = yield* config.get()
-      if (!input.decision.active_task.present && !input.previousMemory) {
-        return { status: "skipped" } satisfies ActiveTaskExtractResult
-      }
 
       const result = yield* JsonJudge.runJsonJudge<SessionMemory.Content>({
         name: "compaction active task extraction",
@@ -694,7 +691,11 @@ const layer = Layer.effect(
         })
         const memoryContent =
           extracted.memory ?? CompactionProfile.fallbackMemory({ decision: readyProfile, previousMemory })
-        if (readyProfile.active_task.present || previousMemory) {
+        // Always merge on compaction; only persist when there is something worth
+        // keeping. Gating on the judge's active_task.present dead-ended sessions
+        // whose judge conservatively reports none detected: no first write means
+        // no previousMemory, so every later compaction skipped again.
+        if (previousMemory || !SessionMemory.isEmpty(memoryContent)) {
           const instance = yield* InstanceState.context
           yield* memory
             .put({

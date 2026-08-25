@@ -100,6 +100,21 @@ export function empty(): Content {
   }
 }
 
+export function isEmpty(content: Content): boolean {
+  return (
+    !content.state.objective.trim() &&
+    content.state.files.length === 0 &&
+    content.state.verified.length === 0 &&
+    content.state.failures.length === 0 &&
+    content.state.next_actions.length === 0 &&
+    content.state.open_questions.length === 0 &&
+    content.log.decisions.length === 0 &&
+    content.log.constraints.length === 0 &&
+    content.log.pitfalls.length === 0 &&
+    content.log.milestones.length === 0
+  )
+}
+
 function clip(value: string, max = STRING_MAX) {
   const text = value.trim()
   return text.length > max ? text.slice(0, max) : text

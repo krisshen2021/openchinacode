@@ -755,7 +755,6 @@ describe("session.compaction.create", () => {
   )
 })
 
-
 describe("session.compaction.process", () => {
   it.instance(
     "throws when parent is not a user message",
@@ -1948,10 +1947,7 @@ describe("session memory persistence", () => {
     Effect.gen(function* () {
       const ssn = yield* SessionNs.Service
       const session = yield* ssn.create({})
-      const msg = yield* createUserMessage(
-        session.id,
-        "edit src/auth.ts to add jwt refresh, then run the test suite",
-      )
+      const msg = yield* createUserMessage(session.id, "edit src/auth.ts to add jwt refresh, then run the test suite")
       const msgs = yield* ssn.messages({ sessionID: session.id })
 
       const result = yield* SessionCompaction.use.process({
@@ -1975,6 +1971,29 @@ describe("session memory persistence", () => {
         "plan",
         "mixed",
       ])
+    }),
+  )
+})
+
+describe("session memory write gate", () => {
+  it.instance(
+    "writes no memory row when the merged content is empty",
+    Effect.gen(function* () {
+      const ssn = yield* SessionNs.Service
+      const session = yield* ssn.create({})
+      const msg = yield* createUserMessage(session.id, "hello")
+      const msgs = yield* ssn.messages({ sessionID: session.id })
+
+      const result = yield* SessionCompaction.use.process({
+        parentID: msg.id,
+        messages: msgs,
+        sessionID: session.id,
+        auto: false,
+      })
+      expect(result).toBe("continue")
+
+      const memory = yield* SessionMemory.Service
+      expect(yield* memory.getRow(session.id)).toBeUndefined()
     }),
   )
 })
