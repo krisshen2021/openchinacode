@@ -41,9 +41,13 @@ const PROFILE_JUDGE_FALLBACKS = ["deepseek/deepseek-v4-flash", "moonshotai-cn/ki
 // DeepSeek V4 defaults to thinking mode (effort high): reasoning burns most of the
 // budget before any content is emitted, so small caps truncate to empty output.
 const PROFILE_JUDGE_MAX_OUTPUT_TOKENS = 32_768
-const ACTIVE_TASK_EXTRACT_TIMEOUT_MS = 90_000
+// Observed successful merge judges on deepseek-v4-flash take up to ~90s (reasoning
+// dominates latency), so 90s timed out mid-distribution; 180s gives 2x headroom.
+const ACTIVE_TASK_EXTRACT_TIMEOUT_MS = 180_000
 const ACTIVE_TASK_EXTRACT_FALLBACKS = PROFILE_JUDGE_FALLBACKS
-const ACTIVE_TASK_EXTRACT_MAX_OUTPUT_TOKENS = 65_536
+// The merged memory document is only a few thousand tokens; a generous-but-bounded
+// cap keeps runaway reasoning from pushing latency past the timeout.
+const ACTIVE_TASK_EXTRACT_MAX_OUTPUT_TOKENS = 16_384
 type ProgressData = typeof Event.Progress.data.Type
 type ProgressStage = ProgressData["stage"]
 type ProgressModel = ProgressData["model"]

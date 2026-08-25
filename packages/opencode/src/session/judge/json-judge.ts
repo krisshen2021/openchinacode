@@ -217,6 +217,18 @@ export const runJsonJudge = Effect.fn("JsonJudge.run")(function* <T>(input: RunJ
       if (Exit.isFailure(exit)) {
         const error = Cause.squash(exit.cause)
         const message = failureMessage(error, { timedOut, externallyAborted, timeoutMs })
+        // retry fast failures while budget remains; a timeout or external abort has
+        // already killed the shared controller, so another attempt would die instantly
+        if (!timedOut && !externallyAborted && round < retries) {
+          yield* Effect.logInfo(`${input.name} judge retrying after failure`, {
+            "session.id": input.sessionID,
+            attempt: round + 1,
+            error: message,
+            ...input.log,
+          })
+          round++
+          continue
+        }
         yield* Effect.logWarning(`${input.name} judge failed`, {
           "session.id": input.sessionID,
           providerID: selected.model.providerID,

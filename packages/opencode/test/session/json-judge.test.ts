@@ -69,7 +69,7 @@ describe("JsonJudge.selectJudgeModel", () => {
 })
 
 describe("JsonJudge.runJsonJudge retries", () => {
-  function providerWith(texts: string[], calls: string[]) {
+  function providerWith(texts: (string | Error)[], calls: string[]) {
     const lang = {
       specificationVersion: "v3",
       provider: "test",
@@ -77,7 +77,9 @@ describe("JsonJudge.runJsonJudge retries", () => {
       supportedUrls: {},
       doGenerate: () => {
         calls.push("call")
-        const text = texts.shift() ?? "{}"
+        const item = texts.shift() ?? "{}"
+        if (item instanceof Error) return Promise.reject(item)
+        const text = item
         return Promise.resolve({
           content: [{ type: "text" as const, text }],
           finishReason: { unified: "stop" as const, raw: undefined },
@@ -90,6 +92,10 @@ describe("JsonJudge.runJsonJudge retries", () => {
       },
       doStream: () => Promise.reject(new Error("not used")),
     } satisfies LanguageModelV3
+    return providerFor(lang)
+  }
+
+  function providerFor(lang: LanguageModelV3) {
     const model = ProviderTest.model({
       providerID: ProviderV2.ID.make("deepseek"),
       id: ModelV2.ID.make("deepseek-v4-flash"),
@@ -150,6 +156,79 @@ describe("JsonJudge.runJsonJudge retries", () => {
       }) as Effect.Effect<JsonJudge.JsonJudgeResult<{ ok: boolean }>>,
     )
     expect(result.status).toBe("invalid")
+    expect(calls.length).toBe(1)
+  })
+
+  test("retries once on provider failure and returns the successful result", async () => {
+    const calls: string[] = []
+    const result = await Effect.runPromise(
+      JsonJudge.runJsonJudge<{ ok: boolean }>({
+        name: "test judge",
+        sessionID: "ses_fail_retry",
+        provider: providerWith([new Error("provider boom"), '{"ok":true}'], calls),
+        messages: [{ role: "user", content: "hi" }],
+        parse,
+        modelCandidates: ["deepseek/deepseek-v4-flash"],
+        timeoutMs: 5000,
+        maxOutputTokens: 100,
+        retries: 1,
+      }) as Effect.Effect<JsonJudge.JsonJudgeResult<{ ok: boolean }>>,
+    )
+    expect(result.status).toBe("valid")
+    expect(result.decision?.ok).toBe(true)
+    expect(calls.length).toBe(2)
+  })
+
+  test("returns failed after retries are exhausted on repeated provider failure", async () => {
+    const calls: string[] = []
+    const result = await Effect.runPromise(
+      JsonJudge.runJsonJudge<{ ok: boolean }>({
+        name: "test judge",
+        sessionID: "ses_fail_exhaust",
+        provider: providerWith([new Error("boom 1"), new Error("boom 2")], calls),
+        messages: [{ role: "user", content: "hi" }],
+        parse,
+        modelCandidates: ["deepseek/deepseek-v4-flash"],
+        timeoutMs: 5000,
+        maxOutputTokens: 100,
+        retries: 1,
+      }) as Effect.Effect<JsonJudge.JsonJudgeResult<{ ok: boolean }>>,
+    )
+    expect(result.status).toBe("failed")
+    expect(calls.length).toBe(2)
+  })
+
+  test("does not retry when the timeout kills the attempt", async () => {
+    const calls: string[] = []
+    const lang = {
+      specificationVersion: "v3",
+      provider: "test",
+      modelId: "m",
+      supportedUrls: {},
+      doGenerate: (options: { abortSignal?: AbortSignal }) =>
+        new Promise<never>((_resolve, reject) => {
+          calls.push("call")
+          options.abortSignal?.addEventListener("abort", () =>
+            reject(new DOMException("The operation was aborted", "AbortError")),
+          )
+        }),
+      doStream: () => Promise.reject(new Error("not used")),
+    } satisfies LanguageModelV3
+    const result = await Effect.runPromise(
+      JsonJudge.runJsonJudge<{ ok: boolean }>({
+        name: "test judge",
+        sessionID: "ses_timeout",
+        provider: providerFor(lang),
+        messages: [{ role: "user", content: "hi" }],
+        parse,
+        modelCandidates: ["deepseek/deepseek-v4-flash"],
+        timeoutMs: 20,
+        maxOutputTokens: 100,
+        retries: 1,
+      }) as Effect.Effect<JsonJudge.JsonJudgeResult<{ ok: boolean }>>,
+    )
+    expect(result.status).toBe("failed")
+    expect(result.error).toContain("timeout")
     expect(calls.length).toBe(1)
   })
 })

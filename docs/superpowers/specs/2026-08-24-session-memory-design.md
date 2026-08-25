@@ -128,3 +128,11 @@ On write overflow (> 8 KB), the writer (judge prompt or tool validation) must se
 5. `packages/opencode/src/tool/`: `memory_write` tool.
 6. HttpApi group + `script/generate.ts` SDK regen; TUI read-only viewer.
 7. Branch name per AGENTS.md: `session-memory`.
+
+## Revision 2026-08-26: merge judge failure hardening
+
+Production logs showed the merge judge failing regularly: 9 timeouts at exactly 90s, 2 provider errors, 14 invalid outputs over ~10 days. Root cause was budget miscalibration, not flakiness — successful deepseek-v4-flash merge calls cluster at 60-89s (reasoning dominates; observed max 89.3s), so the 90s timeout cut through the middle of the latency distribution.
+
+- `ACTIVE_TASK_EXTRACT_TIMEOUT_MS` 90s → 180s (2x headroom over observed max).
+- `ACTIVE_TASK_EXTRACT_MAX_OUTPUT_TOKENS` 65536 → 16384 (merged doc is ≤ ~5k tokens; unbounded reasoning was the latency driver).
+- `runJsonJudge` now retries `failed` (provider errors) while retries remain, in addition to `invalid`. Timeouts and external aborts are never retried — the shared abort controller is already dead, so another attempt would fail instantly.
