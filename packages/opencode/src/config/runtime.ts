@@ -36,7 +36,8 @@ export class Service extends Context.Service<Service, Interface>()("@opencode/Co
 function clean(input: Override) {
   const next: Override = {}
   if (input.taskPolicyEnabled !== undefined) next.taskPolicyEnabled = input.taskPolicyEnabled
-  if (input.taskPolicyExtraRouterEnabled !== undefined) next.taskPolicyExtraRouterEnabled = input.taskPolicyExtraRouterEnabled
+  if (input.taskPolicyExtraRouterEnabled !== undefined)
+    next.taskPolicyExtraRouterEnabled = input.taskPolicyExtraRouterEnabled
   return next
 }
 

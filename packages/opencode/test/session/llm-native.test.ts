@@ -368,7 +368,6 @@ describe("session.llm-native.request", () => {
     })
     expect(compatible.route.id).toBe("openai-compatible-chat")
     expect(compatible.route.endpoint.baseURL).toBe("https://ai.example.test/v1")
-
   })
 
   test("fails fast for unsupported provider packages", () => {

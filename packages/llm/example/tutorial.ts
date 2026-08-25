@@ -35,7 +35,7 @@ const model = OpenAI.configure({
 //     penalties, seed, and stop sequences.
 //   - `providerOptions`: namespaced provider-native behavior. For example,
 //     OpenAI cache keys and store behavior, Anthropic thinking, Gemini thinking
-  //     config, or OpenAI-compatible provider extensions.
+//     config, or OpenAI-compatible provider extensions.
 //   - `http`: last-resort serializable overlays for final request body, headers,
 //     and query params. Prefer typed `providerOptions` when a field is stable.
 //

@@ -9,6 +9,7 @@
 **Tech Stack:** Effect (v4 beta API — `Effect.forkIn(scope)`, no `Effect.fork`), Effect Schema, `effect/unstable/httpapi` HttpApiBuilder groups, drizzle/bun:sqlite (not touched here), SolidJS TUI (`packages/tui`), `jsonc-parser` `modify`/`applyEdits` for comment-preserving config writes.
 
 **Hard rules (repo):**
+
 - Work only in `/home/kris/Projects/OpenChinaCode-surgery` on branch `memory-surgery`. Never touch `/home/kris/Projects/OpenChinaCode`.
 - Run tests/typecheck from package dirs (`packages/core`, `packages/opencode`, `packages/tui`), NEVER repo root.
 - `bun typecheck` per touched package (never bare `tsc`).
@@ -22,6 +23,7 @@
 ### Task 1: Config field `discover_models`
 
 **Files:**
+
 - Modify: `packages/core/src/v1/config/provider.ts:80-124` (the `Info` struct)
 
 - [ ] **Step 1: Add the field**
@@ -50,6 +52,7 @@ git commit -m "feat(core): add provider discover_models config flag"
 ### Task 2: Discovery core — fetch + disk cache
 
 **Files:**
+
 - Create: `packages/opencode/src/provider/discover.ts`
 - Test: `packages/opencode/test/provider/discover.test.ts`
 
@@ -87,10 +90,7 @@ describe("Discover.fetchModels", () => {
       () =>
         Response.json({
           object: "list",
-          data: [
-            { id: "glm-5.4", object: "model", created: 1, owned_by: "zhipu" },
-            { id: "glm-5.3-air" },
-          ],
+          data: [{ id: "glm-5.4", object: "model", created: 1, owned_by: "zhipu" }, { id: "glm-5.3-air" }],
         }),
       (port) => Effect.runPromise(Discover.fetchModels(`http://127.0.0.1:${port}/v4`, "sk-test")),
     )
@@ -142,13 +142,13 @@ describe("Discover cache", () => {
     Effect.gen(function* () {
       yield* Effect.promise(async () => {
         await using tmp = await tmpdir()
-        const cache = yield* Discover.makeCache(tmp.path)
-        yield* cache.write("zhipuai-pay2go", [{ id: "glm-5.4", name: "glm-5.4" }])
-        const fresh = yield* cache.read()
+        const cache = yield * Discover.makeCache(tmp.path)
+        yield * cache.write("zhipuai-pay2go", [{ id: "glm-5.4", name: "glm-5.4" }])
+        const fresh = yield * cache.read()
         expect(fresh["zhipuai-pay2go"].models).toEqual([{ id: "glm-5.4", name: "glm-5.4" }])
         expect(cache.isFresh(fresh["zhipuai-pay2go"])).toBe(true)
-        yield* cache.expire("zhipuai-pay2go")
-        const expired = yield* cache.read()
+        yield * cache.expire("zhipuai-pay2go")
+        const expired = yield * cache.read()
         expect(cache.isFresh(expired["zhipuai-pay2go"])).toBe(false)
       })
     }),
@@ -215,7 +215,10 @@ export const fetchModels = Effect.fn("Discover.fetchModels")(function* (baseURL:
     return yield* fail("Auth", `GET ${url} returned ${response.status}; check the API key`)
   }
   if (!response.ok) {
-    return yield* fail("Unsupported", `GET ${url} returned ${response.status}; endpoint does not support model enumeration`)
+    return yield* fail(
+      "Unsupported",
+      `GET ${url} returned ${response.status}; endpoint does not support model enumeration`,
+    )
   }
   const body = yield* Effect.tryPromise({
     try: () => response.json(),
@@ -257,9 +260,7 @@ export const makeCache = (dir: string) =>
       const data = yield* read()
       const entry = data[providerID]
       if (!entry) return
-      yield* fsys
-        .writeJson(file, { ...data, [providerID]: { ...entry, fetchedAt: 0 } }, 0o600)
-        .pipe(Effect.orDie)
+      yield* fsys.writeJson(file, { ...data, [providerID]: { ...entry, fetchedAt: 0 } }, 0o600).pipe(Effect.orDie)
     })
 
     const isFresh = (entry: { fetchedAt: number } | undefined) =>
@@ -288,6 +289,7 @@ git commit -m "feat(opencode): add OpenAI-compatible model discovery with disk c
 ### Task 3: Discovery core — merge fallback chain
 
 **Files:**
+
 - Modify: `packages/opencode/src/provider/discover.ts`
 - Test: `packages/opencode/test/provider/discover.test.ts` (append)
 
@@ -323,7 +325,14 @@ describe("Discover.mergeInto", () => {
 
   it("adds discovered models with defaults, never overwriting existing ones", () => {
     const provider: any = { models: { declared: stateModel("declared") } }
-    Discover.mergeInto(provider, [{ id: "declared", name: "declared" }, { id: "new-model", name: "new-model" }], undefined)
+    Discover.mergeInto(
+      provider,
+      [
+        { id: "declared", name: "declared" },
+        { id: "new-model", name: "new-model" },
+      ],
+      undefined,
+    )
     expect(Object.keys(provider.models).sort()).toEqual(["declared", "new-model"])
     expect(provider.models["new-model"].limit.context).toBe(128000)
     expect(provider.models["new-model"].capabilities.toolcall).toBe(true)
@@ -431,6 +440,7 @@ git commit -m "feat(opencode): add discovery merge fallback chain"
 ### Task 4: Provider state-build integration + `Provider.refresh()`
 
 **Files:**
+
 - Modify: `packages/opencode/src/provider/provider.ts` (state build ~1308-1627, Interface definition, `list` at 1630)
 - Test: `packages/opencode/test/provider/discover-build.test.ts` (new) — or extend an existing provider test file if one exists (check `packages/opencode/test/provider/` first and follow its harness)
 
@@ -443,31 +453,37 @@ Find the `Interface` for `Provider.Service` (search `export interface Interface`
 In `provider.ts`, replace the GitLab-only discovery block (lines 1559-1571) with a generalized pass that keeps the GitLab behavior and adds generic discovery. Insert after the config re-apply loop (line 1557), before the filtering loop (line 1573):
 
 ```ts
-        // generic OpenAI-compatible discovery (built-in trio defaults on, see Discover.enabled)
-        const discoverCache = yield* Discover.makeCache(Global.Path.data)
-        const discoveredData = yield* discoverCache.read()
-        for (const [id, provider] of Object.entries(providers)) {
-          const providerID = ProviderV2.ID.make(id)
-          if (!isProviderAllowed(providerID)) continue
-          if (!Discover.enabled(cfg.provider?.[id], id)) continue
-          const entry = discoveredData[id]
-          const models = yield* Effect.gen(function* () {
-            if (discoverCache.isFresh(entry)) return entry.models
-            const baseURL =
-              (typeof provider.options?.baseURL === "string" && provider.options.baseURL) || provider.api?.url
-            const key =
-              (typeof provider.options?.apiKey === "string" && provider.options.apiKey) ||
-              (yield* dep.auth(id).pipe(Effect.map((a) => (a?.type === "api" ? a.key : undefined)), Effect.orDie))
-            if (!baseURL || !key) return entry?.models ?? []
-            const fetched = yield* Discover.fetchModels(baseURL, key).pipe(
-              Effect.tapError((error) => Effect.logWarning("model discovery failed", { provider: id, kind: error.kind, message: error.message })),
-              Effect.orElseSucceed(() => entry?.models ?? []),
-            )
-            if (fetched.length > 0 && fetched !== (entry?.models ?? [])) yield* discoverCache.write(id, fetched)
-            return fetched
-          })
-          Discover.mergeInto(provider, models, (modelID) => catalogModel(id, modelID))
-        }
+// generic OpenAI-compatible discovery (built-in trio defaults on, see Discover.enabled)
+const discoverCache = yield * Discover.makeCache(Global.Path.data)
+const discoveredData = yield * discoverCache.read()
+for (const [id, provider] of Object.entries(providers)) {
+  const providerID = ProviderV2.ID.make(id)
+  if (!isProviderAllowed(providerID)) continue
+  if (!Discover.enabled(cfg.provider?.[id], id)) continue
+  const entry = discoveredData[id]
+  const models =
+    yield *
+    Effect.gen(function* () {
+      if (discoverCache.isFresh(entry)) return entry.models
+      const baseURL = (typeof provider.options?.baseURL === "string" && provider.options.baseURL) || provider.api?.url
+      const key =
+        (typeof provider.options?.apiKey === "string" && provider.options.apiKey) ||
+        (yield* dep.auth(id).pipe(
+          Effect.map((a) => (a?.type === "api" ? a.key : undefined)),
+          Effect.orDie,
+        ))
+      if (!baseURL || !key) return entry?.models ?? []
+      const fetched = yield* Discover.fetchModels(baseURL, key).pipe(
+        Effect.tapError((error) =>
+          Effect.logWarning("model discovery failed", { provider: id, kind: error.kind, message: error.message }),
+        ),
+        Effect.orElseSucceed(() => entry?.models ?? []),
+      )
+      if (fetched.length > 0 && fetched !== (entry?.models ?? [])) yield* discoverCache.write(id, fetched)
+      return fetched
+    })
+  Discover.mergeInto(provider, models, (modelID) => catalogModel(id, modelID))
+}
 ```
 
 Where `catalogModel(providerID, modelID)` is a small helper inside the same closure that converts a cross-provider models-dev catalog hit into the state model shape: search `catalog` (already built at line 1313 from `fromModelsDevProvider`) for any provider whose `models[modelID]` exists, then clone it and rewrite `providerID`/`api.npm`/`api.url` to the current provider's values (npm resolution exactly like line 1404-1409: `model.provider?.npm ?? provider.npm ?? "@ai-sdk/openai-compatible"`). For the GitLab block being replaced: keep its exact behavior by folding it into the same loop — `if (discoveryLoaders[providerID])` run that loader and merge its results first (it returns full state models already), then run the generic path. If folding makes the loop hard to read, keep the GitLab block verbatim and add the generic loop after it; DO NOT change GitLab semantics.
@@ -487,7 +503,7 @@ Add to the Provider `Interface`:
 Implement next to `list` (line 1630):
 
 ```ts
-    const refresh = Effect.fn("Provider.refresh")(() => InstanceState.invalidate(state))
+const refresh = Effect.fn("Provider.refresh")(() => InstanceState.invalidate(state))
 ```
 
 and add `refresh` to the `Service.of({ ... })` return value (search for where `list` is returned).
@@ -514,6 +530,7 @@ git commit -m "feat(opencode): merge discovered models into provider state, add 
 ### Task 5: Config writer for custom providers
 
 **Files:**
+
 - Create: `packages/opencode/src/config/custom-provider.ts`
 - Test: `packages/opencode/test/config/custom-provider.test.ts`
 
@@ -725,6 +742,7 @@ git commit -m "feat(opencode): add jsonc custom provider config writer"
 ### Task 6: HTTP endpoints
 
 **Files:**
+
 - Modify: `packages/opencode/src/server/routes/instance/httpapi/groups/provider.ts`
 - Modify: `packages/opencode/src/server/routes/instance/httpapi/handlers/provider.ts`
 - Test: `packages/opencode/test/server/httpapi-provider-discovery.test.ts` (new — follow the harness in `test/server/httpapi-instance.test.ts`)
@@ -791,59 +809,62 @@ Inside the same `HttpApiGroup.make("provider")` chain (after `callback`):
 Yield the additional services once at the top of the group (`Auth.Service` from `@/auth`, `ModelsDev.Service` is already used via `ModelsDev.Service.use`, `Global` for the config dir path):
 
 ```ts
-    const discover = Effect.fn("ProviderHttpApi.discover")(function* (ctx: {
-      payload: { baseURL: string; apiKey: string }
-    }) {
-      const models = yield* Discover.fetchModels(ctx.payload.baseURL, ctx.payload.apiKey).pipe(
-        Effect.mapError((error) => new ProviderDiscoveryApiError({ kind: error.kind, message: error.message })),
-      )
-      return { models }
-    })
+const discover = Effect.fn("ProviderHttpApi.discover")(function* (ctx: {
+  payload: { baseURL: string; apiKey: string }
+}) {
+  const models = yield* Discover.fetchModels(ctx.payload.baseURL, ctx.payload.apiKey).pipe(
+    Effect.mapError((error) => new ProviderDiscoveryApiError({ kind: error.kind, message: error.message })),
+  )
+  return { models }
+})
 
-    const customList = Effect.fn("ProviderHttpApi.customList")(function* () {
-      return yield* CustomProvider.list(Global.Path.config).pipe(Effect.orDie)
-    })
+const customList = Effect.fn("ProviderHttpApi.customList")(function* () {
+  return yield* CustomProvider.list(Global.Path.config).pipe(Effect.orDie)
+})
 
-    const customSave = Effect.fn("ProviderHttpApi.customSave")(function* (ctx: {
-      params: { providerID: string }
-      payload: { name?: string; baseURL: string; models: string[]; discover_models: boolean; apiKey?: string }
-    }) {
-      if (!ctx.params.providerID.match(/^[a-z0-9][a-z0-9-]*$/)) {
-        return yield* new ProviderDiscoveryApiError({ kind: "BadRequest", message: "provider id must be lowercase letters, digits, hyphens" })
-      }
-      if (ctx.payload.models.length === 0) {
-        return yield* new ProviderDiscoveryApiError({ kind: "BadRequest", message: "at least one model id is required" })
-      }
-      yield* CustomProvider.save(Global.Path.config, {
-        id: ctx.params.providerID,
-        name: ctx.payload.name,
-        baseURL: ctx.payload.baseURL,
-        models: ctx.payload.models,
-        discover_models: ctx.payload.discover_models,
-      }).pipe(Effect.orDie)
-      if (ctx.payload.apiKey) {
-        yield* auth.set(ctx.params.providerID, { type: "api", key: ctx.payload.apiKey }).pipe(Effect.orDie)
-      }
-      yield* provider.refresh()
-      return { ok: true as const }
+const customSave = Effect.fn("ProviderHttpApi.customSave")(function* (ctx: {
+  params: { providerID: string }
+  payload: { name?: string; baseURL: string; models: string[]; discover_models: boolean; apiKey?: string }
+}) {
+  if (!ctx.params.providerID.match(/^[a-z0-9][a-z0-9-]*$/)) {
+    return yield* new ProviderDiscoveryApiError({
+      kind: "BadRequest",
+      message: "provider id must be lowercase letters, digits, hyphens",
     })
+  }
+  if (ctx.payload.models.length === 0) {
+    return yield* new ProviderDiscoveryApiError({ kind: "BadRequest", message: "at least one model id is required" })
+  }
+  yield* CustomProvider.save(Global.Path.config, {
+    id: ctx.params.providerID,
+    name: ctx.payload.name,
+    baseURL: ctx.payload.baseURL,
+    models: ctx.payload.models,
+    discover_models: ctx.payload.discover_models,
+  }).pipe(Effect.orDie)
+  if (ctx.payload.apiKey) {
+    yield* auth.set(ctx.params.providerID, { type: "api", key: ctx.payload.apiKey }).pipe(Effect.orDie)
+  }
+  yield* provider.refresh()
+  return { ok: true as const }
+})
 
-    const refresh = Effect.fn("ProviderHttpApi.refresh")(function* () {
-      const before = new Set(
-        Object.entries(yield* provider.list()).flatMap(([pid, p]) => Object.keys(p.models).map((m) => `${pid}/${m}`)),
-      )
-      yield* ModelsDev.Service.use((s) => s.refresh(true))
-      const discoverCache = yield* Discover.makeCache(Global.Path.data)
-      for (const id of Object.keys(yield* provider.list())) {
-        yield* discoverCache.expire(id)
-      }
-      yield* provider.refresh()
-      const after = yield* provider.list()
-      const added = Object.entries(after)
-        .flatMap(([pid, p]) => Object.keys(p.models).map((m) => `${pid}/${m}`))
-        .filter((key) => !before.has(key))
-      return { added }
-    })
+const refresh = Effect.fn("ProviderHttpApi.refresh")(function* () {
+  const before = new Set(
+    Object.entries(yield* provider.list()).flatMap(([pid, p]) => Object.keys(p.models).map((m) => `${pid}/${m}`)),
+  )
+  yield* ModelsDev.Service.use((s) => s.refresh(true))
+  const discoverCache = yield* Discover.makeCache(Global.Path.data)
+  for (const id of Object.keys(yield* provider.list())) {
+    yield* discoverCache.expire(id)
+  }
+  yield* provider.refresh()
+  const after = yield* provider.list()
+  const added = Object.entries(after)
+    .flatMap(([pid, p]) => Object.keys(p.models).map((m) => `${pid}/${m}`))
+    .filter((key) => !before.has(key))
+  return { added }
+})
 ```
 
 Then chain them: `handlers.handle("discover", discover).handle("customList", customList).handle("customSave", customSave).handle("refresh", refresh)` after the existing `.handle("callback", callback)`.
@@ -853,6 +874,7 @@ Note `auth` name is already taken by the existing `auth` handler const — bind 
 - [ ] **Step 3: Write endpoint tests**
 
 Follow `test/server/httpapi-instance.test.ts` harness (it boots the routes with test services). Cover:
+
 1. `POST /provider/discover` against a `Bun.serve` stub returning `{data:[{id:"m1"}]}` → `{models:[{id:"m1",name:"m1"}]}`; against a 404 stub → `ProviderDiscoveryError` with `kind: "Unsupported"`.
 2. `PUT /provider/custom/mine` with a temp `Global.Path.config` (check how existing tests override the global dir — there is likely a test env var or layer; if the harness makes this awkward, cover `CustomProvider.save` via Task 5 tests and test only the 400-branches + auth.set call here) → subsequent `GET /provider/custom` lists it without any apiKey field.
 3. `POST /provider/refresh` returns `{added: [...]}` (may be empty in the test env).
@@ -880,6 +902,7 @@ git commit -m "feat(opencode): add provider discovery/custom/refresh endpoints"
 ### Task 7: CLI manual trigger
 
 **Files:**
+
 - Modify: `packages/opencode/src/cli/cmd/models.ts:25-62`
 
 - [ ] **Step 1: Extend `--refresh`**
@@ -887,42 +910,50 @@ git commit -m "feat(opencode): add provider discovery/custom/refresh endpoints"
 In `models.ts` handler, replace the `if (args.refresh)` block (lines 29-32) with:
 
 ```ts
-    if (args.refresh) {
-      yield* ModelsDev.Service.use((s) => s.refresh(true))
-      const { Discover } = yield* Effect.promise(() => import("@/provider/discover"))
-      const { Global } = yield* Effect.promise(() => import("@opencode-ai/core/global"))
-      const discoverCache = yield* Discover.makeCache(Global.Path.data)
-      if (args.provider) {
-        yield* discoverCache.expire(args.provider)
-      } else {
-        const data = yield* discoverCache.read()
-        for (const id of Object.keys(data)) yield* discoverCache.expire(id)
-      }
-      // Best-effort: if a server is running, trigger its live refresh so a
-      // running TUI picks up new models without restart.
-      const serverJson = yield* Effect.promise(() =>
-        Bun.file(`${Global.Path.data}/server.json`)
-          .json()
-          .catch(() => undefined),
+if (args.refresh) {
+  yield * ModelsDev.Service.use((s) => s.refresh(true))
+  const { Discover } = yield * Effect.promise(() => import("@/provider/discover"))
+  const { Global } = yield * Effect.promise(() => import("@opencode-ai/core/global"))
+  const discoverCache = yield * Discover.makeCache(Global.Path.data)
+  if (args.provider) {
+    yield * discoverCache.expire(args.provider)
+  } else {
+    const data = yield * discoverCache.read()
+    for (const id of Object.keys(data)) yield * discoverCache.expire(id)
+  }
+  // Best-effort: if a server is running, trigger its live refresh so a
+  // running TUI picks up new models without restart.
+  const serverJson =
+    yield *
+    Effect.promise(() =>
+      Bun.file(`${Global.Path.data}/server.json`)
+        .json()
+        .catch(() => undefined),
+    )
+  if (serverJson?.url && serverJson?.password) {
+    const result =
+      yield *
+      Effect.tryPromise({
+        try: async () => {
+          const response = await fetch(`${serverJson.url}/provider/refresh`, {
+            method: "POST",
+            headers: { authorization: `Basic ${Buffer.from(`:${serverJson.password}`).toString("base64")}` },
+            signal: AbortSignal.timeout(5000),
+          })
+          return response.ok ? ((await response.json()) as { added: string[] }) : undefined
+        },
+        catch: () => undefined,
+      }).pipe(Effect.orElseSucceed(() => undefined))
+    if (result?.added?.length) {
+      UI.println(
+        UI.Style.TEXT_SUCCESS_BOLD +
+          `Live server picked up ${result.added.length} new model(s): ${result.added.join(", ")}` +
+          UI.Style.TEXT_NORMAL,
       )
-      if (serverJson?.url && serverJson?.password) {
-        const result = yield* Effect.tryPromise({
-          try: async () => {
-            const response = await fetch(`${serverJson.url}/provider/refresh`, {
-              method: "POST",
-              headers: { authorization: `Basic ${Buffer.from(`:${serverJson.password}`).toString("base64")}` },
-              signal: AbortSignal.timeout(5000),
-            })
-            return response.ok ? ((await response.json()) as { added: string[] }) : undefined
-          },
-          catch: () => undefined,
-        }).pipe(Effect.orElseSucceed(() => undefined))
-        if (result?.added?.length) {
-          UI.println(UI.Style.TEXT_SUCCESS_BOLD + `Live server picked up ${result.added.length} new model(s): ${result.added.join(", ")}` + UI.Style.TEXT_NORMAL)
-        }
-      }
-      UI.println(UI.Style.TEXT_SUCCESS_BOLD + "Models cache refreshed" + UI.Style.TEXT_NORMAL)
     }
+  }
+  UI.println(UI.Style.TEXT_SUCCESS_BOLD + "Models cache refreshed" + UI.Style.TEXT_NORMAL)
+}
 ```
 
 Check the actual auth header format the server expects — read `packages/opencode/src/server/routes/instance/httpapi/middleware/authorization.ts` first and mirror exactly what it wants (the `server.json` password scheme; if it is a bearer or a different basic-user format, use that). Also confirm `server.json` lives at `Global.Path.data` — the surgery data dir shows it does.
@@ -945,6 +976,7 @@ git commit -m "feat(opencode): trigger discovery refresh from models --refresh"
 ### Task 8: TUI — custom provider dialog
 
 **Files:**
+
 - Create: `packages/tui/src/component/dialog-custom-provider.tsx`
 - Modify: `packages/tui/src/component/dialog-provider.tsx` (add entry point)
 
@@ -994,6 +1026,7 @@ git commit -m "feat(tui): add custom provider dialog with pull-or-manual model e
 ### Task 9: TUI — model picker refresh
 
 **Files:**
+
 - Modify: `packages/tui/src/component/dialog-model.tsx`
 
 - [ ] **Step 1: Refetch provider list when the dialog opens and on ctrl+r**

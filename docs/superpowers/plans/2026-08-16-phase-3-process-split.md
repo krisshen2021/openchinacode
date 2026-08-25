@@ -37,6 +37,7 @@
 ## Task 3.1: register `serve` + `attach` commands
 
 **Files:**
+
 - Modify: `packages/opencode/src/index.ts` (command registration, lines 70-79)
 
 - [x] **Step 1: measure before**
@@ -75,6 +76,7 @@ git commit -m "feat(opencode): register serve and attach commands"
 A per-app-identity registry file at `Global.Path.data/server.json` (already app-scoped: `openchinacode` vs `openchinacode-surgery` never collide). Written by `serve` on successful listen, removed on clean exit. Mode 0600 (may carry the Basic-auth password).
 
 **Files:**
+
 - Create: `packages/opencode/src/server/registry.ts`
 - Modify: `packages/opencode/src/cli/cmd/serve.ts`
 - Create: `packages/opencode/test/server/registry.test.ts`
@@ -92,7 +94,13 @@ import { ServerRegistry } from "../../src/server/registry"
 describe("ServerRegistry", () => {
   test("write then read round-trips the entry", async () => {
     await using tmp = await tmpdir()
-    const entry = { pid: 1234, url: "http://127.0.0.1:4096", version: "1.2.3", password: "secret", startedAt: Date.now() }
+    const entry = {
+      pid: 1234,
+      url: "http://127.0.0.1:4096",
+      version: "1.2.3",
+      password: "secret",
+      startedAt: Date.now(),
+    }
     await ServerRegistry.write(tmp.path, entry)
     expect(await ServerRegistry.read(tmp.path)).toEqual(entry)
   })
@@ -186,26 +194,26 @@ Note: follow the repo self-export pattern used in sibling modules (check `src/se
 In `packages/opencode/src/cli/cmd/serve.ts` handler, after `Server.listen` resolves and the listening line prints:
 
 ```ts
-    const { Global } = yield* Effect.promise(() => import("@opencode-ai/core/global"))
-    const { Installation } = yield* Effect.promise(() => import("@opencode-ai/core/installation"))
-    const { ServerRegistry } = yield* Effect.promise(() => import("../../server/registry"))
-    if (!process.env.OPENCODE_SKIP_REGISTRY) {
-      const password = Flag.OPENCODE_SERVER_PASSWORD
-      yield* Effect.promise(() =>
-        ServerRegistry.write(Global.Path.data, {
-          pid: process.pid,
-          url: `http://${server.hostname}:${server.port}`,
-          version: Installation.VERSION,
-          password,
-          startedAt: Date.now(),
-        }),
-      )
-      // Signal handlers (not process.on("exit")) so the async removal completes.
-      const shutdown = () =>
-        ServerRegistry.remove(Global.Path.data).finally(() => process.exit(0))
-      process.once("SIGINT", shutdown)
-      process.once("SIGTERM", shutdown)
-    }
+const { Global } = yield * Effect.promise(() => import("@opencode-ai/core/global"))
+const { Installation } = yield * Effect.promise(() => import("@opencode-ai/core/installation"))
+const { ServerRegistry } = yield * Effect.promise(() => import("../../server/registry"))
+if (!process.env.OPENCODE_SKIP_REGISTRY) {
+  const password = Flag.OPENCODE_SERVER_PASSWORD
+  yield *
+    Effect.promise(() =>
+      ServerRegistry.write(Global.Path.data, {
+        pid: process.pid,
+        url: `http://${server.hostname}:${server.port}`,
+        version: Installation.VERSION,
+        password,
+        startedAt: Date.now(),
+      }),
+    )
+  // Signal handlers (not process.on("exit")) so the async removal completes.
+  const shutdown = () => ServerRegistry.remove(Global.Path.data).finally(() => process.exit(0))
+  process.once("SIGINT", shutdown)
+  process.once("SIGTERM", shutdown)
+}
 ```
 
 Note: a crashed/killed -9 server leaves a stale registry — the TUI-side reuse logic (Task 3.3) detects that via `alive()` + health probe, so no other cleanup path is needed.
@@ -237,11 +245,13 @@ git commit -m "feat(opencode): register listening server in data dir"
 ## Task 3.3: TUI spawn-or-reuse (the split itself)
 
 **Files:**
+
 - Create: `packages/opencode/src/cli/tui/server-proc.ts`
 - Modify: `packages/opencode/src/cli/cmd/tui.ts` (builder + handler transport selection lines 211-246, SIGUSR2 213-216, stop 218-225, onSnapshot 269-273)
 - Create: `packages/opencode/test/cli/tui-server-proc.test.ts`
 
 **Behavior contract:**
+
 - Default (no flags): reuse a healthy same-version registry entry (alive pid + `/global/health` ok with its auth); otherwise spawn `serve` as a detached child with a generated throwaway `OPENCODE_SERVER_PASSWORD`, wait for ITS registry entry (poll, 15 s timeout), health-probe, attach. On TUI exit the server is LEFT RUNNING (sessions survive).
 - `--in-process`: today's worker-thread behavior, unchanged (including `--port` worker-listener semantics).
 - Default + network flags (`--port/--hostname/--mdns`): spawn a DEDICATED child with those args + `OPENCODE_SKIP_REGISTRY=1` (never clobbers the shared registry); attach to its URL; still left running on exit.
@@ -262,14 +272,27 @@ describe("spawnArgs", () => {
   })
 
   test("dev build spawns bun run on the repo index", () => {
-    const args = spawnArgs({ execPath: "/usr/bin/bun", compiled: false, indexTs: "/repo/packages/opencode/src/index.ts" })
-    expect(args).toEqual(["/usr/bin/bun", "run", "--conditions=browser", "/repo/packages/opencode/src/index.ts", "serve"])
+    const args = spawnArgs({
+      execPath: "/usr/bin/bun",
+      compiled: false,
+      indexTs: "/repo/packages/opencode/src/index.ts",
+    })
+    expect(args).toEqual([
+      "/usr/bin/bun",
+      "run",
+      "--conditions=browser",
+      "/repo/packages/opencode/src/index.ts",
+      "serve",
+    ])
   })
 
   test("network flags are forwarded", () => {
-    expect(
-      spawnArgs({ execPath: "/bin/oc", compiled: true, network: ["--port", "4200"] }),
-    ).toEqual(["/bin/oc", "serve", "--port", "4200"])
+    expect(spawnArgs({ execPath: "/bin/oc", compiled: true, network: ["--port", "4200"] })).toEqual([
+      "/bin/oc",
+      "serve",
+      "--port",
+      "4200",
+    ])
   })
 })
 
@@ -277,19 +300,54 @@ describe("reusable", () => {
   const entry = { pid: 1, url: "http://127.0.0.1:4096", version: "1", startedAt: 0 }
 
   test("same version + healthy = reuse", () => {
-    expect(reusable(entry, "1", () => true, () => true)).toBe(true)
+    expect(
+      reusable(
+        entry,
+        "1",
+        () => true,
+        () => true,
+      ),
+    ).toBe(true)
   })
   test("version mismatch = no reuse", () => {
-    expect(reusable(entry, "2", () => true, () => true)).toBe(false)
+    expect(
+      reusable(
+        entry,
+        "2",
+        () => true,
+        () => true,
+      ),
+    ).toBe(false)
   })
   test("dead pid = no reuse", () => {
-    expect(reusable(entry, "1", () => false, () => true)).toBe(false)
+    expect(
+      reusable(
+        entry,
+        "1",
+        () => false,
+        () => true,
+      ),
+    ).toBe(false)
   })
   test("unhealthy = no reuse", () => {
-    expect(reusable(entry, "1", () => true, () => false)).toBe(false)
+    expect(
+      reusable(
+        entry,
+        "1",
+        () => true,
+        () => false,
+      ),
+    ).toBe(false)
   })
   test("missing entry = no reuse", () => {
-    expect(reusable(undefined, "1", () => true, () => true)).toBe(false)
+    expect(
+      reusable(
+        undefined,
+        "1",
+        () => true,
+        () => true,
+      ),
+    ).toBe(false)
   })
 })
 ```
@@ -326,6 +384,7 @@ export function reusable(
 ```
 
 Plus the effectful `ensureServer(opts): Promise<{ url: string; headers: Record<string, string>; spawned: boolean; pid: number }>`:
+
 1. `entry = await ServerRegistry.read(Global.Path.data)`; probe health FIRST: `const healthOk = await fetch(entry.url + "/global/health", { headers: ServerAuth.headers({ password: entry.password }), signal: AbortSignal.timeout(2000) }).then((r) => r.ok).catch(() => false)` (only when entry exists).
 2. If `reusable(entry, VERSION, ServerRegistry.alive, () => healthOk)` → return attached-to-existing. (`reusable` stays sync/pure; the awaited probe result is captured in the closure.)
 3. If entry exists but not reusable → `process.kill(entry.pid, "SIGTERM")` (guard errors), poll `!alive(pid)` ≤3 s.
@@ -374,10 +433,10 @@ Keep the shared tail (validateSession + run(...)) common to both branches; only 
 - SIGUSR2 reload: in split mode use HTTP (verify exact routes/methods first — `handlers/config.ts` for config invalidate, `groups/global.ts` for dispose):
 
 ```ts
-      const reload = () => {
-        void fetch(`${transport.url}/config/invalidate`, { method: "POST", headers: transport.headers }).catch(() => {})
-        void fetch(`${transport.url}/global/dispose`, { method: "POST", headers: transport.headers }).catch(() => {})
-      }
+const reload = () => {
+  void fetch(`${transport.url}/config/invalidate`, { method: "POST", headers: transport.headers }).catch(() => {})
+  void fetch(`${transport.url}/global/dispose`, { method: "POST", headers: transport.headers }).catch(() => {})
+}
 ```
 
 (The worker branch keeps its existing RPC reload.) If `/config/invalidate` turns out not to exist, keep only the dispose call and note it in the report.
@@ -457,6 +516,7 @@ git commit -m "docs: record phase 3 verification results"
 **Behavior:** a `serve` process tracks activity process-globally (`src/server/idle.ts`, self-exported as `ServerIdle`). Three signals: (a) every HTTP request stamps `lastActivity` via a tiny global router middleware (`middleware/activity.ts`, registered in `httpapi/server.ts` — one hook, no per-route stamping); (b) open long-lived connections — SSE `/global/event` + `/event` and the PTY WebSocket — count as `openConnections` for their whole lifetime (disposer also stamps on close); (c) every GlobalBus event stamps, EXCEPT `models-dev.refreshed` — the only periodic publisher found (hourly ModelsDev cache refresh, `packages/core/src/models-dev.ts:361-381`, bridged onto GlobalBus by `event-v2-bridge.ts`; the SSE `server.heartbeat` events are stream-local and never reach GlobalBus). With `--idle-timeout <ms>` (default 0 = disabled, manual servers stay resident), a 30 s watcher logs `opencode server idle shutdown` and runs the exact SIGINT/SIGTERM shutdown path (ownership-guarded registry removal + `process.exit(0)`) once `openConnections === 0` and `now - lastActivity >= idleTimeout`. TUI-spawned children (shared AND dedicated) always get `--idle-timeout 3600000` from `spawnArgs` (`IDLE_TIMEOUT_MS` in `server-proc.ts`), so a server orphaned by a dead TUI self-reaps after 60 min fully idle.
 
 **Verification:**
+
 - Tests: `test/server/idle.test.ts` 6 new (TDD: red before `idle.ts` existed), `tui-server-proc` 15 (+2), `registry` 7 — green; `bun typecheck` clean; bench `--help` 146 MB (no regression; idle module only reachable via dynamic import in the serve handler).
 - Handler regressions green: `httpapi-event`, `httpapi-global`, `httpapi-pty`, `httpapi-v2-pty`, `httpapi-authorization`, `httpapi-compression`, `httpapi-cors`, `httpapi-cors-vary` — except `httpapi-v2-pty > applies plugin shell environment before forced PTY values`, which times out identically at pristine HEAD (verified via `git archive` extract; pre-existing, unrelated).
 - Manual smoke (dev entrypoint, `OPENCODE_APP_NAME=openchinacode-surgery`): `--idle-timeout 5000` → self-exit at ~33 s (first tick) with the log line, registry removed. `--idle-timeout 20000` + `/global/health` ping at +25 s → survived the +30 s tick, self-exited at the +60 s tick (a request resets the clock). No flag → resident at +45 s; SIGTERM → graceful exit ~2 s, registry removed. (Signal the pid recorded in `server.json`; a `bun run` wrapper owns a different pid.)
@@ -471,6 +531,7 @@ git commit -m "docs: record phase 3 verification results"
 **Tests/typecheck:** `test/cli/tui-server-proc` 13 + `test/server/registry` 7 + `test/mcp` 83 green; typecheck clean in `packages/opencode` + `packages/tui`. CLI bench: `--help` 144 MB (no regression). Bonus: registering serve/attach flipped 12 pre-existing `test/cli` failures to pass.
 
 **Compiled-binary smoke** (`0.0.0-memory-surgery-202608161021`, aiwallpaper):
+
 - Boot → TWO processes: **TUI 221 MB** (Phase 2 single-process: 455 MB → **−51%**) + **server 334 MB** (+ playwright MCP child 194 MB, reaped on idle per Phase 2). Sidebar memory display now reflects the TUI process only.
 - Prompt cycle over HTTP+SSE healthy (model responded, cache fine).
 - Kill TUI → server + `server.json` survive ✓; relaunch `--continue` → **same serve pid reused**, prior session restored (tokens shown) ✓.

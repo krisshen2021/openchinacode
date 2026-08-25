@@ -22,7 +22,8 @@ export function normalizeConfig(value: unknown): { active: SoulID; custom_path?:
   const config = value as { active?: unknown; custom_path?: unknown }
   return {
     active: isSoulID(config.active) ? config.active : DEFAULT_SOUL,
-    custom_path: typeof config.custom_path === "string" && config.custom_path.trim() ? config.custom_path.trim() : undefined,
+    custom_path:
+      typeof config.custom_path === "string" && config.custom_path.trim() ? config.custom_path.trim() : undefined,
   }
 }
 

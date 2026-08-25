@@ -76,10 +76,7 @@ test("message store stays chronological across mixed-era IDs and live events", a
     await sync.session.sync(sessionID)
 
     // Hydration keeps server (chronological) order, not ID order.
-    expect(sync.data.message[sessionID].map((message) => message.id)).toEqual([
-      preWrapAssistant.id,
-      postWrapUser.id,
-    ])
+    expect(sync.data.message[sessionID].map((message) => message.id)).toEqual([preWrapAssistant.id, postWrapUser.id])
 
     // A live message.updated event must land at the end (newest), not in the
     // middle where ID-binary-search used to place it.

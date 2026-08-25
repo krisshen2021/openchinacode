@@ -138,7 +138,9 @@ export const VideoGenerateTool = Tool.define<typeof Parameters, Metadata, Auth.S
             )
           }
           if (lastFrameImage && !firstFrameImage) {
-            throw new Error("Seedance first/last-frame mode requires first_frame_image when last_frame_image is provided.")
+            throw new Error(
+              "Seedance first/last-frame mode requires first_frame_image when last_frame_image is provided.",
+            )
           }
           if (frameMode && (referenceImages.length > 0 || referenceVideos.length > 0)) {
             throw new Error(

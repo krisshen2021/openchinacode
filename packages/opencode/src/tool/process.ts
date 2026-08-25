@@ -66,7 +66,11 @@ type StartMetadata = {
   truncated: false
 }
 
-export const ProcessStartTool = Tool.define<typeof StartParameters, StartMetadata, ManagedProcess.Service | FSUtil.Service>(
+export const ProcessStartTool = Tool.define<
+  typeof StartParameters,
+  StartMetadata,
+  ManagedProcess.Service | FSUtil.Service
+>(
   "process_start",
   Effect.gen(function* () {
     const processes = yield* ManagedProcess.Service
@@ -257,7 +261,8 @@ export const ProcessStopTool = Tool.define<typeof StopParameters, StopMetadata, 
   Effect.gen(function* () {
     const processes = yield* ManagedProcess.Service
     return {
-      description: "Stop a managed process by id. Use this instead of pkill, killall, xargs kill, or port-kill pipelines.",
+      description:
+        "Stop a managed process by id. Use this instead of pkill, killall, xargs kill, or port-kill pipelines.",
       parameters: StopParameters,
       execute: (params: Schema.Schema.Type<typeof StopParameters>) =>
         Effect.gen(function* () {

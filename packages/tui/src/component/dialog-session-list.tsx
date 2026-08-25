@@ -85,9 +85,8 @@ export function DialogSessionList(props?: { initialScope?: SessionListScope }) {
 
   const projectListFilter = () => ({ scope: "project" as const })
 
-  const [projectBrowseResults, { refetch: refetchProjectBrowse }] = createResource(
-    projectListFilter,
-    (filter) => loadDialogSessionList({ filter, list: (query) => sdk.client.session.list(query) }),
+  const [projectBrowseResults, { refetch: refetchProjectBrowse }] = createResource(projectListFilter, (filter) =>
+    loadDialogSessionList({ filter, list: (query) => sdk.client.session.list(query) }),
   )
   const [projectSearchResults, { refetch: refetchProjectSearch }] = createResource(
     () => ({ query: search(), scope: scope(), filter: projectListFilter() }),
@@ -132,7 +131,10 @@ export function DialogSessionList(props?: { initialScope?: SessionListScope }) {
       return session ? [session] : []
     })
     const query = search().trim().toLowerCase()
-    return [...result.map((session) => (scope() === "project" ? (synced.get(session.id) ?? session) : session)), ...extra]
+    return [
+      ...result.map((session) => (scope() === "project" ? (synced.get(session.id) ?? session) : session)),
+      ...extra,
+    ]
       .filter((session) => !deleted().has(session.id))
       .filter((session) => !query || session.title.toLowerCase().includes(query))
   })
@@ -422,10 +424,7 @@ export function DialogSessionList(props?: { initialScope?: SessionListScope }) {
           },
         },
       ]}
-      footerHints={[
-        { title: "scope", label: "←/→" },
-        ...quickSwitchFooterHints(),
-      ]}
+      footerHints={[{ title: "scope", label: "←/→" }, ...quickSwitchFooterHints()]}
       bindings={[
         {
           key: "left",
@@ -553,7 +552,8 @@ function projectSessionFooter(session: SessionListItem, mainDir?: string) {
 
 function globalSessionFooter(session: SessionListItem) {
   const project = "project" in session ? session.project : null
-  const label = project?.name ?? (project?.worktree ? path.basename(project.worktree) : path.basename(session.directory))
+  const label =
+    project?.name ?? (project?.worktree ? path.basename(project.worktree) : path.basename(session.directory))
   const suffix = session.path ? `/${session.path}` : ""
   return Locale.truncate(`${label}${suffix}`, 36)
 }

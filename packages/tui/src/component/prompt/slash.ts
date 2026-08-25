@@ -131,14 +131,22 @@ export function parseSoulSlashAction(args: string): SoulSlashAction {
   return { type: "help" }
 }
 
-export type RetentionTurnsSlashAction = { type: "status" } | { type: "set"; turns: number } | { type: "off" } | { type: "help" }
+export type RetentionTurnsSlashAction =
+  | { type: "status" }
+  | { type: "set"; turns: number }
+  | { type: "off" }
+  | { type: "help" }
 
 export function parseRetentionTurnsSlashAction(args: string): RetentionTurnsSlashAction {
   const normalized = args.trim().toLowerCase()
   if (!normalized || normalized === "status") return { type: "status" }
   // Settings are session-scoped with no global layer, so clearing an override
   // ("default"/"unset"/...) and an explicit "off" are the same action.
-  if (["off", "disable", "disabled", "false", "default", "inherit", "global", "unset", "remove", "reset"].includes(normalized))
+  if (
+    ["off", "disable", "disabled", "false", "default", "inherit", "global", "unset", "remove", "reset"].includes(
+      normalized,
+    )
+  )
     return { type: "off" }
   if (["help", "-h", "--help"].includes(normalized)) return { type: "help" }
   const turns = Number(normalized)
@@ -153,7 +161,11 @@ export function parseTokenOptimizationSlashAction(args: string): TokenOptimizati
   if (!normalized || normalized === "status") return { type: "status" }
   // Session-scoped with no global layer: clearing the override ("default"/...)
   // means the built-in default, which is unlocked — same as "on".
-  if (["on", "enable", "enabled", "true", "1", "unlock", "default", "inherit", "global", "unset", "reset"].includes(normalized))
+  if (
+    ["on", "enable", "enabled", "true", "1", "unlock", "default", "inherit", "global", "unset", "reset"].includes(
+      normalized,
+    )
+  )
     return { type: "on" }
   if (["off", "disable", "disabled", "false", "0", "lock"].includes(normalized)) return { type: "off" }
   return { type: "help" }

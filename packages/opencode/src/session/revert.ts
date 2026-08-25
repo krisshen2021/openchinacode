@@ -73,7 +73,12 @@ const layer = Layer.effect(
       if (rev.snapshot) rev.diff = yield* snap.diff(rev.snapshot)
       // `all` is chronological; slice from the revert target instead of
       // comparing raw IDs (pre-2026-08-14 IDs sort after newer ones).
-      const range = all.slice(Math.max(0, all.findIndex((msg) => msg.info.id === rev.messageID)))
+      const range = all.slice(
+        Math.max(
+          0,
+          all.findIndex((msg) => msg.info.id === rev.messageID),
+        ),
+      )
       const diffs = yield* summary.computeDiff({ messages: range })
       yield* storage.write(["session_diff", input.sessionID], diffs).pipe(Effect.ignore)
       yield* events.publish(Session.Event.Diff, { sessionID: input.sessionID, diff: diffs })

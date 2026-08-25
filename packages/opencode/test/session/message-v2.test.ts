@@ -1318,8 +1318,12 @@ describe("session.message-v2.toModelMessage", () => {
 
     const result = await MessageV2.toModelMessages(input, model, { reasoningRetention: 1 })
 
-    const firstAssistant = result.find((m) => m.role === "assistant" && (m.content as any[]).some((p) => p.text === "old-answer"))
-    const lastAssistant = result.find((m) => m.role === "assistant" && (m.content as any[]).some((p) => p.text === "recent-answer"))
+    const firstAssistant = result.find(
+      (m) => m.role === "assistant" && (m.content as any[]).some((p) => p.text === "old-answer"),
+    )
+    const lastAssistant = result.find(
+      (m) => m.role === "assistant" && (m.content as any[]).some((p) => p.text === "recent-answer"),
+    )
 
     // Old turn: reasoning stripped.
     expect((firstAssistant!.content as any[]).filter((p) => p.type === "reasoning")).toHaveLength(0)
@@ -1877,9 +1881,7 @@ describe("session.message-v2.latest", () => {
     }
     const postWrapUser: SessionV1.WithParts = {
       info: { ...userInfo(POST_WRAP_USER), time: { created: 2000 } },
-      parts: [
-        { ...basePart(POST_WRAP_USER, "p1"), type: "compaction", auto: false },
-      ] as SessionV1.Part[],
+      parts: [{ ...basePart(POST_WRAP_USER, "p1"), type: "compaction", auto: false }] as SessionV1.Part[],
     }
 
     const state = MessageV2.latest([preWrapAssistant, postWrapUser])

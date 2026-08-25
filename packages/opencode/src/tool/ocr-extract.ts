@@ -123,7 +123,8 @@ export const OcrExtractTool = Tool.define<typeof Parameters, Metadata, Auth.Serv
                 },
               })
               if (status === "success") break
-              if (status === "failed") throw new Error(`Baidu OCR failed for ${item}: ${result?.task_error ?? "unknown error"}`)
+              if (status === "failed")
+                throw new Error(`Baidu OCR failed for ${item}: ${result?.task_error ?? "unknown error"}`)
             }
 
             const result = typeof latest.result === "object" && latest.result !== null ? latest.result : undefined

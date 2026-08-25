@@ -78,7 +78,8 @@ const isShellCommand = (command: string, args: ReadonlyArray<string> | undefined
   args === undefined && /[\s;&|<>$`'"*?()[\]{}]/.test(command)
 
 const shellLaunch = (command: string) => {
-  if (process.platform === "win32") return { command: process.env.COMSPEC ?? "cmd.exe", args: ["/d", "/s", "/c", command] }
+  if (process.platform === "win32")
+    return { command: process.env.COMSPEC ?? "cmd.exe", args: ["/d", "/s", "/c", command] }
   return { command: "/bin/sh", args: ["-lc", command] }
 }
 
@@ -103,7 +104,11 @@ const updateInfo = (active: Active, next: Partial<Info>) => {
   active.info = { ...active.info, ...next }
 }
 
-const readTail = async (file: string, maxBytes: number, lines?: number): Promise<{ text: string; truncated: boolean }> => {
+const readTail = async (
+  file: string,
+  maxBytes: number,
+  lines?: number,
+): Promise<{ text: string; truncated: boolean }> => {
   const stat = await fsp.stat(file).catch(() => undefined)
   if (!stat) return { text: "", truncated: false }
   const size = stat.size
@@ -192,7 +197,9 @@ const layer = Layer.effect(
       return yield* Effect.sync(() => {
         const id = Identifier.create("proc", "ascending")
         const shellMode = isShellCommand(input.command, input.args)
-        const launch = shellMode ? shellLaunch(input.command) : { command: input.command, args: [...(input.args ?? [])] }
+        const launch = shellMode
+          ? shellLaunch(input.command)
+          : { command: input.command, args: [...(input.args ?? [])] }
         const log = path.resolve(input.cwd, input.log ?? defaultLogPath(id, input.name))
         fs.mkdirSync(path.dirname(log), { recursive: true, mode: 0o700 })
         const stdout = fs.openSync(log, "a", 0o600)
@@ -248,7 +255,11 @@ const layer = Layer.effect(
       })
     })
 
-    const stop: Interface["stop"] = Effect.fn("ManagedProcess.stop")(function* (id, signal = "SIGTERM", forceAfterMs = 3_000) {
+    const stop: Interface["stop"] = Effect.fn("ManagedProcess.stop")(function* (
+      id,
+      signal = "SIGTERM",
+      forceAfterMs = 3_000,
+    ) {
       const active = processes.get(id)
       if (!active) return
       if (active.info.status !== "running") return snapshot(active)
@@ -276,35 +287,31 @@ const layer = Layer.effect(
       }
     })
 
-    const waitForOutput: Interface["waitForOutput"] = Effect.fn("ManagedProcess.waitForOutput")(function* (
-      id,
-      text,
-      timeoutMs,
-    ) {
-      const deadline = Date.now() + timeoutMs
-      while (Date.now() <= deadline) {
-        const active = processes.get(id)
-        if (!active) return false
-        const tail = yield* Effect.promise(() => readTail(active.info.log, 512 * 1024))
-        if (tail.text.includes(text)) return true
-        if (active.info.status !== "running") return false
-        yield* Effect.promise(() => delay(150))
-      }
-      return false
-    })
+    const waitForOutput: Interface["waitForOutput"] = Effect.fn("ManagedProcess.waitForOutput")(
+      function* (id, text, timeoutMs) {
+        const deadline = Date.now() + timeoutMs
+        while (Date.now() <= deadline) {
+          const active = processes.get(id)
+          if (!active) return false
+          const tail = yield* Effect.promise(() => readTail(active.info.log, 512 * 1024))
+          if (tail.text.includes(text)) return true
+          if (active.info.status !== "running") return false
+          yield* Effect.promise(() => delay(150))
+        }
+        return false
+      },
+    )
 
-    const waitForPort: Interface["waitForPort"] = Effect.fn("ManagedProcess.waitForPort")(function* (
-      port,
-      host,
-      timeoutMs,
-    ) {
-      const deadline = Date.now() + timeoutMs
-      while (Date.now() <= deadline) {
-        if (yield* Effect.promise(() => canConnect(host, port, 500))) return true
-        yield* Effect.promise(() => delay(150))
-      }
-      return false
-    })
+    const waitForPort: Interface["waitForPort"] = Effect.fn("ManagedProcess.waitForPort")(
+      function* (port, host, timeoutMs) {
+        const deadline = Date.now() + timeoutMs
+        while (Date.now() <= deadline) {
+          if (yield* Effect.promise(() => canConnect(host, port, 500))) return true
+          yield* Effect.promise(() => delay(150))
+        }
+        return false
+      },
+    )
 
     return Service.of({ start, list, get, stop, logs, waitForOutput, waitForPort })
   }),

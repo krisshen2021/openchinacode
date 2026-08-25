@@ -78,8 +78,7 @@ type StreamEvent = LLMEvent
 
 function finishDiagnosticMetadata(event: Extract<StreamEvent, { type: "step-finish" }>) {
   const diagnostic = isRecord(event.diagnostic) ? event.diagnostic : undefined
-  const abnormal =
-    event.reason === "unknown" || event.reason === "error" || diagnostic?.abnormal === true
+  const abnormal = event.reason === "unknown" || event.reason === "error" || diagnostic?.abnormal === true
   if (!abnormal && !diagnostic) return undefined
   return {
     providerFinish: {

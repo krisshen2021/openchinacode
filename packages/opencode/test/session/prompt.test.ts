@@ -524,8 +524,7 @@ it.instance(
       })
       // A real (tiny) PNG — admission decodes/normalizes images, so a fake
       // payload would fail before the router runs.
-      const png =
-        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+      const png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
       yield* llm.text("an image, looks like")
       yield* prompt.prompt({
         sessionID: chat.id,
@@ -553,18 +552,22 @@ it.instance(
   15_000,
 )
 
-it.instance("resolvePromptParts labels image files with their real mime", () =>
-  Effect.gen(function* () {
-    const { directory: dir } = yield* TestInstance
-    yield* writeText(path.join(dir, "shot.png"), "not really a png")
-    yield* writeText(path.join(dir, "main.ts"), "const x = 1")
-    const prompt = yield* SessionPrompt.Service
-    const parts = yield* prompt.resolvePromptParts("look at @shot.png and @main.ts")
-    const file = (name: string) =>
-      parts.find((part): part is Extract<typeof part, { type: "file" }> => part.type === "file" && part.filename === name)
-    expect(file("shot.png")?.mime).toBe("image/png")
-    expect(file("main.ts")?.mime).toBe("text/plain")
-  }),
+it.instance(
+  "resolvePromptParts labels image files with their real mime",
+  () =>
+    Effect.gen(function* () {
+      const { directory: dir } = yield* TestInstance
+      yield* writeText(path.join(dir, "shot.png"), "not really a png")
+      yield* writeText(path.join(dir, "main.ts"), "const x = 1")
+      const prompt = yield* SessionPrompt.Service
+      const parts = yield* prompt.resolvePromptParts("look at @shot.png and @main.ts")
+      const file = (name: string) =>
+        parts.find(
+          (part): part is Extract<typeof part, { type: "file" }> => part.type === "file" && part.filename === name,
+        )
+      expect(file("shot.png")?.mime).toBe("image/png")
+      expect(file("main.ts")?.mime).toBe("text/plain")
+    }),
   { git: true },
 )
 

@@ -97,7 +97,9 @@ describe("session.system", () => {
     expect(prompts[0]).toContain("You are opencode, an interactive CLI tool")
     expect(prompts[1]).toContain("OpenChinaCode Tool Safety Contract")
     expect(prompts[1]).toContain("If the current model can inspect images/screenshots directly")
-    expect(prompts[1]).not.toContain("If a screenshot/image was captured or read and the user asked about its visual state")
+    expect(prompts[1]).not.toContain(
+      "If a screenshot/image was captured or read and the user asked about its visual state",
+    )
   })
 
   test("keeps visual fallback capability-aware when task policy is disabled", () => {

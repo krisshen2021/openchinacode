@@ -261,7 +261,8 @@ const layer = Layer.effect(
       }
       commands[Default.REASONING_RETENTION_TURNS] = {
         name: Default.REASONING_RETENTION_TURNS,
-        description: "Usage: /reasoning-retention-turns [status|<turns>|off] - this session's reasoning retention window",
+        description:
+          "Usage: /reasoning-retention-turns [status|<turns>|off] - this session's reasoning retention window",
         source: "command",
         get template() {
           return PROMPT_REASONING_RETENTION_TURNS
@@ -270,7 +271,8 @@ const layer = Layer.effect(
       }
       commands[Default.TOOL_OUTPUT_RETENTION_TURNS] = {
         name: Default.TOOL_OUTPUT_RETENTION_TURNS,
-        description: "Usage: /tool-output-retention-turns [status|<turns>|off] - this session's tool output retention window",
+        description:
+          "Usage: /tool-output-retention-turns [status|<turns>|off] - this session's tool output retention window",
         source: "command",
         get template() {
           return PROMPT_TOOL_OUTPUT_RETENTION_TURNS
@@ -288,7 +290,8 @@ const layer = Layer.effect(
       }
       commands[Default.TOKEN_OPTIMIZATION] = {
         name: Default.TOKEN_OPTIMIZATION,
-        description: "Usage: /token-optimization [status|on|off] - this session's master switch for retention optimizations",
+        description:
+          "Usage: /token-optimization [status|on|off] - this session's master switch for retention optimizations",
         source: "command",
         get template() {
           return PROMPT_TOKEN_OPTIMIZATION

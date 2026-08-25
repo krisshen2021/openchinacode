@@ -2,7 +2,10 @@ import { describe, expect, test } from "bun:test"
 import { ShellSafety } from "../src/tool/shell-safety"
 
 const allowed: Array<[string, string]> = [
-  ["query-string ampersand inside double quotes", 'curl -s "https://cloudflare-dns.com/dns-query?name=sidegame.ai&type=NS" -H "accept: application/dns-json"'],
+  [
+    "query-string ampersand inside double quotes",
+    'curl -s "https://cloudflare-dns.com/dns-query?name=sidegame.ai&type=NS" -H "accept: application/dns-json"',
+  ],
   ["query-string ampersand inside single quotes", "curl 'https://example.com?a=1&b=2'"],
   ["escaped ampersand", "echo foo \\& bar"],
   ["and-operator chaining", "git log --oneline -5 && git status"],

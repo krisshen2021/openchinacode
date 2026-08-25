@@ -124,7 +124,7 @@ OpenChinaCode 定制命令会统一出现在 TUI command palette 的 `OpenChinaC
 | `/lsp`              | 查看或切换 LSP 诊断                                         |
 | `/task-policy`      | 查看当前任务路由策略                                        |
 | `/task-classify`    | 按路由策略分析任务描述                                      |
-| `/test-mcp`         | 在 TUI 内配置内置 Playwright MCP，并先检查 Chrome            |
+| `/test-mcp`         | 在 TUI 内配置内置 Playwright MCP，并先检查 Chrome           |
 | `/media-auth`       | 保存火山方舟 API key，用于原生生图 / 生视频                 |
 | `/image-generate`   | 打开 Seedream 5 Pro 生图向导                                |
 | `/video-generate`   | 打开 Seedance 2.0 Mini 生视频向导                           |

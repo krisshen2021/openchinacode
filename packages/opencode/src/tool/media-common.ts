@@ -72,9 +72,7 @@ export function getArkApiKey(auth: Auth.Interface) {
 }
 
 export function mediaRoot(instance: InstanceContext, kind: "images" | "videos", requested?: string) {
-  return requested?.trim()
-    ? path.resolve(instance.worktree, requested)
-    : path.join(DEFAULT_MEDIA_ROOT, kind)
+  return requested?.trim() ? path.resolve(instance.worktree, requested) : path.join(DEFAULT_MEDIA_ROOT, kind)
 }
 
 export function resolveInputPath(instance: InstanceContext, input: string) {

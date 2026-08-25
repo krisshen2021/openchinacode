@@ -34,11 +34,7 @@ export const sweepOnce = Effect.fn("MemoryRetention.sweepOnce")(function* (reten
     )
   const sessions = yield* eligible.all().pipe(Effect.orDie)
   if (sessions.length === 0) return 0
-  yield* db
-    .delete(SessionMemoryTable)
-    .where(inArray(SessionMemoryTable.session_id, eligible))
-    .run()
-    .pipe(Effect.orDie)
+  yield* db.delete(SessionMemoryTable).where(inArray(SessionMemoryTable.session_id, eligible)).run().pipe(Effect.orDie)
   yield* Effect.logInfo("session memory retention sweep pruned rows", {
     sessions: sessions.length,
     retentionDays,

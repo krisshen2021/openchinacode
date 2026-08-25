@@ -154,15 +154,7 @@ function pushBrand(
 ): void {
   push(lines, left, top, BRAND_OPEN, fg, undefined, TextAttributes.BOLD)
   push(lines, left + BRAND_OPEN.length, top, BRAND_CHINA, BRAND_CHINA_PINK, undefined, TextAttributes.BOLD)
-  push(
-    lines,
-    left + BRAND_OPEN.length + BRAND_CHINA.length,
-    top,
-    BRAND_CODE,
-    fg,
-    undefined,
-    TextAttributes.BOLD,
-  )
+  push(lines, left + BRAND_OPEN.length + BRAND_CHINA.length, top, BRAND_CODE, fg, undefined, TextAttributes.BOLD)
 }
 
 function draw(

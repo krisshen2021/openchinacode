@@ -18,9 +18,7 @@ import { Database } from "../src/database/database"
 import { EventV2 } from "../src/event"
 import { Reference } from "../src/reference"
 
-const it = testEffect(
-  AppNodeBuilder.build(LayerNode.group([Database.node, EventV2.node, LocationServiceMap.node])),
-)
+const it = testEffect(AppNodeBuilder.build(LayerNode.group([Database.node, EventV2.node, LocationServiceMap.node])))
 
 describe("LocationServiceMap", () => {
   it.live("reuses cached services for constructed and decoded location refs", () =>

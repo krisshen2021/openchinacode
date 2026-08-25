@@ -952,7 +952,12 @@ export function Prompt(props: PromptProps) {
     const masterState = retentionMasterState()
     const sessionValue = sessionCompaction()[key]
     if (typeof sessionValue === "number")
-      return { ...masterState, turns: sessionValue as number | undefined, source: "session" as const, active: masterState.master }
+      return {
+        ...masterState,
+        turns: sessionValue as number | undefined,
+        source: "session" as const,
+        active: masterState.master,
+      }
     return { ...masterState, turns: undefined as number | undefined, source: "default" as const, active: false }
   }
 
@@ -998,7 +1003,9 @@ export function Prompt(props: PromptProps) {
         return next
       })
       const title =
-        value === undefined ? `${meta.label} off for this session` : `${meta.label} set to ${value} turn(s) for this session`
+        value === undefined
+          ? `${meta.label} off for this session`
+          : `${meta.label} set to ${value} turn(s) for this session`
       const masterState = retentionMasterState()
       const locked = typeof value === "number" ? lockedHint(masterState.master, masterState.source) : ""
       toast.show({

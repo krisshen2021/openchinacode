@@ -24,13 +24,7 @@ const current = Layer.succeed(
 )
 const it = testEffect(
   AppNodeBuilder.build(
-    LayerNode.group([
-      Database.node,
-      EventV2.node,
-      PermissionSaved.node,
-      AgentV2.node,
-      PermissionV2.node,
-    ]),
+    LayerNode.group([Database.node, EventV2.node, PermissionSaved.node, AgentV2.node, PermissionV2.node]),
     [[Location.node, current]],
   ),
 )

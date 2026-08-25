@@ -14,18 +14,18 @@
 
 ## Diagnosis evidence (measured 2026-08-15, worktree `main@544be4ebe`)
 
-| Item | Value | How measured |
-|---|---|---|
-| Bare `bun -e` | 32 MB RSS | `process.memoryUsage()` |
-| Full backend module graph, no services started | 191 MB RSS / 36 MB heap | phased dynamic-import probe |
-| `--` protocol/api import step alone | +40 MB RSS, heap 9→36 MB | same probe (Effect Schema codec compilation; a large share is the V2 public API groups) |
-| `--` core/models-dev import step | +27 MB RSS | same probe |
-| TUI startup peak / idle stable | ~950 MB / ~736 MB, 48 threads | `ps` sampling via tmux |
-| MCP child (playwright), idle | ~193 MB | `ps --ppid` |
+| Item                                           | Value                         | How measured                                                                            |
+| ---------------------------------------------- | ----------------------------- | --------------------------------------------------------------------------------------- |
+| Bare `bun -e`                                  | 32 MB RSS                     | `process.memoryUsage()`                                                                 |
+| Full backend module graph, no services started | 191 MB RSS / 36 MB heap       | phased dynamic-import probe                                                             |
+| `--` protocol/api import step alone            | +40 MB RSS, heap 9→36 MB      | same probe (Effect Schema codec compilation; a large share is the V2 public API groups) |
+| `--` core/models-dev import step               | +27 MB RSS                    | same probe                                                                              |
+| TUI startup peak / idle stable                 | ~950 MB / ~736 MB, 48 threads | `ps` sampling via tmux                                                                  |
+| MCP child (playwright), idle                   | ~193 MB                       | `ps --ppid`                                                                             |
 
 **Key structural finding:** the live TUI + `run` paths are served by V1 session services (`packages/opencode/src/server/routes/instance/httpapi/handlers/session.ts` imports `@/session/session`, `@/session/prompt`, ...). The V2 runtime (`SessionV2`/`SessionExecution`) is mounted in parallel (`server.ts:178-182` serverRoutes + `server.ts:300-304` layers) but is phase-1 experimental.
 
-**Critical nuance for Phase 4:** "delete V2" means the V2 *session experiment* (`SessionV2`, `SessionExecution`, `SessionRunner`, the V2 public API in `@opencode-ai/protocol`/`@opencode-ai/server`, the `v2` CLI command) — NOT shared core infrastructure that the V1 live path already uses: `Database`, `EventV2` (the `event-v2-bridge` feeds TUI events through it), `Credential`, `PtyTicket`, `PermissionSaved`, `ProjectV2`, `ModelsDev`, `Ripgrep`, `Npm`, `FSUtil` all boot in the V1 service graph (`server.ts:212-270`).
+**Critical nuance for Phase 4:** "delete V2" means the V2 _session experiment_ (`SessionV2`, `SessionExecution`, `SessionRunner`, the V2 public API in `@opencode-ai/protocol`/`@opencode-ai/server`, the `v2` CLI command) — NOT shared core infrastructure that the V1 live path already uses: `Database`, `EventV2` (the `event-v2-bridge` feeds TUI events through it), `Credential`, `PtyTicket`, `PermissionSaved`, `ProjectV2`, `ModelsDev`, `Ripgrep`, `Npm`, `FSUtil` all boot in the V1 service graph (`server.ts:212-270`).
 
 **Service graph evidence:** `packages/opencode/src/server/routes/instance/httpapi/server.ts:212-270` builds one eager `LayerNode.group` of ~55 services (LSP, MCP, Snapshot, ShareNext, Worktree, Format, ...). The comment at lines 308-311 confirms eagerly forked fibers at build time (ModelsDev refresh).
 
@@ -49,6 +49,7 @@ Every phase needs before/after numbers from the same tool. Do this first, commit
 ### Task 0.1: RSS benchmark script
 
 **Files:**
+
 - Create: `script/bench-rss.ts`
 
 - [ ] **Step 1: Write the script**
@@ -65,7 +66,9 @@ async function maxRss(args: string[], killAfterMs: number): Promise<number> {
   let peak = 0
   const timer = setInterval(() => {
     try {
-      const status = Bun.spawnSync(["ps", "-o", "rss=", "-p", String(child.pid)]).stdout.toString().trim()
+      const status = Bun.spawnSync(["ps", "-o", "rss=", "-p", String(child.pid)])
+        .stdout.toString()
+        .trim()
       peak = Math.max(peak, Number(status) || 0)
     } catch {}
   }, 250)
@@ -112,6 +115,7 @@ git commit -m "chore(script): add RSS benchmark harness"
 ### Task 1.1: Reference conversion — `run` command
 
 **Files:**
+
 - Modify: `packages/opencode/src/cli/cmd/run.ts` (top-level imports, lines 1-27)
 
 - [ ] **Step 1: Read the current handler body**
@@ -156,19 +160,19 @@ git commit -m "refactor(opencode): lazify run command imports"
 
 Apply the Task 1.1 pattern file-by-file. Verified heavy top-level imports to move (audit 2026-08-16):
 
-| File | Imports to move into handler |
-|---|---|
-| `cli/cmd/acp.ts` | `@agentclientprotocol/sdk`, `@opencode-ai/sdk/v2` |
-| `cli/cmd/mcp.ts` | `@modelcontextprotocol/sdk/...` (both), `@opencode-ai/core/v1/config/config` |
-| `cli/cmd/github.handler.ts` | `@octokit/rest`, `@octokit/graphql`, `@actions/core`, `@clack/prompts` |
-| `cli/cmd/export.ts` | `@/session/session`, `@opencode-ai/core/v1/session`, `../../session/message-v2` |
-| `cli/cmd/import.ts` | `@/session/session`, `@opencode-ai/core/database/database`, `@opencode-ai/core/session/sql` |
-| `cli/cmd/account.ts` | `@/account/account`, `@/account/schema` |
-| `cli/cmd/agent.ts` | `@clack/prompts`, `gray-matter` |
-| `cli/cmd/plug.ts` | `@clack/prompts`, `../../plugin/install`, `../../plugin/shared` |
-| `cli/cmd/db.ts` | `@opencode-ai/core/database/database`, `drizzle-orm` |
-| `cli/cmd/models.ts` | `@opencode-ai/core/models-dev`, `@opencode-ai/core/provider` |
-| `cli/cmd/tui.ts` | keep `Rpc`/worker types as `import type`; audit `@opencode-ai/tui/util/error` (small, leaf) — move only if it drags the TUI graph |
+| File                        | Imports to move into handler                                                                                                      |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `cli/cmd/acp.ts`            | `@agentclientprotocol/sdk`, `@opencode-ai/sdk/v2`                                                                                 |
+| `cli/cmd/mcp.ts`            | `@modelcontextprotocol/sdk/...` (both), `@opencode-ai/core/v1/config/config`                                                      |
+| `cli/cmd/github.handler.ts` | `@octokit/rest`, `@octokit/graphql`, `@actions/core`, `@clack/prompts`                                                            |
+| `cli/cmd/export.ts`         | `@/session/session`, `@opencode-ai/core/v1/session`, `../../session/message-v2`                                                   |
+| `cli/cmd/import.ts`         | `@/session/session`, `@opencode-ai/core/database/database`, `@opencode-ai/core/session/sql`                                       |
+| `cli/cmd/account.ts`        | `@/account/account`, `@/account/schema`                                                                                           |
+| `cli/cmd/agent.ts`          | `@clack/prompts`, `gray-matter`                                                                                                   |
+| `cli/cmd/plug.ts`           | `@clack/prompts`, `../../plugin/install`, `../../plugin/shared`                                                                   |
+| `cli/cmd/db.ts`             | `@opencode-ai/core/database/database`, `drizzle-orm`                                                                              |
+| `cli/cmd/models.ts`         | `@opencode-ai/core/models-dev`, `@opencode-ai/core/provider`                                                                      |
+| `cli/cmd/tui.ts`            | keep `Rpc`/worker types as `import type`; audit `@opencode-ai/tui/util/error` (small, leaf) — move only if it drags the TUI graph |
 
 - [ ] **Step 1: Convert each file above** (one commit per file, message `refactor(opencode): lazify <name> command imports`)
 
@@ -235,7 +239,7 @@ Not a single phase with an end date — the standing "重构" track on the slimm
 - **LSP idle reaping:** language servers spawned via `touchFile` live until instance disposal; add an idle-timeout reaper mirroring the MCP one (long sessions accumulate LSP children).
 - **ModelsDev light/heavy split:** keep schemas/pricing tables in `models-dev.ts`; move `Service`/`layer`/`node` + heavy imports to `models-dev/live.ts` so type-only consumers (e.g. `provider/model-status.ts`) stop paying the closure; optionally drop the EventV2 hard dep via `Effect.serviceOption`.
 - **MCP execution-time respawn:** keep tool defs cached across idle reaps and respawn at tool-execution time instead of enumeration time; also covers the stale-captured-client window (reap lands between `SessionTools.resolve` and execute → one retryable ConnectionClosed today).
-- **Finish the server-auth env rename (one source of truth):** ServerAuth.Config and Flag.OPENCODE_SERVER_PASSWORD/_USERNAME now both accept OPENCHINACODE_* with OPENCODE_* fallback (identical precedence), and split-server spawn still exports both names for old-binary interop. Residual: pick the canonical name, drop the legacy fallback and the dual-env spawn in `cli/tui/server-proc.ts`. (The `@opencode-ai/server` half of this item was closed by Task 4.2's package deletion.)
+- **Finish the server-auth env rename (one source of truth):** ServerAuth.Config and Flag.OPENCODE*SERVER_PASSWORD/\_USERNAME now both accept OPENCHINACODE*_ with OPENCODE\__ fallback (identical precedence), and split-server spawn still exports both names for old-binary interop. Residual: pick the canonical name, drop the legacy fallback and the dual-env spawn in `cli/tui/server-proc.ts`. (The `@opencode-ai/server` half of this item was closed by Task 4.2's package deletion.)
 - **Test env-var plumbing audit:** several test preloads/fixtures still set old `OPENCODE_*` names the fork renamed to `OPENCHINACODE_*` (only `OPENCHINACODE_DB` was fixed in `548f6fdcf`) — audit the rest.
 - **httpapi-exercise harness:** still carries dead v2 scenarios (`v2.health.get`, credential, integration connect/attempt, event subscribe — routes that were not ported); clean up or delete.
 

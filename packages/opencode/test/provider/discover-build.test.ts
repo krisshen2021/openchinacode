@@ -18,9 +18,7 @@ const it = testEffect(
 const withModelsServer = <A, E, R>(models: string[], fn: (baseURL: string) => Effect.Effect<A, E, R>) =>
   Effect.gen(function* () {
     const server = yield* Effect.acquireRelease(
-      Effect.sync(() =>
-        Bun.serve({ port: 0, fetch: () => Response.json({ data: models.map((id) => ({ id })) }) }),
-      ),
+      Effect.sync(() => Bun.serve({ port: 0, fetch: () => Response.json({ data: models.map((id) => ({ id })) }) })),
       (server) => Effect.sync(() => server.stop(true)),
     )
     return yield* fn(`http://127.0.0.1:${server.port}`)

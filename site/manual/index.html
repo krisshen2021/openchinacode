@@ -1,618 +1,903 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>OpenChinaCode Manual</title>
-  <meta name="description" content="OpenChinaCode usage and configuration manual for GLM, Kimi, DeepSeek, task routing, compaction, LSP, and Playwright MCP." data-i18n-meta="meta.manual.desc">
-  <meta property="og:title" content="OpenChinaCode Manual">
-  <meta property="og:description" content="Usage and configuration guide for the China-model focused coding agent." data-i18n-meta="meta.manual.ogDesc">
-  <meta property="og:type" content="article">
-  <meta name="theme-color" content="#08080C">
-  <link rel="stylesheet" href="/styles.css">
-  <link rel="icon" type="image/png" href="/favicon.png" sizes="32x32">
-  <link rel="apple-touch-icon" href="/logo-flat-128.png">
-</head>
-<body>
-  <div class="bg-mesh"></div>
-  <div class="bg-aurora"><span></span><span></span><span></span></div>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OpenChinaCode Manual</title>
+    <meta
+      name="description"
+      content="OpenChinaCode usage and configuration manual for GLM, Kimi, DeepSeek, task routing, compaction, LSP, and Playwright MCP."
+      data-i18n-meta="meta.manual.desc"
+    />
+    <meta property="og:title" content="OpenChinaCode Manual" />
+    <meta
+      property="og:description"
+      content="Usage and configuration guide for the China-model focused coding agent."
+      data-i18n-meta="meta.manual.ogDesc"
+    />
+    <meta property="og:type" content="article" />
+    <meta name="theme-color" content="#08080C" />
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="icon" type="image/png" href="/favicon.png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/logo-flat-128.png" />
+  </head>
+  <body>
+    <div class="bg-mesh"></div>
+    <div class="bg-aurora"><span></span><span></span><span></span></div>
 
-  <!-- ═══ Navigation ═══ -->
-  <nav class="nav">
-    <a class="brand" href="/">
-      <img class="seal" src="/logo-flat-128.png" alt="OpenChinaCode" width="38" height="38">
-      <span>OpenChinaCode</span>
-    </a>
-    <div class="nav-links">
-      <a class="nav-link" href="/#providers"><i data-lucide="brain"></i><span data-i18n="nav.providers">Providers</span></a>
-      <a class="nav-link" href="/#features"><i data-lucide="layers"></i><span data-i18n="nav.features">Features</span></a>
-      <a class="nav-link" href="#quickstart"><i data-lucide="terminal"></i><span data-i18n="nav.quickStart">Quick Start</span></a>
-      <button class="lang-toggle" type="button" onclick="toggleLang()" data-i18n-title="lang.toggleTitle">
-        <i data-lucide="globe"></i>
-        <span data-i18n="lang.toggle">中文</span>
-      </button>
-      <a class="btn btn-primary" href="/github"><svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56 0-.27-.01-1-.02-1.96-3.2.7-3.88-1.54-3.88-1.54-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11.1 11.1 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14 0 1.55-.01 2.8-.01 3.18 0 .31.21.68.8.56A11.51 11.51 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z"/></svg><span>GitHub</span></a>
-    </div>
-  </nav>
-
-  <!-- ═══ Hero ═══ -->
-  <section class="section" style="padding-bottom: 0;">
-    <span class="watermark" style="font-size: 28rem; top: -6rem; right: -4rem;">手册</span>
-    <div class="container" style="position: relative; z-index: 1;">
-      <div class="eyebrow"><i data-lucide="book-open"></i><span data-i18n="manual.eyebrow">USAGE &amp; CONFIGURATION GUIDE</span></div>
-      <h1><span class="title-silver">Open</span><span class="title-cinnabar">China</span><span class="title-silver">Code</span> <span class="title-silver" data-i18n="manual.titleSuffix">Manual</span></h1>
-      <p class="lead" data-i18n="manual.lead" style="margin-top: 20px;">
-        This page covers the OpenChinaCode-specific workflow: GLM/Kimi/DeepSeek provider setup,
-        custom slash commands, task policy routing, smart compaction, LSP diagnostics, and Playwright testing.
-      </p>
-    </div>
-  </section>
-
-  <!-- ═══ Two-column layout ═══ -->
-  <section class="section" style="padding-top: 40px;">
-    <div class="container">
-      <div class="manual-layout">
-
-        <!-- ── Sidebar TOC ── -->
-        <aside class="manual-sidebar">
-          <nav>
-            <ul class="manual-toc">
-              <li><a href="#quickstart" data-section="quickstart"><i data-lucide="package"></i><span data-i18n="toc.quickstart">Quick Start</span></a></li>
-              <li><a href="#config" data-section="config"><i data-lucide="settings"></i><span data-i18n="toc.config">Configuration</span></a></li>
-              <li><a href="#commands" data-section="commands"><i data-lucide="terminal"></i><span data-i18n="toc.commands">Slash Commands</span></a></li>
-              <li><a href="#routing" data-section="routing"><i data-lucide="route"></i><span data-i18n="toc.routing">Task Routing</span></a></li>
-              <li><a href="#compaction" data-section="compaction"><i data-lucide="layers"></i><span data-i18n="toc.compaction">Compaction</span></a></li>
-              <li><a href="#sessions" data-section="sessions"><i data-lucide="panels-left-right"></i><span data-i18n="toc.sessions">Sessions</span></a></li>
-              <li><a href="#testing" data-section="testing"><i data-lucide="app-window"></i><span data-i18n="toc.testing">LSP &amp; Testing</span></a></li>
-              <li><a href="#media" data-section="media"><i data-lucide="image"></i><span data-i18n="toc.media">Media Generation</span></a></li>
-              <li><a href="#ocr" data-section="ocr"><i data-lucide="file-search"></i><span data-i18n="toc.ocr">OCR &amp; Documents</span></a></li>
-              <li><a href="#debugging" data-section="debugging"><i data-lucide="bug"></i><span data-i18n="toc.debugging">Debugging</span></a></li>
-            </ul>
-          </nav>
-        </aside>
-
-        <!-- ── Content ── -->
-        <div class="manual-content">
-
-          <!-- Quick Start -->
-          <section class="manual-section reveal" id="quickstart">
-            <div class="manual-section-header">
-              <i data-lucide="package"></i>
-              <h2 data-i18n="qs.title">Quick Start</h2>
-            </div>
-            <p data-i18n="qs.desc">OpenChinaCode installs as a separate command, so it can coexist with upstream <code>opencode</code>.</p>
-            <div class="manual-cards">
-              <div class="card" style="--accent: var(--cinnabar);">
-                <span class="tag tag-cinnabar" data-i18n="qs.install.tag">Install</span>
-                <h3 data-i18n="qs.install.title">Install the binary</h3>
-                <div class="code-block">curl -fsSL https://openchinacode.muffin-labs.com/install | bash</div>
-              </div>
-              <div class="card" style="--accent: var(--jade);">
-                <span class="tag tag-jade" data-i18n="qs.auth.tag">Auth</span>
-                <h3 data-i18n="qs.auth.title">Add provider credentials</h3>
-                <div class="code-block">openchinacode providers login --provider zhipuai-pay2go
-openchinacode providers login --provider moonshotai-cn
-openchinacode providers login --provider deepseek</div>
-              </div>
-              <div class="card" style="--accent: var(--gold);">
-                <span class="tag tag-gold" data-i18n="qs.run.tag">Run</span>
-                <h3 data-i18n="qs.run.title">Start in a project</h3>
-                <div class="code-block">cd /path/to/project
-openchinacode</div>
-              </div>
-            </div>
-          </section>
-
-          <!-- Configuration -->
-          <section class="manual-section reveal" id="config">
-            <div class="manual-section-header">
-              <i data-lucide="settings"></i>
-              <h2 data-i18n="config.title">Configuration Files</h2>
-            </div>
-            <p data-i18n="config.desc">OpenChinaCode uses independent config and data paths. Do not put API keys in the repository.</p>
-            <div class="manual-cards">
-              <div class="card" style="--accent: var(--cinnabar);">
-                <span class="tag tag-cinnabar" data-i18n="config.global.tag">Global</span>
-                <h3 data-i18n="config.global.title">User config</h3>
-                <div class="code-block">~/.config/openchinacode/openchinacode.jsonc</div>
-                <p data-i18n="config.global.desc">Use this for personal defaults: model, task policy overrides, LSP, compaction, and MCP.</p>
-              </div>
-              <div class="card" style="--accent: var(--jade);">
-                <span class="tag tag-jade" data-i18n="config.auth.tag">Auth</span>
-                <h3 data-i18n="config.auth.title">Local credentials</h3>
-                <div class="code-block">~/.local/share/openchinacode/auth.json</div>
-                <p data-i18n-html="config.auth.desc">Written by <code>openchinacode providers login</code>. File mode is restricted when written by the CLI.</p>
-              </div>
-              <div class="card" style="--accent: var(--gold);">
-                <span class="tag tag-gold" data-i18n="config.project.tag">Project</span>
-                <h3 data-i18n="config.project.title">Project overrides</h3>
-                <div class="code-block">./openchinacode.jsonc
-./.openchinacode/openchinacode.jsonc</div>
-                <p data-i18n="config.project.desc">Use this when one codebase needs a different task policy or testing setup.</p>
-              </div>
-            </div>
-
-            <h3 style="margin-top: 32px; margin-bottom: 12px;" data-i18n="config.authShape">Auth file shape</h3>
-            <div class="code-block">{
-  "zhipuai-pay2go": { "type": "api", "key": "YOUR_GLM_API_KEY" },
-  "moonshotai-cn": { "type": "api", "key": "YOUR_KIMI_API_KEY" },
-  "deepseek": { "type": "api", "key": "YOUR_DEEPSEEK_API_KEY" }
-}</div>
-
-            <h3 style="margin-top: 32px; margin-bottom: 12px;" data-i18n="config.providerIds">Main provider IDs</h3>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th data-i18n="config.table.provider">Provider</th>
-                    <th data-i18n="config.table.purpose">Purpose</th>
-                    <th data-i18n="config.table.protocol">Protocol</th>
-                    <th data-i18n="config.table.notes">Notes</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td><code>zhipuai-pay2go</code></td>
-                    <td data-i18n="config.glm.purpose">GLM / BigModel pay-as-you-go</td>
-                    <td>OpenAI compatible</td>
-                    <td data-i18n-html="config.glm.notes">Base URL is fixed to <code>https://open.bigmodel.cn/api/paas/v4</code>.</td>
-                  </tr>
-                  <tr>
-                    <td><code>moonshotai-cn</code></td>
-                    <td data-i18n="config.kimi.purpose">Kimi / Moonshot China</td>
-                    <td>OpenAI compatible</td>
-                    <td data-i18n="config.kimi.notes">Used for fast implementation, review, summarize, and quick routes.</td>
-                  </tr>
-                  <tr>
-                    <td><code>deepseek</code></td>
-                    <td data-i18n="config.deepseek.purpose">DeepSeek official API</td>
-                    <td>OpenAI compatible</td>
-                    <td data-i18n="config.deepseek.notes">Used for debug/test-fix loops and low-cost judge paths.</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <h3 style="margin-top: 32px; margin-bottom: 12px;" data-i18n="config.customProvider">Custom providers</h3>
-            <p data-i18n-html="config.customProvider.desc">Additional providers are declared in config under <code>provider</code>, with no code changes required. A typical use is a multi-model subscription endpoint such as the Volcengine Ark agent plan (<code>/api/plan/v3</code>), which proxies GLM, Kimi, DeepSeek, and Doubao models behind one base URL and one API key:</p>
-            <div class="code-block">"provider": {
-  "volcengine-agent-plan": {
-    "npm": "@ai-sdk/openai-compatible",
-    "name": "Volcano Engine Agent Plan",
-    "options": {
-      "baseURL": "https://ark.cn-beijing.volces.com/api/plan/v3",
-      "apiKey": "{env:ARK_PLAN_API_KEY}"
-    },
-    "models": {
-      "glm-5.3": {
-        "name": "GLM 5.3 (Ark Plan)",
-        "reasoning": true, "tool_call": true,
-        "interleaved": { "field": "reasoning_content" },
-        "limit": { "context": 1024000, "output": 65536 },
-        "modalities": { "input": ["text"], "output": ["text"] },
-        "variants": {
-          "high": { "reasoningEffort": "high" },
-          "max": { "reasoningEffort": "max" }
-        }
-      },
-      "kimi-k3": {
-        "name": "Kimi K3 (Ark Plan)",
-        "reasoning": true, "tool_call": true, "attachment": true,
-        "interleaved": { "field": "reasoning_content" },
-        "limit": { "context": 1024000, "output": 65536 },
-        "modalities": { "input": ["text", "image"], "output": ["text"] }
-      }
-    }
-  }
-}</div>
-            <p data-i18n-html="config.customProvider.notes">Model names containing <code>kimi-k3</code> or <code>deepseek-v4</code> automatically inherit the China request transforms and variants (<code>#high</code>/<code>#max</code>, plus <code>#none</code> for deepseek) when <code>reasoning</code> is true; declare <code>variants</code> and <code>interleaved</code> explicitly for other names. Key precedence: <code>options.apiKey</code> &gt; auth.json &gt; env vars. Custom providers appear in the TUI model picker after restart; <code>openchinacode providers login</code> covers only the three built-ins. Use a provider id other than <code>volcengine-ark</code>, which is reserved for native media auth.</p>
-          </section>
-
-          <!-- Slash Commands -->
-          <section class="manual-section reveal" id="commands">
-            <div class="manual-section-header">
-              <i data-lucide="terminal"></i>
-              <h2 data-i18n="commands.title">Custom Slash Commands</h2>
-            </div>
-            <p data-i18n-html="commands.desc">OpenChinaCode-specific commands are grouped under <code>OpenChinaCode</code> in the TUI command palette.</p>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th data-i18n="commands.table.command">Command</th>
-                    <th data-i18n="commands.table.usage">Usage</th>
-                    <th data-i18n="commands.table.effect">Effect</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td><code>/auto-maxtokens</code></td>
-                    <td><code>/auto-maxtokens heuristic</code><br><code>/auto-maxtokens llm deepseek/deepseek-v4-flash</code></td>
-                    <td data-i18n="commands.maxtokens.effect">Controls sliding output-token budgeting. Heuristic is the recommended daily mode; LLM mode uses a low-cost judge for ambiguous turns.</td>
-                  </tr>
-                  <tr>
-                    <td><code>/compact</code></td>
-                    <td><code>/compact</code><br><code>/compact keep 3</code><br><code>/compact keep auto</code></td>
-                    <td data-i18n-html="commands.compact.effect">Runs smart compaction. <code>keep N</code> also preserves the latest N raw user turns and follow-up assistant/tool messages.</td>
-                  </tr>
-                  <tr>
-                    <td><code>/lsp</code></td>
-                    <td><code>/lsp status</code><br><code>/lsp on</code><br><code>/lsp off</code></td>
-                    <td data-i18n="commands.lsp.effect">Enables language-server diagnostics so the model can see and fix type, syntax, and reference errors.</td>
-                  </tr>
-                  <tr>
-                    <td><code>/sessions</code></td>
-                    <td><code>/sessions</code><br><code>/resume</code><br><code>/continue</code></td>
-                    <td data-i18n="commands.sessions.effect">Opens the session picker. Use arrow keys to switch between current-project and all-project sessions.</td>
-                  </tr>
-                  <tr>
-                    <td><code>/task-policy</code></td>
-                    <td><code>/task-policy</code><br><code>/task-policy compaction</code><br><code>/task-policy on</code><br><code>/task-policy off</code><br><code>/task-policy extra-on</code><br><code>/task-policy extra-off</code><br><code>/task-policy extra-status</code></td>
-                    <td data-i18n-html="commands.taskpolicy.effect">Opens the local TUI task-route table. <code>on</code>/<code>off</code> hot-toggles the entire task policy and task subagent entry; <code>extra-on</code>/<code>extra-off</code> toggles the extra task router; <code>extra-status</code> shows current state. Does not call the model or inject the table into conversation.</td>
-                  </tr>
-                  <tr>
-                    <td><code>/soul</code></td>
-                    <td><code>/soul</code><br><code>/soul rigorous</code><br><code>/soul friendly</code><br><code>/soul custom</code></td>
-                    <td data-i18n-html="commands.soul.effect">Selects the conversation persona. <code>custom</code> saves to <code>.openchinacode/souls/custom.md</code> and writes <code>soul.active</code> + <code>soul.custom_path</code> to project config. Refreshes the instance for new turns. Does not call the model.</td>
-                  </tr>
-                  <tr>
-                    <td><code>/permissions</code></td>
-                    <td><code>/permissions</code></td>
-                    <td data-i18n-html="commands.permissions.effect">Opens the project permission policy panel. Choose Trust All, Safe, Ask Everything, Readonly, or Reset. Writes to <code>./.openchinacode/openchinacode.jsonc</code> and applies a runtime override immediately.</td>
-                  </tr>
-                  <tr>
-                    <td><code>/task-classify</code></td>
-                    <td><code>/task-classify do a full code review</code></td>
-                    <td data-i18n="commands.taskclassify.effect">Asks the current model to explain task kind, complexity, route, and classification signals.</td>
-                  </tr>
-                  <tr>
-                    <td><code>/test-mcp</code></td>
-                    <td><code>/test-mcp on</code><br><code>/test-mcp headed</code><br><code>/test-mcp off</code></td>
-                    <td data-i18n="commands.testmcp.effect">Writes Playwright MCP config and hot-connects or disconnects it from inside the TUI.</td>
-                  </tr>
-                  <tr>
-                    <td><code>/browser-check</code></td>
-                    <td><code>/browser-check http://127.0.0.1:5173</code></td>
-                    <td data-i18n="commands.browsercheck.effect">Prompts the agent to run browser-level checks, preferably through Playwright MCP.</td>
-                  </tr>
-                  <tr>
-                    <td><code>/integration-test</code></td>
-                    <td><code>/integration-test check login flow</code></td>
-                    <td data-i18n="commands.integrationtest.effect">Prompts the agent to use the OpenChinaCode integration-test workflow: run, inspect report, define bug, fix, rerun.</td>
-                  </tr>
-                  <tr>
-                    <td><code>/media-auth</code></td>
-                    <td><code>/media-auth</code><br><code>/media-auth &lt;ARK_API_KEY&gt;</code></td>
-                    <td data-i18n="commands.mediaauth.effect">Saves the Volcengine Ark API key for native image and video generation.</td>
-                  </tr>
-                  <tr>
-                    <td><code>/image-generate</code></td>
-                    <td><code>/image-generate</code><br><code>/image-generate a cyberpunk cat mascot</code></td>
-                    <td data-i18n="commands.imagegen.effect">Opens the ByteDance Seedream 5.0 Pro image generation wizard with optional inline prompt.</td>
-                  </tr>
-                  <tr>
-                    <td><code>/video-generate</code></td>
-                    <td><code>/video-generate</code><br><code>/video-generate a 5s product promo</code></td>
-                    <td data-i18n="commands.videogen.effect">Opens the ByteDance Seedance 2.0 Mini video generation wizard with optional inline prompt.</td>
-                  </tr>
-                  <tr>
-                    <td><code>/ocr-auth</code></td>
-                    <td><code>/ocr-auth</code><br><code>/ocr-auth &lt;API_KEY&gt; &lt;SECRET_KEY&gt;</code></td>
-                    <td data-i18n-html="commands.ocrauth.effect">Saves Baidu Unlimited-OCR API Key and Secret Key for <code>ocr_extract</code>. Stored in <code>~/.local/share/openchinacode/auth.json</code> under provider <code>baidu-unlimited-ocr</code>. Env fallback: <code>BAIDU_OCR_API_KEY</code> + <code>BAIDU_OCR_SECRET_KEY</code>.</td>
-                  </tr>
-                  <tr>
-                    <td><code>/ocr</code></td>
-                    <td><code>/ocr</code><br><code>/ocr /path/to/document.pdf</code></td>
-                    <td data-i18n-html="commands.ocr.effect">Opens the Baidu Unlimited-OCR document parsing wizard. Supports PDF, OFD, DOC, DOCX, TXT, WPS, PPT, PPTX, and image formats. Results saved to <code>/tmp/openchinacode/ocr</code> as Markdown + JSON + metadata.</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </section>
-
-          <!-- Task Routing -->
-          <section class="manual-section reveal" id="routing">
-            <div class="manual-section-header">
-              <i data-lucide="route"></i>
-              <h2 data-i18n="routing.title">Task Routing Policy</h2>
-            </div>
-            <p data-i18n="routing.desc">Subagents are routed by task kind and complexity. General tasks inherit the parent model; specialized tasks use opinionated GLM/Kimi/DeepSeek defaults.</p>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th data-i18n="routing.table.kind">Task kind</th>
-                    <th data-i18n="routing.table.quick">Quick</th>
-                    <th data-i18n="routing.table.medium">Medium</th>
-                    <th data-i18n="routing.table.complex">Complex</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr><td><code>general</code></td><td class="route-inherit">inherit</td><td class="route-inherit">inherit</td><td class="route-inherit">inherit</td></tr>
-                  <tr><td><code>plan</code></td><td class="route-glm">GLM-5.2 high</td><td class="route-glm">GLM-5.2 high</td><td class="route-glm">GLM-5.2 max</td></tr>
-                  <tr><td><code>architecture</code></td><td class="route-glm">GLM-5.2 high</td><td class="route-glm">GLM-5.2 high</td><td class="route-glm">GLM-5.2 max</td></tr>
-                  <tr><td><code>refactor</code></td><td class="route-glm">GLM-5.2 high</td><td class="route-glm">GLM-5.2 high</td><td class="route-glm">GLM-5.2 max</td></tr>
-                  <tr><td><code>review</code></td><td class="route-kimi">Kimi K3 high</td><td class="route-glm">GLM-5.2 high</td><td class="route-glm">GLM-5.2 max</td></tr>
-                  <tr><td><code>implement</code></td><td class="route-kimi">Kimi K3 high</td><td class="route-glm">GLM-5.2 high</td><td class="route-glm">GLM-5.2 max</td></tr>
-                  <tr><td><code>explore</code></td><td class="route-kimi">Kimi K3 high</td><td class="route-kimi">Kimi K3 high</td><td class="route-glm">GLM-5.2 max</td></tr>
-                  <tr><td><code>visual_check</code></td><td class="route-glm5v">GLM-5V Turbo</td><td class="route-glm5v">GLM-5V Turbo</td><td class="route-glm5v">GLM-5V Turbo</td></tr>
-                  <tr><td><code>debug</code></td><td class="route-deepseek">DeepSeek V4 Pro high</td><td class="route-deepseek">DeepSeek V4 Pro high</td><td class="route-deepseek">DeepSeek V4 Pro max</td></tr>
-                  <tr><td><code>test_fix</code></td><td class="route-deepseek">DeepSeek V4 Pro high</td><td class="route-deepseek">DeepSeek V4 Pro high</td><td class="route-deepseek">DeepSeek V4 Pro max</td></tr>
-                  <tr><td><code>summarize</code></td><td class="route-kimi">Kimi K3 high</td><td class="route-glm">GLM-5.2 high</td><td class="route-glm">GLM-5.2 max</td></tr>
-                  <tr><td><code>compaction</code></td><td class="route-glm">GLM-5.2 high</td><td class="route-kimi">Kimi K3 high</td><td class="route-kimi">Kimi K3 high</td></tr>
-                </tbody>
-              </table>
-            </div>
-
-            <h3 style="margin-top: 32px; margin-bottom: 12px;" data-i18n="routing.override">Override example</h3>
-            <p data-i18n-html="routing.overrideDesc">Put this in <code>~/.config/openchinacode/openchinacode.jsonc</code> or in a project-level OpenChinaCode config.</p>
-            <div class="code-block">{
-  "task_policy": {
-    "enabled": true,
-    "routes": {
-      "review.complex": {
-        "model": "zhipuai-pay2go/glm-5.2",
-        "variant": "high"
-      },
-      "explore.quick": {
-        "model": "moonshotai-cn/kimi-k3",
-        "variant": "high"
-      },
-      "visual_check": {
-        "model": "zhipuai-pay2go/glm-5v-turbo"
-      },
-      "general": {
-        "inherit": true
-      }
-    }
-  }
-}</div>
-
-            <h3 style="margin-top: 32px; margin-bottom: 12px;" data-i18n="routing.extra.title">Extra Task Router</h3>
-            <p data-i18n-html="routing.extra.desc">When enabled, ordinary prompts pass through a fast LLM judge that can automatically insert a routed subtask — no explicit <code>/task</code> call needed. Disabled by default.</p>
-            <div class="manual-cards">
-              <div class="card" style="--accent: var(--cinnabar);">
-                <span class="tag tag-cinnabar" data-i18n="routing.extra.base.tag">Base</span>
-                <h3 data-i18n="routing.extra.base.title">System-level base routing</h3>
-                <p data-i18n="routing.extra.base.desc">Explicit task/subagent calls trigger the built-in route table — GLM for planning, Kimi for speed, DeepSeek for debug.</p>
-              </div>
-              <div class="card" style="--accent: var(--jade);">
-                <span class="tag tag-jade" data-i18n="routing.extra.smart.tag">Extra</span>
-                <h3 data-i18n="routing.extra.smart.title">Extra smart dispatch</h3>
-                <p data-i18n="routing.extra.smart.desc">A fast judge (DeepSeek V4 Flash) inspects each ordinary prompt and inserts a subtask with task_kind + complexity when delegation is appropriate.</p>
-              </div>
-              <div class="card" style="--accent: var(--gold);">
-                <span class="tag tag-gold" data-i18n="routing.extra.control.tag">Control</span>
-                <h3 data-i18n="routing.extra.control.title">Toggle and configure</h3>
-                <p data-i18n-html="routing.extra.control.desc">Use <code>/task-policy extra-on</code> / <code>extra-off</code> / <code>extra-status</code>, or set <code>task_policy.extra_router.enabled</code> in config.</p>
-              </div>
-            </div>
-            <div class="code-block" data-i18n="routing.extra.config">{
-  "task_policy": {
-    "extra_router": {
-      "enabled": true,
-      "confidence_threshold": 0.7,
-      "allow": ["plan", "refactor", "review", "debug", "test_fix"],
-      "deny": ["general", "summarize", "compaction"]
-    }
-  }
-}</div>
-          </section>
-
-          <!-- Smart Compaction -->
-          <section class="manual-section reveal" id="compaction">
-            <div class="manual-section-header">
-              <i data-lucide="layers"></i>
-              <h2 data-i18n="compaction.title">Smart Compaction</h2>
-            </div>
-            <p data-i18n-html="compaction.desc">OpenChinaCode compaction is routed through task policy and defaults to <code>moonshotai-cn/kimi-k3#high</code>. It uses three layers: general summary, active-task extraction, and minimal raw recent tail.</p>
-            <div class="manual-cards">
-              <div class="card" style="--accent: var(--cinnabar);">
-                <span class="tag tag-cinnabar" data-i18n="compaction.strategy.tag">Strategy</span>
-                <h3 data-i18n="compaction.strategy.title">Profile-aware summary</h3>
-                <p data-i18n="compaction.strategy.desc">A judge model first emits a stable JSON profile, then OpenChinaCode builds a fixed Markdown compaction prompt from that profile.</p>
-              </div>
-              <div class="card" style="--accent: var(--jade);">
-                <span class="tag tag-jade" data-i18n="compaction.recent.tag">Recent</span>
-                <h3 data-i18n="compaction.recent.title">Active task extraction</h3>
-                <p data-i18n="compaction.recent.desc">The recent active task is extracted at higher granularity than the general summary, so long debugging or refactor context survives.</p>
-              </div>
-              <div class="card" style="--accent: var(--gold);">
-                <span class="tag tag-gold" data-i18n="compaction.manual.tag">Manual</span>
-                <h3 data-i18n="compaction.manual.title">Raw tail retention</h3>
-                <p data-i18n-html="compaction.manual.desc"><code>/compact keep N</code> asks OpenChinaCode to keep the latest N raw user turns and their following assistant/tool messages.</p>
-              </div>
-            </div>
-            <div class="code-block">/compact
-/compact keep 3
-/compact keep auto</div>
-          </section>
-
-          <!-- Session Management -->
-          <section class="manual-section reveal" id="sessions">
-            <div class="manual-section-header">
-              <i data-lucide="panels-left-right"></i>
-              <h2 data-i18n="sessions.title">Session Management</h2>
-            </div>
-            <p data-i18n-html="sessions.desc">Open the session picker with <code>/sessions</code> (aliases <code>/resume</code>, <code>/continue</code>). Use arrow keys to switch scope.</p>
-            <div class="manual-cards">
-              <div class="card" style="--accent: var(--cinnabar);">
-                <span class="tag tag-cinnabar" data-i18n="sessions.scope.tag">Scope</span>
-                <h3 data-i18n="sessions.scope.title">Arrow-key scope switch</h3>
-                <p data-i18n-html="sessions.scope.desc">Press <code>←</code> / <code>→</code> to toggle between <strong>Current Project</strong> (with pin/unpin) and <strong>All Projects</strong> (global session list).</p>
-              </div>
-              <div class="card" style="--accent: var(--jade);">
-                <span class="tag tag-jade" data-i18n="sessions.cross.tag">Cross-project</span>
-                <h3 data-i18n="sessions.cross.title">Cross-project fork</h3>
-                <p data-i18n="sessions.cross.desc">Selecting another project's session offers: open the original project, or fork the session into the current directory.</p>
-              </div>
-              <div class="card" style="--accent: var(--gold);">
-                <span class="tag tag-gold" data-i18n="sessions.manage.tag">Manage</span>
-                <h3 data-i18n="sessions.manage.title">Delete and rename</h3>
-                <p data-i18n="sessions.manage.desc">Delete (with confirmation) and rename are available for any session in either scope.</p>
-              </div>
-            </div>
-            <div class="code-block">/sessions
-/resume
-/continue</div>
-          </section>
-
-          <!-- LSP & Browser Testing -->
-          <section class="manual-section reveal" id="testing">
-            <div class="manual-section-header">
-              <i data-lucide="app-window"></i>
-              <h2 data-i18n="testing.title">LSP and Browser Testing</h2>
-            </div>
-            <div class="manual-cards">
-              <div class="card" style="--accent: var(--cinnabar);">
-                <span class="tag tag-cinnabar" data-i18n="testing.lsp.tag">LSP</span>
-                <h3 data-i18n="testing.lsp.title">Diagnostics in coding turns</h3>
-                <p data-i18n-html="testing.lsp.desc">Use <code>/lsp on</code>. When enabled, language-server diagnostics can be fed into the model during code edits.</p>
-              </div>
-              <div class="card" style="--accent: var(--jade);">
-                <span class="tag tag-jade" data-i18n="testing.mcp.tag">MCP</span>
-                <h3 data-i18n="testing.mcp.title">Playwright from the TUI</h3>
-                <p data-i18n-html="testing.mcp.desc">Use <code>/test-mcp on</code>. This writes Playwright MCP config and hot-connects it without leaving OpenChinaCode.</p>
-              </div>
-              <div class="card" style="--accent: var(--gold);">
-                <span class="tag tag-gold" data-i18n="testing.vision.tag">Vision</span>
-                <h3 data-i18n="testing.vision.title">Screenshot interpretation</h3>
-                <p data-i18n-html="testing.vision.desc">Visual checks route to <code>zhipuai-pay2go/glm-5v-turbo</code>. Animation checks should prefer DOM/CSS telemetry and pixel diffs.</p>
-              </div>
-            </div>
-          </section>
-
-          <!-- Media Generation -->
-          <section class="manual-section reveal" id="media">
-            <div class="manual-section-header">
-              <i data-lucide="image"></i>
-              <h2 data-i18n="media.manual.title">Native Media Generation</h2>
-            </div>
-            <p data-i18n="media.manual.desc">OpenChinaCode can generate images and videos through Volcengine Ark, powered by ByteDance Seedream 5.0 Pro and Seedance 2.0 Mini.</p>
-            <div class="manual-cards">
-              <div class="card" style="--accent: var(--cinnabar);">
-                <span class="tag tag-cinnabar" data-i18n="media.auth.tag">Auth</span>
-                <h3 data-i18n="media.auth.title">Volcengine Ark credentials</h3>
-                <p data-i18n-html="media.auth.desc">Run <code>/media-auth</code> in the TUI, or set the <code>ARK_API_KEY</code> environment variable. The key is stored in <code>~/.local/share/openchinacode/auth.json</code> under provider <code>volcengine-ark</code>.</p>
-              </div>
-              <div class="card" style="--accent: var(--jade);">
-                <span class="tag tag-jade" data-i18n="media.image.tag">Image</span>
-                <h3 data-i18n="media.image.manual.title">ByteDance Seedream 5.0 Pro</h3>
-                <p data-i18n="media.image.manual.desc">Up to 2K resolution, 1:1 to 21:9 aspect ratios, up to 10 reference images (local paths, URLs, or data URIs), PNG or JPEG output.</p>
-                <div class="code-block" data-i18n="media.image.cmd">/image-generate
-/image-generate a cyberpunk cat mascot, neon pink, clean vector style</div>
-              </div>
-              <div class="card" style="--accent: var(--azure);">
-                <span class="tag tag-azure" data-i18n="media.video.tag">Video</span>
-                <h3 data-i18n="media.video.manual.title">ByteDance Seedance 2.0 Mini</h3>
-                <p data-i18n="media.video.manual.desc">4–15 second clips, 480p or 720p, adaptive to 21:9 ratios, up to 9 reference images, 3 reference video URLs, strict first/last frame control, and generated audio.</p>
-                <div class="code-block" data-i18n="media.video.cmd">/video-generate
-/video-generate a 5s product promo, slow dolly-in, tech but not flashy</div>
-              </div>
-            </div>
-            <div class="manual-cards" style="margin-top: 14px;">
-              <div class="card" style="--accent: var(--gold);">
-                <span class="tag tag-gold" data-i18n="media.nl.tag">Trigger</span>
-                <h3 data-i18n="media.nl.title">Natural language or slash command</h3>
-                <p data-i18n-html="media.nl.manual.desc">Describe what you want in plain language, or run <code>/image-generate</code> / <code>/video-generate</code> with an optional prompt. When key parameters are missing, the agent asks follow-up questions instead of guessing. Generated files are downloaded immediately to <code>/tmp/openchinacode/media/images</code> and <code>/tmp/openchinacode/media/videos</code> with matching metadata JSON.</p>
-              </div>
-            </div>
-          </section>
-
-          <!-- OCR & Documents -->
-          <section class="manual-section reveal" id="ocr">
-            <div class="manual-section-header">
-              <i data-lucide="file-search"></i>
-              <h2 data-i18n="ocr.section.title">Native OCR &amp; Document Parsing</h2>
-            </div>
-            <p data-i18n="ocr.section.desc">OpenChinaCode integrates Baidu Unlimited-OCR for cloud-native document parsing. Submit PDFs, Office docs, or images and get structured Markdown and JSON back — no local GPU or inference environment required.</p>
-            <div class="manual-cards">
-              <div class="card" style="--accent: var(--azure);">
-                <span class="tag tag-azure" data-i18n="ocr.auth.tag">Auth</span>
-                <h3 data-i18n="ocr.auth.title">Baidu Unlimited-OCR credentials</h3>
-                <p data-i18n-html="ocr.auth.desc">Run <code>/ocr-auth</code> in the TUI, or set <code>BAIDU_OCR_API_KEY</code> and <code>BAIDU_OCR_SECRET_KEY</code> environment variables. Keys are stored in <code>~/.local/share/openchinacode/auth.json</code> under provider <code>baidu-unlimited-ocr</code>.</p>
-              </div>
-              <div class="card" style="--accent: var(--jade);">
-                <span class="tag tag-jade" data-i18n="ocr.formats.tag">Formats</span>
-                <h3 data-i18n="ocr.formats.title">Supported file types</h3>
-                <p data-i18n-html="ocr.formats.desc">Documents: <code>pdf</code>, <code>ofd</code>, <code>doc</code>, <code>docx</code>, <code>txt</code>, <code>wps</code>, <code>ppt</code>, <code>pptx</code>. Images: <code>jpg</code>, <code>jpeg</code>, <code>png</code>, <code>bmp</code>, <code>tif</code>, <code>tiff</code>. Output saved to <code>/tmp/openchinacode/ocr</code> as Markdown + JSON + metadata.</p>
-              </div>
-              <div class="card" style="--accent: var(--cinnabar);">
-                <span class="tag tag-cinnabar" data-i18n="ocr.nl.tag">Trigger</span>
-                <h3 data-i18n="ocr.nl.title">Paste or slash command</h3>
-                <p data-i18n-html="ocr.nl.desc">Run <code>/ocr</code> with optional file paths, or <code>Ctrl+V</code> paste a document into the TUI. Document files always route to OCR; images only route to OCR when you explicitly ask to extract text, parse tables, or convert to Markdown. Regular screenshots and UI images still go to the visual model.</p>
-              </div>
-            </div>
-          </section>
-
-          <!-- Debugging -->
-          <section class="manual-section reveal" id="debugging">
-            <div class="manual-section-header">
-              <i data-lucide="bug"></i>
-              <h2 data-i18n="debugging.title">Debugging and Observability</h2>
-            </div>
-            <p data-i18n="debugging.desc">Subagent rows in the TUI show the selected provider, model, variant, task classification, and route source.</p>
-            <div class="code-block">-> zhipuai-pay2go/glm-5.2#high - review.complex - openchinacode.default</div>
-            <div class="manual-cards" style="margin-top: 14px;">
-              <div class="card" style="--accent: var(--cinnabar);">
-                <span class="tag tag-cinnabar" data-i18n="debugging.route.tag">Route</span>
-                <h3 data-i18n="debugging.route.title">Subagent route logs</h3>
-                <div class="code-block">tail -f ~/.local/share/openchinacode/log/openchinacode.log | grep --line-buffered "subagent route"</div>
-              </div>
-              <div class="card" style="--accent: var(--jade);">
-                <span class="tag tag-jade" data-i18n="debugging.compact.tag">Compact</span>
-                <h3 data-i18n="debugging.compact.title">Compaction profile logs</h3>
-                <div class="code-block">tail -f ~/.local/share/openchinacode/log/openchinacode.log | grep --line-buffered "compaction profile"</div>
-              </div>
-              <div class="card" style="--accent: var(--gold);">
-                <span class="tag tag-gold" data-i18n="debugging.test.tag">Test</span>
-                <h3 data-i18n="debugging.test.title">Integration report</h3>
-                <div class="code-block">openchinacode test init
-openchinacode test run
-ls .openchinacode/reports/</div>
-              </div>
-            </div>
-          </section>
-
-        </div><!-- /manual-content -->
-      </div><!-- /manual-layout -->
-    </div>
-  </section>
-
-  <!-- ═══ Footer ═══ -->
-  <footer class="footer">
-    <div class="container footer-inner">
-      <span class="footer-text" data-i18n="footer.text">OpenChinaCode is an independent fork built with respect for the opencode project.</span>
-      <div class="footer-links">
-        <a href="/"><i data-lucide="home"></i><span data-i18n="footer.home">Home</span></a>
-        <a href="/github"><svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56 0-.27-.01-1-.02-1.96-3.2.7-3.88-1.54-3.88-1.54-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11.1 11.1 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14 0 1.55-.01 2.8-.01 3.18 0 .31.21.68.8.56A11.51 11.51 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z"/></svg>GitHub</a>
-        <a href="/install"><i data-lucide="terminal"></i><span data-i18n="footer.install">Install</span></a>
+    <!-- ═══ Navigation ═══ -->
+    <nav class="nav">
+      <a class="brand" href="/">
+        <img class="seal" src="/logo-flat-128.png" alt="OpenChinaCode" width="38" height="38" />
+        <span>OpenChinaCode</span>
+      </a>
+      <div class="nav-links">
+        <a class="nav-link" href="/#providers"
+          ><i data-lucide="brain"></i><span data-i18n="nav.providers">Providers</span></a
+        >
+        <a class="nav-link" href="/#features"
+          ><i data-lucide="layers"></i><span data-i18n="nav.features">Features</span></a
+        >
+        <a class="nav-link" href="#quickstart"
+          ><i data-lucide="terminal"></i><span data-i18n="nav.quickStart">Quick Start</span></a
+        >
+        <button class="lang-toggle" type="button" onclick="toggleLang()" data-i18n-title="lang.toggleTitle">
+          <i data-lucide="globe"></i>
+          <span data-i18n="lang.toggle">中文</span>
+        </button>
+        <a class="btn btn-primary" href="/github"
+          ><svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+            <path
+              d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56 0-.27-.01-1-.02-1.96-3.2.7-3.88-1.54-3.88-1.54-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11.1 11.1 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14 0 1.55-.01 2.8-.01 3.18 0 .31.21.68.8.56A11.51 11.51 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z"
+            /></svg
+          ><span>GitHub</span></a
+        >
       </div>
-    </div>
-  </footer>
+    </nav>
 
-  <script src="/i18n.js"></script>
-  <script src="https://unpkg.com/lucide@1.24.0"></script>
-  <script>
-    lucide.createIcons();
+    <!-- ═══ Hero ═══ -->
+    <section class="section" style="padding-bottom: 0">
+      <span class="watermark" style="font-size: 28rem; top: -6rem; right: -4rem">手册</span>
+      <div class="container" style="position: relative; z-index: 1">
+        <div class="eyebrow">
+          <i data-lucide="book-open"></i><span data-i18n="manual.eyebrow">USAGE &amp; CONFIGURATION GUIDE</span>
+        </div>
+        <h1>
+          <span class="title-silver">Open</span><span class="title-cinnabar">China</span
+          ><span class="title-silver">Code</span>
+          <span class="title-silver" data-i18n="manual.titleSuffix">Manual</span>
+        </h1>
+        <p class="lead" data-i18n="manual.lead" style="margin-top: 20px">
+          This page covers the OpenChinaCode-specific workflow: GLM/Kimi/DeepSeek provider setup, custom slash commands,
+          task policy routing, smart compaction, LSP diagnostics, and Playwright testing.
+        </p>
+      </div>
+    </section>
 
-    // Scroll-spy: highlight active TOC link
-    const sections = document.querySelectorAll('.manual-section');
-    const tocLinks = document.querySelectorAll('.manual-toc a');
+    <!-- ═══ Two-column layout ═══ -->
+    <section class="section" style="padding-top: 40px">
+      <div class="container">
+        <div class="manual-layout">
+          <!-- ── Sidebar TOC ── -->
+          <aside class="manual-sidebar">
+            <nav>
+              <ul class="manual-toc">
+                <li>
+                  <a href="#quickstart" data-section="quickstart"
+                    ><i data-lucide="package"></i><span data-i18n="toc.quickstart">Quick Start</span></a
+                  >
+                </li>
+                <li>
+                  <a href="#config" data-section="config"
+                    ><i data-lucide="settings"></i><span data-i18n="toc.config">Configuration</span></a
+                  >
+                </li>
+                <li>
+                  <a href="#commands" data-section="commands"
+                    ><i data-lucide="terminal"></i><span data-i18n="toc.commands">Slash Commands</span></a
+                  >
+                </li>
+                <li>
+                  <a href="#routing" data-section="routing"
+                    ><i data-lucide="route"></i><span data-i18n="toc.routing">Task Routing</span></a
+                  >
+                </li>
+                <li>
+                  <a href="#compaction" data-section="compaction"
+                    ><i data-lucide="layers"></i><span data-i18n="toc.compaction">Compaction</span></a
+                  >
+                </li>
+                <li>
+                  <a href="#sessions" data-section="sessions"
+                    ><i data-lucide="panels-left-right"></i><span data-i18n="toc.sessions">Sessions</span></a
+                  >
+                </li>
+                <li>
+                  <a href="#testing" data-section="testing"
+                    ><i data-lucide="app-window"></i><span data-i18n="toc.testing">LSP &amp; Testing</span></a
+                  >
+                </li>
+                <li>
+                  <a href="#media" data-section="media"
+                    ><i data-lucide="image"></i><span data-i18n="toc.media">Media Generation</span></a
+                  >
+                </li>
+                <li>
+                  <a href="#ocr" data-section="ocr"
+                    ><i data-lucide="file-search"></i><span data-i18n="toc.ocr">OCR &amp; Documents</span></a
+                  >
+                </li>
+                <li>
+                  <a href="#debugging" data-section="debugging"
+                    ><i data-lucide="bug"></i><span data-i18n="toc.debugging">Debugging</span></a
+                  >
+                </li>
+              </ul>
+            </nav>
+          </aside>
 
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          const id = entry.target.id;
-          tocLinks.forEach(link => {
-            link.classList.toggle('active', link.dataset.section === id);
-          });
-        }
-      });
-    }, { rootMargin: '-20% 0px -60% 0px' });
+          <!-- ── Content ── -->
+          <div class="manual-content">
+            <!-- Quick Start -->
+            <section class="manual-section reveal" id="quickstart">
+              <div class="manual-section-header">
+                <i data-lucide="package"></i>
+                <h2 data-i18n="qs.title">Quick Start</h2>
+              </div>
+              <p data-i18n="qs.desc">
+                OpenChinaCode installs as a separate command, so it can coexist with upstream <code>opencode</code>.
+              </p>
+              <div class="manual-cards">
+                <div class="card" style="--accent: var(--cinnabar)">
+                  <span class="tag tag-cinnabar" data-i18n="qs.install.tag">Install</span>
+                  <h3 data-i18n="qs.install.title">Install the binary</h3>
+                  <div class="code-block">curl -fsSL https://openchinacode.muffin-labs.com/install | bash</div>
+                </div>
+                <div class="card" style="--accent: var(--jade)">
+                  <span class="tag tag-jade" data-i18n="qs.auth.tag">Auth</span>
+                  <h3 data-i18n="qs.auth.title">Add provider credentials</h3>
+                  <div class="code-block">
+                    openchinacode providers login --provider zhipuai-pay2go openchinacode providers login --provider
+                    moonshotai-cn openchinacode providers login --provider deepseek
+                  </div>
+                </div>
+                <div class="card" style="--accent: var(--gold)">
+                  <span class="tag tag-gold" data-i18n="qs.run.tag">Run</span>
+                  <h3 data-i18n="qs.run.title">Start in a project</h3>
+                  <div class="code-block">cd /path/to/project openchinacode</div>
+                </div>
+              </div>
+            </section>
 
-    sections.forEach(s => observer.observe(s));
-  </script>
-  <script src="/reveal.js"></script>
-</body>
+            <!-- Configuration -->
+            <section class="manual-section reveal" id="config">
+              <div class="manual-section-header">
+                <i data-lucide="settings"></i>
+                <h2 data-i18n="config.title">Configuration Files</h2>
+              </div>
+              <p data-i18n="config.desc">
+                OpenChinaCode uses independent config and data paths. Do not put API keys in the repository.
+              </p>
+              <div class="manual-cards">
+                <div class="card" style="--accent: var(--cinnabar)">
+                  <span class="tag tag-cinnabar" data-i18n="config.global.tag">Global</span>
+                  <h3 data-i18n="config.global.title">User config</h3>
+                  <div class="code-block">~/.config/openchinacode/openchinacode.jsonc</div>
+                  <p data-i18n="config.global.desc">
+                    Use this for personal defaults: model, task policy overrides, LSP, compaction, and MCP.
+                  </p>
+                </div>
+                <div class="card" style="--accent: var(--jade)">
+                  <span class="tag tag-jade" data-i18n="config.auth.tag">Auth</span>
+                  <h3 data-i18n="config.auth.title">Local credentials</h3>
+                  <div class="code-block">~/.local/share/openchinacode/auth.json</div>
+                  <p data-i18n-html="config.auth.desc">
+                    Written by <code>openchinacode providers login</code>. File mode is restricted when written by the
+                    CLI.
+                  </p>
+                </div>
+                <div class="card" style="--accent: var(--gold)">
+                  <span class="tag tag-gold" data-i18n="config.project.tag">Project</span>
+                  <h3 data-i18n="config.project.title">Project overrides</h3>
+                  <div class="code-block">./openchinacode.jsonc ./.openchinacode/openchinacode.jsonc</div>
+                  <p data-i18n="config.project.desc">
+                    Use this when one codebase needs a different task policy or testing setup.
+                  </p>
+                </div>
+              </div>
+
+              <h3 style="margin-top: 32px; margin-bottom: 12px" data-i18n="config.authShape">Auth file shape</h3>
+              <div class="code-block">
+                { "zhipuai-pay2go": { "type": "api", "key": "YOUR_GLM_API_KEY" }, "moonshotai-cn": { "type": "api",
+                "key": "YOUR_KIMI_API_KEY" }, "deepseek": { "type": "api", "key": "YOUR_DEEPSEEK_API_KEY" } }
+              </div>
+
+              <h3 style="margin-top: 32px; margin-bottom: 12px" data-i18n="config.providerIds">Main provider IDs</h3>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th data-i18n="config.table.provider">Provider</th>
+                      <th data-i18n="config.table.purpose">Purpose</th>
+                      <th data-i18n="config.table.protocol">Protocol</th>
+                      <th data-i18n="config.table.notes">Notes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>zhipuai-pay2go</code></td>
+                      <td data-i18n="config.glm.purpose">GLM / BigModel pay-as-you-go</td>
+                      <td>OpenAI compatible</td>
+                      <td data-i18n-html="config.glm.notes">
+                        Base URL is fixed to <code>https://open.bigmodel.cn/api/paas/v4</code>.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><code>moonshotai-cn</code></td>
+                      <td data-i18n="config.kimi.purpose">Kimi / Moonshot China</td>
+                      <td>OpenAI compatible</td>
+                      <td data-i18n="config.kimi.notes">
+                        Used for fast implementation, review, summarize, and quick routes.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><code>deepseek</code></td>
+                      <td data-i18n="config.deepseek.purpose">DeepSeek official API</td>
+                      <td>OpenAI compatible</td>
+                      <td data-i18n="config.deepseek.notes">Used for debug/test-fix loops and low-cost judge paths.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <h3 style="margin-top: 32px; margin-bottom: 12px" data-i18n="config.customProvider">Custom providers</h3>
+              <p data-i18n-html="config.customProvider.desc">
+                Additional providers are declared in config under <code>provider</code>, with no code changes required.
+                A typical use is a multi-model subscription endpoint such as the Volcengine Ark agent plan
+                (<code>/api/plan/v3</code>), which proxies GLM, Kimi, DeepSeek, and Doubao models behind one base URL
+                and one API key:
+              </p>
+              <div class="code-block">
+                "provider": { "volcengine-agent-plan": { "npm": "@ai-sdk/openai-compatible", "name": "Volcano Engine
+                Agent Plan", "options": { "baseURL": "https://ark.cn-beijing.volces.com/api/plan/v3", "apiKey":
+                "{env:ARK_PLAN_API_KEY}" }, "models": { "glm-5.3": { "name": "GLM 5.3 (Ark Plan)", "reasoning": true,
+                "tool_call": true, "interleaved": { "field": "reasoning_content" }, "limit": { "context": 1024000,
+                "output": 65536 }, "modalities": { "input": ["text"], "output": ["text"] }, "variants": { "high": {
+                "reasoningEffort": "high" }, "max": { "reasoningEffort": "max" } } }, "kimi-k3": { "name": "Kimi K3 (Ark
+                Plan)", "reasoning": true, "tool_call": true, "attachment": true, "interleaved": { "field":
+                "reasoning_content" }, "limit": { "context": 1024000, "output": 65536 }, "modalities": { "input":
+                ["text", "image"], "output": ["text"] } } } } }
+              </div>
+              <p data-i18n-html="config.customProvider.notes">
+                Model names containing <code>kimi-k3</code> or <code>deepseek-v4</code> automatically inherit the China
+                request transforms and variants (<code>#high</code>/<code>#max</code>, plus <code>#none</code> for
+                deepseek) when <code>reasoning</code> is true; declare <code>variants</code> and
+                <code>interleaved</code> explicitly for other names. Key precedence: <code>options.apiKey</code> &gt;
+                auth.json &gt; env vars. Custom providers appear in the TUI model picker after restart;
+                <code>openchinacode providers login</code> covers only the three built-ins. Use a provider id other than
+                <code>volcengine-ark</code>, which is reserved for native media auth.
+              </p>
+            </section>
+
+            <!-- Slash Commands -->
+            <section class="manual-section reveal" id="commands">
+              <div class="manual-section-header">
+                <i data-lucide="terminal"></i>
+                <h2 data-i18n="commands.title">Custom Slash Commands</h2>
+              </div>
+              <p data-i18n-html="commands.desc">
+                OpenChinaCode-specific commands are grouped under <code>OpenChinaCode</code> in the TUI command palette.
+              </p>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th data-i18n="commands.table.command">Command</th>
+                      <th data-i18n="commands.table.usage">Usage</th>
+                      <th data-i18n="commands.table.effect">Effect</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>/auto-maxtokens</code></td>
+                      <td>
+                        <code>/auto-maxtokens heuristic</code><br /><code
+                          >/auto-maxtokens llm deepseek/deepseek-v4-flash</code
+                        >
+                      </td>
+                      <td data-i18n="commands.maxtokens.effect">
+                        Controls sliding output-token budgeting. Heuristic is the recommended daily mode; LLM mode uses
+                        a low-cost judge for ambiguous turns.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><code>/compact</code></td>
+                      <td>
+                        <code>/compact</code><br /><code>/compact keep 3</code><br /><code>/compact keep auto</code>
+                      </td>
+                      <td data-i18n-html="commands.compact.effect">
+                        Runs smart compaction. <code>keep N</code> also preserves the latest N raw user turns and
+                        follow-up assistant/tool messages.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><code>/lsp</code></td>
+                      <td><code>/lsp status</code><br /><code>/lsp on</code><br /><code>/lsp off</code></td>
+                      <td data-i18n="commands.lsp.effect">
+                        Enables language-server diagnostics so the model can see and fix type, syntax, and reference
+                        errors.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><code>/sessions</code></td>
+                      <td><code>/sessions</code><br /><code>/resume</code><br /><code>/continue</code></td>
+                      <td data-i18n="commands.sessions.effect">
+                        Opens the session picker. Use arrow keys to switch between current-project and all-project
+                        sessions.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><code>/task-policy</code></td>
+                      <td>
+                        <code>/task-policy</code><br /><code>/task-policy compaction</code><br /><code
+                          >/task-policy on</code
+                        ><br /><code>/task-policy off</code><br /><code>/task-policy extra-on</code><br /><code
+                          >/task-policy extra-off</code
+                        ><br /><code>/task-policy extra-status</code>
+                      </td>
+                      <td data-i18n-html="commands.taskpolicy.effect">
+                        Opens the local TUI task-route table. <code>on</code>/<code>off</code> hot-toggles the entire
+                        task policy and task subagent entry; <code>extra-on</code>/<code>extra-off</code> toggles the
+                        extra task router; <code>extra-status</code> shows current state. Does not call the model or
+                        inject the table into conversation.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><code>/soul</code></td>
+                      <td>
+                        <code>/soul</code><br /><code>/soul rigorous</code><br /><code>/soul friendly</code><br /><code
+                          >/soul custom</code
+                        >
+                      </td>
+                      <td data-i18n-html="commands.soul.effect">
+                        Selects the conversation persona. <code>custom</code> saves to
+                        <code>.openchinacode/souls/custom.md</code> and writes <code>soul.active</code> +
+                        <code>soul.custom_path</code> to project config. Refreshes the instance for new turns. Does not
+                        call the model.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><code>/permissions</code></td>
+                      <td><code>/permissions</code></td>
+                      <td data-i18n-html="commands.permissions.effect">
+                        Opens the project permission policy panel. Choose Trust All, Safe, Ask Everything, Readonly, or
+                        Reset. Writes to <code>./.openchinacode/openchinacode.jsonc</code> and applies a runtime
+                        override immediately.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><code>/task-classify</code></td>
+                      <td><code>/task-classify do a full code review</code></td>
+                      <td data-i18n="commands.taskclassify.effect">
+                        Asks the current model to explain task kind, complexity, route, and classification signals.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><code>/test-mcp</code></td>
+                      <td>
+                        <code>/test-mcp on</code><br /><code>/test-mcp headed</code><br /><code>/test-mcp off</code>
+                      </td>
+                      <td data-i18n="commands.testmcp.effect">
+                        Writes Playwright MCP config and hot-connects or disconnects it from inside the TUI.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><code>/browser-check</code></td>
+                      <td><code>/browser-check http://127.0.0.1:5173</code></td>
+                      <td data-i18n="commands.browsercheck.effect">
+                        Prompts the agent to run browser-level checks, preferably through Playwright MCP.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><code>/integration-test</code></td>
+                      <td><code>/integration-test check login flow</code></td>
+                      <td data-i18n="commands.integrationtest.effect">
+                        Prompts the agent to use the OpenChinaCode integration-test workflow: run, inspect report,
+                        define bug, fix, rerun.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><code>/media-auth</code></td>
+                      <td><code>/media-auth</code><br /><code>/media-auth &lt;ARK_API_KEY&gt;</code></td>
+                      <td data-i18n="commands.mediaauth.effect">
+                        Saves the Volcengine Ark API key for native image and video generation.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><code>/image-generate</code></td>
+                      <td><code>/image-generate</code><br /><code>/image-generate a cyberpunk cat mascot</code></td>
+                      <td data-i18n="commands.imagegen.effect">
+                        Opens the ByteDance Seedream 5.0 Pro image generation wizard with optional inline prompt.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><code>/video-generate</code></td>
+                      <td><code>/video-generate</code><br /><code>/video-generate a 5s product promo</code></td>
+                      <td data-i18n="commands.videogen.effect">
+                        Opens the ByteDance Seedance 2.0 Mini video generation wizard with optional inline prompt.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><code>/ocr-auth</code></td>
+                      <td><code>/ocr-auth</code><br /><code>/ocr-auth &lt;API_KEY&gt; &lt;SECRET_KEY&gt;</code></td>
+                      <td data-i18n-html="commands.ocrauth.effect">
+                        Saves Baidu Unlimited-OCR API Key and Secret Key for <code>ocr_extract</code>. Stored in
+                        <code>~/.local/share/openchinacode/auth.json</code> under provider
+                        <code>baidu-unlimited-ocr</code>. Env fallback: <code>BAIDU_OCR_API_KEY</code> +
+                        <code>BAIDU_OCR_SECRET_KEY</code>.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><code>/ocr</code></td>
+                      <td><code>/ocr</code><br /><code>/ocr /path/to/document.pdf</code></td>
+                      <td data-i18n-html="commands.ocr.effect">
+                        Opens the Baidu Unlimited-OCR document parsing wizard. Supports PDF, OFD, DOC, DOCX, TXT, WPS,
+                        PPT, PPTX, and image formats. Results saved to <code>/tmp/openchinacode/ocr</code> as Markdown +
+                        JSON + metadata.
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <!-- Task Routing -->
+            <section class="manual-section reveal" id="routing">
+              <div class="manual-section-header">
+                <i data-lucide="route"></i>
+                <h2 data-i18n="routing.title">Task Routing Policy</h2>
+              </div>
+              <p data-i18n="routing.desc">
+                Subagents are routed by task kind and complexity. General tasks inherit the parent model; specialized
+                tasks use opinionated GLM/Kimi/DeepSeek defaults.
+              </p>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th data-i18n="routing.table.kind">Task kind</th>
+                      <th data-i18n="routing.table.quick">Quick</th>
+                      <th data-i18n="routing.table.medium">Medium</th>
+                      <th data-i18n="routing.table.complex">Complex</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>general</code></td>
+                      <td class="route-inherit">inherit</td>
+                      <td class="route-inherit">inherit</td>
+                      <td class="route-inherit">inherit</td>
+                    </tr>
+                    <tr>
+                      <td><code>plan</code></td>
+                      <td class="route-glm">GLM-5.2 high</td>
+                      <td class="route-glm">GLM-5.2 high</td>
+                      <td class="route-glm">GLM-5.2 max</td>
+                    </tr>
+                    <tr>
+                      <td><code>architecture</code></td>
+                      <td class="route-glm">GLM-5.2 high</td>
+                      <td class="route-glm">GLM-5.2 high</td>
+                      <td class="route-glm">GLM-5.2 max</td>
+                    </tr>
+                    <tr>
+                      <td><code>refactor</code></td>
+                      <td class="route-glm">GLM-5.2 high</td>
+                      <td class="route-glm">GLM-5.2 high</td>
+                      <td class="route-glm">GLM-5.2 max</td>
+                    </tr>
+                    <tr>
+                      <td><code>review</code></td>
+                      <td class="route-kimi">Kimi K3 high</td>
+                      <td class="route-glm">GLM-5.2 high</td>
+                      <td class="route-glm">GLM-5.2 max</td>
+                    </tr>
+                    <tr>
+                      <td><code>implement</code></td>
+                      <td class="route-kimi">Kimi K3 high</td>
+                      <td class="route-glm">GLM-5.2 high</td>
+                      <td class="route-glm">GLM-5.2 max</td>
+                    </tr>
+                    <tr>
+                      <td><code>explore</code></td>
+                      <td class="route-kimi">Kimi K3 high</td>
+                      <td class="route-kimi">Kimi K3 high</td>
+                      <td class="route-glm">GLM-5.2 max</td>
+                    </tr>
+                    <tr>
+                      <td><code>visual_check</code></td>
+                      <td class="route-glm5v">GLM-5V Turbo</td>
+                      <td class="route-glm5v">GLM-5V Turbo</td>
+                      <td class="route-glm5v">GLM-5V Turbo</td>
+                    </tr>
+                    <tr>
+                      <td><code>debug</code></td>
+                      <td class="route-deepseek">DeepSeek V4 Pro high</td>
+                      <td class="route-deepseek">DeepSeek V4 Pro high</td>
+                      <td class="route-deepseek">DeepSeek V4 Pro max</td>
+                    </tr>
+                    <tr>
+                      <td><code>test_fix</code></td>
+                      <td class="route-deepseek">DeepSeek V4 Pro high</td>
+                      <td class="route-deepseek">DeepSeek V4 Pro high</td>
+                      <td class="route-deepseek">DeepSeek V4 Pro max</td>
+                    </tr>
+                    <tr>
+                      <td><code>summarize</code></td>
+                      <td class="route-kimi">Kimi K3 high</td>
+                      <td class="route-glm">GLM-5.2 high</td>
+                      <td class="route-glm">GLM-5.2 max</td>
+                    </tr>
+                    <tr>
+                      <td><code>compaction</code></td>
+                      <td class="route-glm">GLM-5.2 high</td>
+                      <td class="route-kimi">Kimi K3 high</td>
+                      <td class="route-kimi">Kimi K3 high</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <h3 style="margin-top: 32px; margin-bottom: 12px" data-i18n="routing.override">Override example</h3>
+              <p data-i18n-html="routing.overrideDesc">
+                Put this in <code>~/.config/openchinacode/openchinacode.jsonc</code> or in a project-level OpenChinaCode
+                config.
+              </p>
+              <div class="code-block">
+                { "task_policy": { "enabled": true, "routes": { "review.complex": { "model": "zhipuai-pay2go/glm-5.2",
+                "variant": "high" }, "explore.quick": { "model": "moonshotai-cn/kimi-k3", "variant": "high" },
+                "visual_check": { "model": "zhipuai-pay2go/glm-5v-turbo" }, "general": { "inherit": true } } } }
+              </div>
+
+              <h3 style="margin-top: 32px; margin-bottom: 12px" data-i18n="routing.extra.title">Extra Task Router</h3>
+              <p data-i18n-html="routing.extra.desc">
+                When enabled, ordinary prompts pass through a fast LLM judge that can automatically insert a routed
+                subtask — no explicit <code>/task</code> call needed. Disabled by default.
+              </p>
+              <div class="manual-cards">
+                <div class="card" style="--accent: var(--cinnabar)">
+                  <span class="tag tag-cinnabar" data-i18n="routing.extra.base.tag">Base</span>
+                  <h3 data-i18n="routing.extra.base.title">System-level base routing</h3>
+                  <p data-i18n="routing.extra.base.desc">
+                    Explicit task/subagent calls trigger the built-in route table — GLM for planning, Kimi for speed,
+                    DeepSeek for debug.
+                  </p>
+                </div>
+                <div class="card" style="--accent: var(--jade)">
+                  <span class="tag tag-jade" data-i18n="routing.extra.smart.tag">Extra</span>
+                  <h3 data-i18n="routing.extra.smart.title">Extra smart dispatch</h3>
+                  <p data-i18n="routing.extra.smart.desc">
+                    A fast judge (DeepSeek V4 Flash) inspects each ordinary prompt and inserts a subtask with task_kind
+                    + complexity when delegation is appropriate.
+                  </p>
+                </div>
+                <div class="card" style="--accent: var(--gold)">
+                  <span class="tag tag-gold" data-i18n="routing.extra.control.tag">Control</span>
+                  <h3 data-i18n="routing.extra.control.title">Toggle and configure</h3>
+                  <p data-i18n-html="routing.extra.control.desc">
+                    Use <code>/task-policy extra-on</code> / <code>extra-off</code> / <code>extra-status</code>, or set
+                    <code>task_policy.extra_router.enabled</code> in config.
+                  </p>
+                </div>
+              </div>
+              <div class="code-block" data-i18n="routing.extra.config">
+                { "task_policy": { "extra_router": { "enabled": true, "confidence_threshold": 0.7, "allow": ["plan",
+                "refactor", "review", "debug", "test_fix"], "deny": ["general", "summarize", "compaction"] } } }
+              </div>
+            </section>
+
+            <!-- Smart Compaction -->
+            <section class="manual-section reveal" id="compaction">
+              <div class="manual-section-header">
+                <i data-lucide="layers"></i>
+                <h2 data-i18n="compaction.title">Smart Compaction</h2>
+              </div>
+              <p data-i18n-html="compaction.desc">
+                OpenChinaCode compaction is routed through task policy and defaults to
+                <code>moonshotai-cn/kimi-k3#high</code>. It uses three layers: general summary, active-task extraction,
+                and minimal raw recent tail.
+              </p>
+              <div class="manual-cards">
+                <div class="card" style="--accent: var(--cinnabar)">
+                  <span class="tag tag-cinnabar" data-i18n="compaction.strategy.tag">Strategy</span>
+                  <h3 data-i18n="compaction.strategy.title">Profile-aware summary</h3>
+                  <p data-i18n="compaction.strategy.desc">
+                    A judge model first emits a stable JSON profile, then OpenChinaCode builds a fixed Markdown
+                    compaction prompt from that profile.
+                  </p>
+                </div>
+                <div class="card" style="--accent: var(--jade)">
+                  <span class="tag tag-jade" data-i18n="compaction.recent.tag">Recent</span>
+                  <h3 data-i18n="compaction.recent.title">Active task extraction</h3>
+                  <p data-i18n="compaction.recent.desc">
+                    The recent active task is extracted at higher granularity than the general summary, so long
+                    debugging or refactor context survives.
+                  </p>
+                </div>
+                <div class="card" style="--accent: var(--gold)">
+                  <span class="tag tag-gold" data-i18n="compaction.manual.tag">Manual</span>
+                  <h3 data-i18n="compaction.manual.title">Raw tail retention</h3>
+                  <p data-i18n-html="compaction.manual.desc">
+                    <code>/compact keep N</code> asks OpenChinaCode to keep the latest N raw user turns and their
+                    following assistant/tool messages.
+                  </p>
+                </div>
+              </div>
+              <div class="code-block">/compact /compact keep 3 /compact keep auto</div>
+            </section>
+
+            <!-- Session Management -->
+            <section class="manual-section reveal" id="sessions">
+              <div class="manual-section-header">
+                <i data-lucide="panels-left-right"></i>
+                <h2 data-i18n="sessions.title">Session Management</h2>
+              </div>
+              <p data-i18n-html="sessions.desc">
+                Open the session picker with <code>/sessions</code> (aliases <code>/resume</code>,
+                <code>/continue</code>). Use arrow keys to switch scope.
+              </p>
+              <div class="manual-cards">
+                <div class="card" style="--accent: var(--cinnabar)">
+                  <span class="tag tag-cinnabar" data-i18n="sessions.scope.tag">Scope</span>
+                  <h3 data-i18n="sessions.scope.title">Arrow-key scope switch</h3>
+                  <p data-i18n-html="sessions.scope.desc">
+                    Press <code>←</code> / <code>→</code> to toggle between <strong>Current Project</strong> (with
+                    pin/unpin) and <strong>All Projects</strong> (global session list).
+                  </p>
+                </div>
+                <div class="card" style="--accent: var(--jade)">
+                  <span class="tag tag-jade" data-i18n="sessions.cross.tag">Cross-project</span>
+                  <h3 data-i18n="sessions.cross.title">Cross-project fork</h3>
+                  <p data-i18n="sessions.cross.desc">
+                    Selecting another project's session offers: open the original project, or fork the session into the
+                    current directory.
+                  </p>
+                </div>
+                <div class="card" style="--accent: var(--gold)">
+                  <span class="tag tag-gold" data-i18n="sessions.manage.tag">Manage</span>
+                  <h3 data-i18n="sessions.manage.title">Delete and rename</h3>
+                  <p data-i18n="sessions.manage.desc">
+                    Delete (with confirmation) and rename are available for any session in either scope.
+                  </p>
+                </div>
+              </div>
+              <div class="code-block">/sessions /resume /continue</div>
+            </section>
+
+            <!-- LSP & Browser Testing -->
+            <section class="manual-section reveal" id="testing">
+              <div class="manual-section-header">
+                <i data-lucide="app-window"></i>
+                <h2 data-i18n="testing.title">LSP and Browser Testing</h2>
+              </div>
+              <div class="manual-cards">
+                <div class="card" style="--accent: var(--cinnabar)">
+                  <span class="tag tag-cinnabar" data-i18n="testing.lsp.tag">LSP</span>
+                  <h3 data-i18n="testing.lsp.title">Diagnostics in coding turns</h3>
+                  <p data-i18n-html="testing.lsp.desc">
+                    Use <code>/lsp on</code>. When enabled, language-server diagnostics can be fed into the model during
+                    code edits.
+                  </p>
+                </div>
+                <div class="card" style="--accent: var(--jade)">
+                  <span class="tag tag-jade" data-i18n="testing.mcp.tag">MCP</span>
+                  <h3 data-i18n="testing.mcp.title">Playwright from the TUI</h3>
+                  <p data-i18n-html="testing.mcp.desc">
+                    Use <code>/test-mcp on</code>. This writes Playwright MCP config and hot-connects it without leaving
+                    OpenChinaCode.
+                  </p>
+                </div>
+                <div class="card" style="--accent: var(--gold)">
+                  <span class="tag tag-gold" data-i18n="testing.vision.tag">Vision</span>
+                  <h3 data-i18n="testing.vision.title">Screenshot interpretation</h3>
+                  <p data-i18n-html="testing.vision.desc">
+                    Visual checks route to <code>zhipuai-pay2go/glm-5v-turbo</code>. Animation checks should prefer
+                    DOM/CSS telemetry and pixel diffs.
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            <!-- Media Generation -->
+            <section class="manual-section reveal" id="media">
+              <div class="manual-section-header">
+                <i data-lucide="image"></i>
+                <h2 data-i18n="media.manual.title">Native Media Generation</h2>
+              </div>
+              <p data-i18n="media.manual.desc">
+                OpenChinaCode can generate images and videos through Volcengine Ark, powered by ByteDance Seedream 5.0
+                Pro and Seedance 2.0 Mini.
+              </p>
+              <div class="manual-cards">
+                <div class="card" style="--accent: var(--cinnabar)">
+                  <span class="tag tag-cinnabar" data-i18n="media.auth.tag">Auth</span>
+                  <h3 data-i18n="media.auth.title">Volcengine Ark credentials</h3>
+                  <p data-i18n-html="media.auth.desc">
+                    Run <code>/media-auth</code> in the TUI, or set the <code>ARK_API_KEY</code> environment variable.
+                    The key is stored in <code>~/.local/share/openchinacode/auth.json</code> under provider
+                    <code>volcengine-ark</code>.
+                  </p>
+                </div>
+                <div class="card" style="--accent: var(--jade)">
+                  <span class="tag tag-jade" data-i18n="media.image.tag">Image</span>
+                  <h3 data-i18n="media.image.manual.title">ByteDance Seedream 5.0 Pro</h3>
+                  <p data-i18n="media.image.manual.desc">
+                    Up to 2K resolution, 1:1 to 21:9 aspect ratios, up to 10 reference images (local paths, URLs, or
+                    data URIs), PNG or JPEG output.
+                  </p>
+                  <div class="code-block" data-i18n="media.image.cmd">
+                    /image-generate /image-generate a cyberpunk cat mascot, neon pink, clean vector style
+                  </div>
+                </div>
+                <div class="card" style="--accent: var(--azure)">
+                  <span class="tag tag-azure" data-i18n="media.video.tag">Video</span>
+                  <h3 data-i18n="media.video.manual.title">ByteDance Seedance 2.0 Mini</h3>
+                  <p data-i18n="media.video.manual.desc">
+                    4–15 second clips, 480p or 720p, adaptive to 21:9 ratios, up to 9 reference images, 3 reference
+                    video URLs, strict first/last frame control, and generated audio.
+                  </p>
+                  <div class="code-block" data-i18n="media.video.cmd">
+                    /video-generate /video-generate a 5s product promo, slow dolly-in, tech but not flashy
+                  </div>
+                </div>
+              </div>
+              <div class="manual-cards" style="margin-top: 14px">
+                <div class="card" style="--accent: var(--gold)">
+                  <span class="tag tag-gold" data-i18n="media.nl.tag">Trigger</span>
+                  <h3 data-i18n="media.nl.title">Natural language or slash command</h3>
+                  <p data-i18n-html="media.nl.manual.desc">
+                    Describe what you want in plain language, or run <code>/image-generate</code> /
+                    <code>/video-generate</code> with an optional prompt. When key parameters are missing, the agent
+                    asks follow-up questions instead of guessing. Generated files are downloaded immediately to
+                    <code>/tmp/openchinacode/media/images</code> and <code>/tmp/openchinacode/media/videos</code> with
+                    matching metadata JSON.
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            <!-- OCR & Documents -->
+            <section class="manual-section reveal" id="ocr">
+              <div class="manual-section-header">
+                <i data-lucide="file-search"></i>
+                <h2 data-i18n="ocr.section.title">Native OCR &amp; Document Parsing</h2>
+              </div>
+              <p data-i18n="ocr.section.desc">
+                OpenChinaCode integrates Baidu Unlimited-OCR for cloud-native document parsing. Submit PDFs, Office
+                docs, or images and get structured Markdown and JSON back — no local GPU or inference environment
+                required.
+              </p>
+              <div class="manual-cards">
+                <div class="card" style="--accent: var(--azure)">
+                  <span class="tag tag-azure" data-i18n="ocr.auth.tag">Auth</span>
+                  <h3 data-i18n="ocr.auth.title">Baidu Unlimited-OCR credentials</h3>
+                  <p data-i18n-html="ocr.auth.desc">
+                    Run <code>/ocr-auth</code> in the TUI, or set <code>BAIDU_OCR_API_KEY</code> and
+                    <code>BAIDU_OCR_SECRET_KEY</code> environment variables. Keys are stored in
+                    <code>~/.local/share/openchinacode/auth.json</code> under provider <code>baidu-unlimited-ocr</code>.
+                  </p>
+                </div>
+                <div class="card" style="--accent: var(--jade)">
+                  <span class="tag tag-jade" data-i18n="ocr.formats.tag">Formats</span>
+                  <h3 data-i18n="ocr.formats.title">Supported file types</h3>
+                  <p data-i18n-html="ocr.formats.desc">
+                    Documents: <code>pdf</code>, <code>ofd</code>, <code>doc</code>, <code>docx</code>,
+                    <code>txt</code>, <code>wps</code>, <code>ppt</code>, <code>pptx</code>. Images: <code>jpg</code>,
+                    <code>jpeg</code>, <code>png</code>, <code>bmp</code>, <code>tif</code>, <code>tiff</code>. Output
+                    saved to <code>/tmp/openchinacode/ocr</code> as Markdown + JSON + metadata.
+                  </p>
+                </div>
+                <div class="card" style="--accent: var(--cinnabar)">
+                  <span class="tag tag-cinnabar" data-i18n="ocr.nl.tag">Trigger</span>
+                  <h3 data-i18n="ocr.nl.title">Paste or slash command</h3>
+                  <p data-i18n-html="ocr.nl.desc">
+                    Run <code>/ocr</code> with optional file paths, or <code>Ctrl+V</code> paste a document into the
+                    TUI. Document files always route to OCR; images only route to OCR when you explicitly ask to extract
+                    text, parse tables, or convert to Markdown. Regular screenshots and UI images still go to the visual
+                    model.
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            <!-- Debugging -->
+            <section class="manual-section reveal" id="debugging">
+              <div class="manual-section-header">
+                <i data-lucide="bug"></i>
+                <h2 data-i18n="debugging.title">Debugging and Observability</h2>
+              </div>
+              <p data-i18n="debugging.desc">
+                Subagent rows in the TUI show the selected provider, model, variant, task classification, and route
+                source.
+              </p>
+              <div class="code-block">-> zhipuai-pay2go/glm-5.2#high - review.complex - openchinacode.default</div>
+              <div class="manual-cards" style="margin-top: 14px">
+                <div class="card" style="--accent: var(--cinnabar)">
+                  <span class="tag tag-cinnabar" data-i18n="debugging.route.tag">Route</span>
+                  <h3 data-i18n="debugging.route.title">Subagent route logs</h3>
+                  <div class="code-block">
+                    tail -f ~/.local/share/openchinacode/log/openchinacode.log | grep --line-buffered "subagent route"
+                  </div>
+                </div>
+                <div class="card" style="--accent: var(--jade)">
+                  <span class="tag tag-jade" data-i18n="debugging.compact.tag">Compact</span>
+                  <h3 data-i18n="debugging.compact.title">Compaction profile logs</h3>
+                  <div class="code-block">
+                    tail -f ~/.local/share/openchinacode/log/openchinacode.log | grep --line-buffered "compaction
+                    profile"
+                  </div>
+                </div>
+                <div class="card" style="--accent: var(--gold)">
+                  <span class="tag tag-gold" data-i18n="debugging.test.tag">Test</span>
+                  <h3 data-i18n="debugging.test.title">Integration report</h3>
+                  <div class="code-block">
+                    openchinacode test init openchinacode test run ls .openchinacode/reports/
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+          <!-- /manual-content -->
+        </div>
+        <!-- /manual-layout -->
+      </div>
+    </section>
+
+    <!-- ═══ Footer ═══ -->
+    <footer class="footer">
+      <div class="container footer-inner">
+        <span class="footer-text" data-i18n="footer.text"
+          >OpenChinaCode is an independent fork built with respect for the opencode project.</span
+        >
+        <div class="footer-links">
+          <a href="/"><i data-lucide="home"></i><span data-i18n="footer.home">Home</span></a>
+          <a href="/github"
+            ><svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15">
+              <path
+                d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56 0-.27-.01-1-.02-1.96-3.2.7-3.88-1.54-3.88-1.54-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11.1 11.1 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14 0 1.55-.01 2.8-.01 3.18 0 .31.21.68.8.56A11.51 11.51 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z"
+              /></svg
+            >GitHub</a
+          >
+          <a href="/install"><i data-lucide="terminal"></i><span data-i18n="footer.install">Install</span></a>
+        </div>
+      </div>
+    </footer>
+
+    <script src="/i18n.js"></script>
+    <script src="https://unpkg.com/lucide@1.24.0"></script>
+    <script>
+      lucide.createIcons()
+
+      // Scroll-spy: highlight active TOC link
+      const sections = document.querySelectorAll(".manual-section")
+      const tocLinks = document.querySelectorAll(".manual-toc a")
+
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              const id = entry.target.id
+              tocLinks.forEach((link) => {
+                link.classList.toggle("active", link.dataset.section === id)
+              })
+            }
+          })
+        },
+        { rootMargin: "-20% 0px -60% 0px" },
+      )
+
+      sections.forEach((s) => observer.observe(s))
+    </script>
+    <script src="/reveal.js"></script>
+  </body>
 </html>

@@ -9,6 +9,7 @@
 **Tech Stack:** Bun, Effect, drizzle-orm (SQLite), effect/unstable/httpapi, OpenTUI/Solid. Work happens in the `OpenChinaCode-surgery` worktree on branch `session-memory`.
 
 **Conventions to respect:**
+
 - Tests run from package dirs only, never repo root: `cd packages/core && bun test ...`
 - Typecheck per package: `cd packages/<pkg> && bun typecheck`
 - Commit messages: `type(scope): summary`, no backticks around technical words in messages
@@ -23,6 +24,7 @@
 Pure domain module: content schema, caps/normalize, markdown renderer, git refs helper. No service yet.
 
 **Files:**
+
 - Create: `packages/core/src/session/memory.ts`
 - Test: `packages/core/test/session-memory.test.ts`
 
@@ -362,6 +364,7 @@ git commit -m "feat(core): add session memory document module"
 ### Task 2: session_memory table + migration
 
 **Files:**
+
 - Modify: `packages/core/src/session/sql.ts` (append after `SessionContextEpochTable`)
 - Generated: `packages/core/src/database/migration/<ts>_session_memory.ts`, `migration.gen.ts`, `schema.gen.ts`, `schema.json`
 
@@ -416,6 +419,7 @@ git commit -m "feat(core): add session_memory table migration"
 CRUD service over the table: `get` / `getRow` / `rendered` / `put` / `append`. Lives in `packages/core/src/session/memory.ts` (append to the Task 1 module) so tests use the proven core DB harness.
 
 **Files:**
+
 - Modify: `packages/core/src/session/memory.ts`
 - Test: `packages/core/test/session-memory.test.ts` (extend)
 
@@ -669,6 +673,7 @@ git commit -m "feat(core): add session memory service"
 ### Task 4: Retention sweep + config
 
 **Files:**
+
 - Create: `packages/core/src/session/memory-retention.ts`
 - Modify: `packages/core/src/v1/config/config.ts` (experimental struct, next to `event_retention_days`)
 - Modify: `packages/opencode/src/server/routes/instance/httpapi/server.ts` (:194-208 options node pattern, :272 group, :297 build overrides)
@@ -817,7 +822,9 @@ const layer = Layer.effectDiscard(
       return
     }
     yield* sweepOnce(options.retentionDays).pipe(
-      Effect.catchCause((cause) => Effect.logError("session memory retention sweep failed", { cause: Cause.pretty(cause) })),
+      Effect.catchCause((cause) =>
+        Effect.logError("session memory retention sweep failed", { cause: Cause.pretty(cause) }),
+      ),
       Effect.repeat(Schedule.spaced(Duration.hours(1))),
       Effect.forkScoped,
     )
@@ -900,6 +907,7 @@ git commit -m "feat(core): add session memory retention sweep"
 ### Task 5: Compaction writes memory (merge, not extract-and-discard)
 
 **Files:**
+
 - Modify: `packages/opencode/src/session/compaction-profile.ts` (new `memoryMessages`, `parseMemoryOutput`, `fallbackMemory`, `projectActiveTask`)
 - Modify: `packages/opencode/src/session/compaction.ts` (persist after extraction; keep-old-on-failure; deps)
 - Test: `packages/opencode/test/session/compaction-profile.test.ts` (extend), `packages/opencode/test/session/compaction.test.ts` (extend)
@@ -923,7 +931,12 @@ test("parseMemoryOutput decodes, fills at, and normalizes", () => {
       next_actions: ["next"],
       open_questions: [],
     },
-    log: { decisions: [{ decision: "x", rationale: "y", rejected: [], at: 0 }], constraints: [], pitfalls: [], milestones: [] },
+    log: {
+      decisions: [{ decision: "x", rationale: "y", rejected: [], at: 0 }],
+      constraints: [],
+      pitfalls: [],
+      milestones: [],
+    },
   })
   const parsed = CompactionProfile.parseMemoryOutput(`\`\`\`json\n${json}\n\`\`\``)
   expect(parsed?.state.objective).toBe("obj")
@@ -1102,34 +1115,34 @@ In `packages/opencode/src/session/compaction.ts`:
 4. In `processCompaction`, replace the extraction block (:680-687):
 
 ```ts
-        const previousMemory = yield* memory
-          .get(input.sessionID)
-          .pipe(Effect.catchCause(() => Effect.succeed(undefined)))
-        const extracted = yield* extractActiveTask({
-          messages: visibleHistory,
-          previousSummary,
-          currentModel: model,
-          sessionID: input.sessionID,
-          decision: readyProfile,
-          previousMemory,
-        })
-        const memoryContent =
-          extracted.memory ?? CompactionProfile.fallbackMemory({ decision: readyProfile, previousMemory })
-        if (readyProfile.active_task.present || previousMemory) {
-          const ctx = yield* InstanceState.context
-          yield* memory
-            .put({
-              sessionID: input.sessionID,
-              content: { ...memoryContent, refs: SessionMemory.gitRefs(ctx.directory) },
-              source: "judge",
-            })
-            .pipe(
-              Effect.catchCause((cause) =>
-                Effect.logWarning("session memory write failed; keeping previous", { cause: Cause.pretty(cause) }),
-              ),
-            )
-          activeTask = extracted.memory ? CompactionProfile.projectActiveTask(memoryContent) : undefined
-        }
+const previousMemory = yield * memory.get(input.sessionID).pipe(Effect.catchCause(() => Effect.succeed(undefined)))
+const extracted =
+  yield *
+  extractActiveTask({
+    messages: visibleHistory,
+    previousSummary,
+    currentModel: model,
+    sessionID: input.sessionID,
+    decision: readyProfile,
+    previousMemory,
+  })
+const memoryContent = extracted.memory ?? CompactionProfile.fallbackMemory({ decision: readyProfile, previousMemory })
+if (readyProfile.active_task.present || previousMemory) {
+  const ctx = yield * InstanceState.context
+  yield *
+    memory
+      .put({
+        sessionID: input.sessionID,
+        content: { ...memoryContent, refs: SessionMemory.gitRefs(ctx.directory) },
+        source: "judge",
+      })
+      .pipe(
+        Effect.catchCause((cause) =>
+          Effect.logWarning("session memory write failed; keeping previous", { cause: Cause.pretty(cause) }),
+        ),
+      )
+  activeTask = extracted.memory ? CompactionProfile.projectActiveTask(memoryContent) : undefined
+}
 ```
 
 (`activeTask` stays `undefined` when no task and no previous memory — same externally visible behavior as today when extraction is skipped. `Cause` import from effect.)
@@ -1179,11 +1192,13 @@ git commit -m "feat(opencode): persist session memory during compaction"
 ### Task 6: Every-turn injection into the system prompt
 
 **Files:**
+
 - Modify: `packages/opencode/src/session/prompt.ts` (:1562 Effect.all, :1588 system array)
 
 - [ ] **Step 1: Wire the service**
 
 In `packages/opencode/src/session/prompt.ts`:
+
 1. Import: `import { SessionMemory } from "@opencode-ai/core/session/memory"`.
 2. In the layer closure, next to the other service yields: `const memory = yield* SessionMemory.Service`.
 3. Add `SessionMemory.node` to `SessionPrompt.node`'s `deps`.
@@ -1193,34 +1208,36 @@ In `packages/opencode/src/session/prompt.ts`:
 Change the `Effect.all` at :1562 to also fetch the rendered memory, then splice it into `system` (:1588) right after `instructions` (static prefix side; memory only changes on writes, so provider prompt caches survive between writes):
 
 ```ts
-            const [skills, env, instructions, mcpInstructions, memoryDoc, modelMsgs] = yield* Effect.all([
-              sys.skills(agent),
-              sys.environment(model),
-              instruction.system().pipe(Effect.orDie),
-              sys.mcp(agent, session.permission),
-              memory.rendered(sessionID).pipe(Effect.catchCause(() => Effect.succeed(undefined))),
-              MessageV2.toModelMessagesEffect(msgs, model, {
-                // ... unchanged retention options ...
-              }),
-            ])
-            const system = [
-              // Volatile content (env block contains today's date) goes last so the
-              // static prefix (instructions, memory, MCP, skills) stays byte-identical
-              // across days and keeps hitting provider prompt caches (GLM/DeepSeek).
-              ...instructions,
-              ...(memoryDoc
-                ? [
-                    [
-                      "The following structured session memory is maintained automatically across compactions.",
-                      "Treat it as the authoritative current state of this session.",
-                      `<session-memory>\n${memoryDoc}\n</session-memory>`,
-                    ].join("\n"),
-                  ]
-                : []),
-              ...(mcpInstructions ? [mcpInstructions] : []),
-              ...(skills ? [skills] : []),
-              ...env,
-            ]
+const [skills, env, instructions, mcpInstructions, memoryDoc, modelMsgs] =
+  yield *
+  Effect.all([
+    sys.skills(agent),
+    sys.environment(model),
+    instruction.system().pipe(Effect.orDie),
+    sys.mcp(agent, session.permission),
+    memory.rendered(sessionID).pipe(Effect.catchCause(() => Effect.succeed(undefined))),
+    MessageV2.toModelMessagesEffect(msgs, model, {
+      // ... unchanged retention options ...
+    }),
+  ])
+const system = [
+  // Volatile content (env block contains today's date) goes last so the
+  // static prefix (instructions, memory, MCP, skills) stays byte-identical
+  // across days and keeps hitting provider prompt caches (GLM/DeepSeek).
+  ...instructions,
+  ...(memoryDoc
+    ? [
+        [
+          "The following structured session memory is maintained automatically across compactions.",
+          "Treat it as the authoritative current state of this session.",
+          `<session-memory>\n${memoryDoc}\n</session-memory>`,
+        ].join("\n"),
+      ]
+    : []),
+  ...(mcpInstructions ? [mcpInstructions] : []),
+  ...(skills ? [skills] : []),
+  ...env,
+]
 ```
 
 - [ ] **Step 3: Regression tests**
@@ -1243,6 +1260,7 @@ git commit -m "feat(opencode): inject session memory into system prompt"
 ### Task 7: `memory_write` tool
 
 **Files:**
+
 - Create: `packages/opencode/src/tool/memory-write.ts`
 - Create: `packages/opencode/src/tool/memory-write.txt`
 - Modify: `packages/opencode/src/tool/registry.ts` (import, yield, init, builtin list, deps)
@@ -1466,6 +1484,7 @@ git commit -m "feat(opencode): add memory_write tool"
 ### Task 8: HTTP endpoint + SDK regen
 
 **Files:**
+
 - Modify: `packages/opencode/src/server/routes/instance/httpapi/groups/session.ts`
 - Modify: `packages/opencode/src/server/routes/instance/httpapi/handlers/session.ts`
 - Generated: `packages/sdk/js/src/v2/gen` (via `bun script/generate.ts` at repo root)
@@ -1473,6 +1492,7 @@ git commit -m "feat(opencode): add memory_write tool"
 - [ ] **Step 1: Add the endpoint to the group**
 
 In `groups/session.ts`:
+
 1. `SessionPaths` (:79-106): add `memory: \`${root}/:sessionID/memory\`,`.
 2. Add the response schema near the other payload schemas:
 
@@ -1511,19 +1531,19 @@ export const MemoryInfo = Schema.Struct({
 In `handlers/session.ts`, mirror the `todo` handler (:94-97). Yield the service at layer construction (next to the existing `todoSvc` yield): `const memorySvc = yield* SessionMemory.Service`, then:
 
 ```ts
-    const memory = Effect.fn("SessionHttpApi.memory")(function* (ctx: { params: { sessionID: SessionID } }) {
-      yield* requireSession(ctx.params.sessionID)
-      const row = yield* memorySvc.getRow(ctx.params.sessionID)
-      if (!row) return { available: false as const }
-      return {
-        available: true as const,
-        content: row.content,
-        rendered: SessionMemory.render(row.content),
-        source: row.source,
-        version: row.version,
-        updated_at: row.updated_at,
-      }
-    })
+const memory = Effect.fn("SessionHttpApi.memory")(function* (ctx: { params: { sessionID: SessionID } }) {
+  yield* requireSession(ctx.params.sessionID)
+  const row = yield* memorySvc.getRow(ctx.params.sessionID)
+  if (!row) return { available: false as const }
+  return {
+    available: true as const,
+    content: row.content,
+    rendered: SessionMemory.render(row.content),
+    source: row.source,
+    version: row.version,
+    updated_at: row.updated_at,
+  }
+})
 ```
 
 Register `.handle("memory", memory)` after `.handle("get", get)` (:417). Import `SessionMemory` from core as above.
@@ -1549,6 +1569,7 @@ git commit -m "feat(opencode): expose session memory over HttpApi"
 ### Task 9: TUI read-only viewer
 
 **Files:**
+
 - Create: `packages/tui/src/component/dialog-memory.tsx`
 - Modify: `packages/tui/src/app.tsx` (command registration near `opencode.status`, :765)
 

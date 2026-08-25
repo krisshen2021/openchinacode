@@ -84,7 +84,8 @@ export function normalizeSoulConfig(value: unknown): { active: SoulID; custom_pa
   if (!isRecord(value)) return { active: "rigorous" }
   return {
     active: isSoulID(value.active) ? value.active : "rigorous",
-    custom_path: typeof value.custom_path === "string" && value.custom_path.trim() ? value.custom_path.trim() : undefined,
+    custom_path:
+      typeof value.custom_path === "string" && value.custom_path.trim() ? value.custom_path.trim() : undefined,
   }
 }
 

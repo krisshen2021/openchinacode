@@ -38,7 +38,8 @@ export const Attention = Schema.Struct({
   notifications: Schema.optional(Schema.Boolean),
   sound: Schema.optional(Schema.Boolean),
   terminal_bell: Schema.optional(Schema.Boolean).annotate({
-    description: "Use the terminal bell character for attention sounds. Kitty and many terminals can play an audible bell for this.",
+    description:
+      "Use the terminal bell character for attention sounds. Kitty and many terminals can play an audible bell for this.",
   }),
   volume: Schema.optional(Schema.Number.check(Schema.isGreaterThanOrEqualTo(0), Schema.isLessThanOrEqualTo(1))),
   sound_pack: Schema.optional(Schema.String),

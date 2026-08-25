@@ -15,6 +15,7 @@
 **The TUI never calls the V2 session runtime.** Its live `v2.*` SDK calls (`location.get`, `agent/command/integration/model/provider/reference/skill.list`, `fs.find`, `projectCopy.*`) are all backed by location-scoped core services — they stay. Its five SessionV2-backed calls (`v2.session.get/messages/permission.list/question.list`, `v2.permission.saved.list` at `packages/tui/src/context/data.tsx:422-459`) are never-invoked dead code — they get deleted in Task 4.4. `run`/`--mini`/acp use only legacy V1 routes.
 
 **The six keep→V2 entanglements (fixed in Task 4.1):**
+
 - B1 `packages/core/src/permission.ts`: imports `SessionV2` (:9) + `SessionStore` (:10); uses `SessionV2.ID`/`NotFoundError` (:93-94,97,138,142,295) and `sessions.get(sessionID)` to read `session.agent` (:115,141); dep `SessionStore.node` (:308). NOTE: this file alone drags the whole V2 graph into every V1 process via `plugin.ts → skill.ts → permission.ts → session.ts`.
 - B2 `packages/core/src/control-plane/move-session.ts`: `SessionV2` (:9), `SessionStore` (:12), `SessionV2.NotFoundError` (:57,79), `SessionStore.Service` (:75), dep `SessionStore.node` (:147). (`SessionEvent.Moved` at :106 stays — keep-list.)
 - B3 `packages/core/src/location-services.ts`: runner imports (:27-29), system-context registry/builtins (:33-34,61-62), core tool nodes (:35-37,66-68,74-75), `SessionTodo.node` (:72), `SessionRunnerModel/LLM` (:76,78). The module STAYS (V1 resolves FileSystem/Pty/Reference/PluginV2 through it); the V2 entries get cut.
@@ -40,6 +41,7 @@
 ## Task 4.1: sever the six keep→V2 import edges
 
 **Files:**
+
 - Modify: `packages/core/src/permission.ts`, `packages/core/src/control-plane/move-session.ts`, `packages/core/src/location-services.ts`, `packages/opencode/src/session/prompt.ts`, `packages/opencode/src/session/schema.ts`, `packages/opencode/src/server/routes/instance/httpapi/handlers/control-plane.ts`, `packages/opencode/src/session/session.ts` (dead imports only)
 
 - [x] **Step 1: B5 + B6 + dead imports (mechanical re-points)**
@@ -48,19 +50,19 @@
   - `session/session.ts:13-15`: delete the three dead imports.
 
 - [x] **Step 2: B2 move-session.ts**
-  Replace `SessionStore` usage with a direct `Database` select on `SessionTable` (`packages/core/src/session/sql.ts`, keep-list); `SessionV2.NotFoundError` → define/reuse a `NotFoundError` in a keep-list module (check if one already exists in `@opencode-ai/schema` or core session error module — `session/error.ts`; reuse it there and in B6). Remove the `SessionStore.node` dep, add `Database.node` if not present. `SessionV2.ID` → same source as B5.
+      Replace `SessionStore` usage with a direct `Database` select on `SessionTable` (`packages/core/src/session/sql.ts`, keep-list); `SessionV2.NotFoundError` → define/reuse a `NotFoundError` in a keep-list module (check if one already exists in `@opencode-ai/schema` or core session error module — `session/error.ts`; reuse it there and in B6). Remove the `SessionStore.node` dep, add `Database.node` if not present. `SessionV2.ID` → same source as B5.
 
 - [x] **Step 3: B1 permission.ts**
-  Same treatment: `sessions.get(sessionID)` (reads `session.agent`) → direct `SessionTable` select via `Database`; `SessionV2.ID`/`NotFoundError` re-pointed; `SessionStore.node` dep → `Database.node`. Careful: this file is on the V1 hot path — behavior must be identical (same error shapes thrown at the same call sites).
+      Same treatment: `sessions.get(sessionID)` (reads `session.agent`) → direct `SessionTable` select via `Database`; `SessionV2.ID`/`NotFoundError` re-pointed; `SessionStore.node` dep → `Database.node`. Careful: this file is on the V1 hot path — behavior must be identical (same error shapes thrown at the same call sites).
 
 - [x] **Step 4: B4 prompt.ts**
-  Inline the `MAX_STEPS_PROMPT` constant (copy the 16-line string verbatim from `packages/core/src/session/runner/max-steps.ts` into `prompt.ts` near its use at :1579).
+      Inline the `MAX_STEPS_PROMPT` constant (copy the 16-line string verbatim from `packages/core/src/session/runner/max-steps.ts` into `prompt.ts` near its use at :1579).
 
 - [x] **Step 5: B3 location-services.ts**
-  Cut the V2 entries: `runner/*` imports + `SessionRunnerModel.node`/`SessionRunnerLLM.node`/`SessionTodo.node` + `SystemContextRegistry`/`BuiltIns` nodes + core tool nodes (`:35-37,66-68,74-75`). The module's keep entries stay byte-identical.
+      Cut the V2 entries: `runner/*` imports + `SessionRunnerModel.node`/`SessionRunnerLLM.node`/`SessionTodo.node` + `SystemContextRegistry`/`BuiltIns` nodes + core tool nodes (`:35-37,66-68,74-75`). The module's keep entries stay byte-identical.
 
 - [x] **Step 6: verify**
-  `cd packages/core && bun typecheck && bun test test/permission* test/control-plane* 2>/dev/null`; `cd packages/opencode && bun typecheck && bun test test/server/httpapi-control-plane.test.ts test/session/prompt.test.ts test/session/compaction.test.ts` — green except the documented pre-existing prompt.test.ts failures (2, provider-env related). Confirm NO file outside the list changed.
+      `cd packages/core && bun typecheck && bun test test/permission* test/control-plane* 2>/dev/null`; `cd packages/opencode && bun typecheck && bun test test/server/httpapi-control-plane.test.ts test/session/prompt.test.ts test/session/compaction.test.ts` — green except the documented pre-existing prompt.test.ts failures (2, provider-env related). Confirm NO file outside the list changed.
 
 - [x] **Step 7: commit**
 
@@ -76,6 +78,7 @@ git commit -m "refactor(core): sever keep-list imports from the V2 session runti
 Prerequisite: 4.1 merged (no keep-list module imports the V2 runtime anymore — re-verify with one grep before starting: `rg "session/runner|session/execution|session/store|from \"./session\"|from \"@opencode-ai/core/session\"" packages/core/src packages/opencode/src` — every hit must be explainable).
 
 **Files to delete (verify each with a fresh grep before deleting):**
+
 - `packages/core/src/session.ts` (SessionV2), `session/store.ts`, `session/execution.ts`, `session/execution/local.ts`, `session/run-coordinator.ts`, `session/runner/` (whole dir), `session/revert.ts`, `session/compaction.ts`, `session/todo.ts`; `session/info.ts` ONLY if 4.1 didn't keep using `fromRow`
 - `packages/core/src/system-context/registry.ts`, `builtins.ts`, `packages/core/src/instruction-context.ts`, `packages/core/src/skill/guidance.ts`, `packages/core/src/reference/guidance.ts` (keep `system-context/index.ts`!)
 - `packages/core/src/tool/*` EXCEPT `shell-safety.ts` (~21 files; re-verify `shell-safety.ts` is the only V1-imported one)
@@ -94,6 +97,7 @@ Prerequisite: 4.1 merged (no keep-list module imports the V2 runtime anymore —
 ## Task 4.3: remove the mounts + protocol/server packages
 
 **Files:**
+
 - Modify: `packages/opencode/src/server/routes/instance/httpapi/server.ts` (remove `serverRoutes` :179-183, V2 layers :301-306, co-removable provides `sessionLocationLayer`/`locationLayer`/`PtyEnvironment.layer` :298-300 — keep `locationServiceMapV2` :276,307 for MoveSession; update the merge at :283)
 - Modify: `packages/opencode/src/server/routes/instance/httpapi/api.ts` (remove `ServerApi`/`makeApi` :48-52, merge :83, imports :28-30; check `public.ts` `isV2ApiPath` special-casing becomes dead — remove)
 - Inline-then-delete: move `packages/server/src/cors.ts` + `pty-environment.ts` into `packages/opencode/src/server/shared/` (fix their importers), then delete `packages/protocol/` and `packages/server/` whole
@@ -102,7 +106,7 @@ Prerequisite: 4.1 merged (no keep-list module imports the V2 runtime anymore —
 
 - [x] **Step 1: inline cors.ts + pty-environment.ts** (grep their importers first; one is used by `server/server.ts:14` type import)
 - [x] **Step 2: remove mounts + api.ts surgery; typecheck packages/opencode until clean**
-- [x] **Step 3: decide the /api keep-set explicitly.** The live TUI routes (`/api/location`, `/api/agent`, `/api/command`, `/api/integration`, `/api/model`, `/api/provider`, `/api/reference`, `/api/skill`, `/api/fs/find`, `/experimental/project/*/copy*`) are served by handlers in `packages/server` — deleting the whole package deletes them too, breaking the TUI. Two options: (a) port the ~10 live handlers into the opencode instance API as ordinary instance routes (new versioned paths or same paths — but NO new endpoints without SDK regen… which 4.4 does anyway), or (b) keep a slimmed `packages/server` containing only the live handlers. **Choose (a): port the live handlers into the opencode httpapi as instance routes** (they're thin wrappers over location-scoped services; follow `httpapi/AGENTS.md` patterns), keeping the SAME route paths so the TUI + SDK need zero call-site changes. The dead groups (session write surface, permission/question request flows, credential, pty, event, health, provider.get, integration.get/connect.*, fs.read/list) are NOT ported.
+- [x] **Step 3: decide the /api keep-set explicitly.** The live TUI routes (`/api/location`, `/api/agent`, `/api/command`, `/api/integration`, `/api/model`, `/api/provider`, `/api/reference`, `/api/skill`, `/api/fs/find`, `/experimental/project/*/copy*`) are served by handlers in `packages/server` — deleting the whole package deletes them too, breaking the TUI. Two options: (a) port the ~10 live handlers into the opencode instance API as ordinary instance routes (new versioned paths or same paths — but NO new endpoints without SDK regen… which 4.4 does anyway), or (b) keep a slimmed `packages/server` containing only the live handlers. **Choose (a): port the live handlers into the opencode httpapi as instance routes** (they're thin wrappers over location-scoped services; follow `httpapi/AGENTS.md` patterns), keeping the SAME route paths so the TUI + SDK need zero call-site changes. The dead groups (session write surface, permission/question request flows, credential, pty, event, health, provider.get, integration.get/connect.\*, fs.read/list) are NOT ported.
 - [x] **Step 4: delete the packages + workspace/dep updates + bun install**
 - [x] **Step 5: verify** — typecheck opencode/core/tui; `bun test test/server test/session`; TUI dev smoke optional (compiled gate in 4.5 covers it)
 - [x] **Step 6: commit** — `refactor(server)!: remove the V2 public API and fold its live routes into the instance API`
@@ -129,6 +133,7 @@ cd packages/opencode && OPENCODE_APP_NAME=openchinacode-surgery bun run build --
 ```
 
 tmux TUI in aiwallpaper: boots; `hi` prompt works; sidebar shows; **server process idle RSS vs the 334 MB Phase-3 baseline — record the delta (this is the payoff number)**; TUI process RSS vs 221 MB; kill/relaunch reuse still works; `openchinacode-test serve` + `attach` still work; `v2` command is gone from `--help`.
+
 - [x] **Step 4: record + commit** — fill both plan docs; `docs: record phase 4 verification results`.
 
 **Merging Phase 4 to `main` is NOT part of this plan** — the user holds that decision.
@@ -140,6 +145,7 @@ tmux TUI in aiwallpaper: boots; `hi` prompt works; sidebar shows; **server proce
 **Commits:** `1bc3c9b70` refactor (sever six edges) · `548f6fdcf` fix (test-preload env) · `a53bd6e67` refactor! (delete runtime, −17,975 lines) · `5d16d6033` refactor! (fold live routes, drop protocol/server packages) · `1b8c34e0c` refactor (TUI dead calls) · `273a8de04` chore (SDK regen) · `e062dcb96` fix (restore legacy event subscription) · `37dbc94ae` docs (V1-reality rewrite). Every task spec+quality reviewed; final verdicts "ready".
 
 **Measured (same probe, same env, main vs surgery):**
+
 - Server module-graph import tax: **220 → 206 MB** (−14 MB; the diagnosis's +40 MB protocol/api attribution included shared schema modules that legitimately stay)
 - Server process idle RSS (compiled binary, aiwallpaper): **334 → 326 MB** (−8 MB at idle; per-location runner/tools construction is gone for good but only showed up under load)
 - TUI process idle RSS: **221 → 212 MB**

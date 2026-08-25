@@ -21,7 +21,7 @@ When a provider releases a new model, making it usable today is manual and resta
 - models.dev: build-time snapshot + runtime cache `~/.cache/<app>/models.json`, hourly background refresh fiber (`models-dev.ts:361-382`), fork filters catalog to the China trio via `openChinaCatalog` (`models-dev.ts:239-258`).
 - TUI model picker: `packages/tui/src/component/dialog-model.tsx` reads `sync.data.provider` from `GET /provider`; provider connect dialog: `dialog-provider.tsx`.
 - CLI: `openchinacode models [provider] [--refresh]` (`cli/cmd/models.ts:7-63`); `--refresh` currently only forces `ModelsDev.refresh`.
-- The three built-ins and Volcengine Ark all expose OpenAI-style `GET {baseURL}/models` — except the user's Ark *plan* endpoint, which apparently does not (user report). Manual entry must always be possible.
+- The three built-ins and Volcengine Ark all expose OpenAI-style `GET {baseURL}/models` — except the user's Ark _plan_ endpoint, which apparently does not (user report). Manual entry must always be possible.
 
 ## Design
 

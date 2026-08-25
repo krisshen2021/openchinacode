@@ -11,16 +11,7 @@ export const BAIDU_OCR_AUTH_PROVIDER_ID = "baidu-unlimited-ocr"
 export const BAIDU_OCR_BASE_URL = "https://aip.baidubce.com"
 export const DEFAULT_OCR_ROOT = path.join(Global.Path.tmp, "ocr")
 
-export const OCR_DOCUMENT_EXTENSIONS = [
-  ".pdf",
-  ".ofd",
-  ".doc",
-  ".docx",
-  ".txt",
-  ".wps",
-  ".ppt",
-  ".pptx",
-] as const
+export const OCR_DOCUMENT_EXTENSIONS = [".pdf", ".ofd", ".doc", ".docx", ".txt", ".wps", ".ppt", ".pptx"] as const
 
 export const OCR_IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff"] as const
 
@@ -33,12 +24,7 @@ export const OCR_DOCUMENT_MIMES = new Set([
   "text/plain",
 ])
 
-export const OCR_IMAGE_MIMES = new Set([
-  "image/jpeg",
-  "image/png",
-  "image/bmp",
-  "image/tiff",
-])
+export const OCR_IMAGE_MIMES = new Set(["image/jpeg", "image/png", "image/bmp", "image/tiff"])
 
 const ALL_EXTENSIONS = new Set<string>([...OCR_DOCUMENT_EXTENSIONS, ...OCR_IMAGE_EXTENSIONS])
 const MAX_IMAGE_FILE_DATA_BYTES = 10 * 1024 * 1024
@@ -180,7 +166,12 @@ export function baiduOcrAccessToken(credentials: BaiduOcrCredentials, signal?: A
   })
 }
 
-export function baiduOcrPostForm<T>(path: string, accessToken: string, data: Record<string, string>, signal?: AbortSignal) {
+export function baiduOcrPostForm<T>(
+  path: string,
+  accessToken: string,
+  data: Record<string, string>,
+  signal?: AbortSignal,
+) {
   return Effect.tryPromise({
     try: async () => {
       const response = await fetch(`${BAIDU_OCR_BASE_URL}${path}?access_token=${encodeURIComponent(accessToken)}`, {
@@ -302,7 +293,13 @@ function downloadBytes(url: string, signal?: AbortSignal) {
 
 function summarizeSource(source: OcrSource) {
   if (source.type === "local") {
-    return { type: source.type, path: source.path, filename: source.filename, mime: source.mime, bytes: source.bytes.byteLength }
+    return {
+      type: source.type,
+      path: source.path,
+      filename: source.filename,
+      mime: source.mime,
+      bytes: source.bytes.byteLength,
+    }
   }
   if (source.type === "data") return { type: source.type, filename: source.filename, mime: source.mime }
   return { type: source.type, url: source.url, filename: source.filename }

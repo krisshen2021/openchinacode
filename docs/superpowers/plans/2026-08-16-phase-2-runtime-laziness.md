@@ -437,6 +437,7 @@ git commit -m "docs: record phase 2 verification results"
 **CLI bench:** `--help` peak 147 MB, `models --help` 137 MB (Phase 1: 144 MB — no regression).
 
 **Compiled-binary smoke** (`0.0.0-memory-surgery-202608160631`, `OPENCODE_APP_NAME=openchinacode-surgery`, aiwallpaper dir, config `experimental.mcp_idle_timeout: 60000`, playwright local via wrapper + miro remote):
+
 - TUI boot idle main-process RSS **455 MB** (gate ≤ 500 MB ✓; Phase 1 compiled baseline 449 MB).
 - playwright MCP child present at boot (~193 MB) — boot connect preserved ✓
 - after ~75 s idle (60 s timeout + ≤30 s tick): playwright child **reaped, 0 idle MCP children** ✓; main RSS steady 455 MB

@@ -95,9 +95,7 @@ export function DialogSoul(props: { initialAction?: SoulID }) {
       value: existing.trim(),
       placeholder: "Describe how OpenChinaCode should think, communicate, and make engineering decisions.",
       description: () => (
-        <text fg={theme.textMuted}>
-          Saved to {customFile}. Enter saves and activates custom soul for new turns.
-        </text>
+        <text fg={theme.textMuted}>Saved to {customFile}. Enter saves and activates custom soul for new turns.</text>
       ),
     })
     if (!value?.trim()) {

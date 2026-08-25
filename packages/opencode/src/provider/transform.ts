@@ -290,10 +290,7 @@ function normalizeMessages(
     })
   }
 
-  if (
-    typeof model.capabilities.interleaved === "object" &&
-    model.capabilities.interleaved.field
-  ) {
+  if (typeof model.capabilities.interleaved === "object" && model.capabilities.interleaved.field) {
     const field = model.capabilities.interleaved.field
     return msgs.map((msg) => {
       if (msg.role === "assistant" && Array.isArray(msg.content)) {
@@ -344,7 +341,7 @@ function applyCaching(msgs: ModelMessage[], model: Provider.Model): ModelMessage
     anthropic: {
       cacheControl: { type: "ephemeral" },
     },
-          bedrock: {
+    bedrock: {
       cachePoint: { type: "default" },
     },
     openaiCompatible: {
@@ -414,7 +411,7 @@ function unsupportedParts(msgs: ModelMessage[], model: Provider.Model): ModelMes
       const name = filename ? `"${filename}"` : modality
       const routeVisual =
         modality === "image"
-          ? " Do not answer that you cannot inspect the image. If the task requires visual inspection, call the task tool now with subagent_type=\"general\", task_kind=\"visual_check\", task_complexity=\"quick\", and include the image path/name and the user's exact visual question in the prompt."
+          ? ' Do not answer that you cannot inspect the image. If the task requires visual inspection, call the task tool now with subagent_type="general", task_kind="visual_check", task_complexity="quick", and include the image path/name and the user\'s exact visual question in the prompt.'
           : ""
       return {
         type: "text" as const,
