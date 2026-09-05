@@ -26,6 +26,7 @@ import { FSUtil } from "@opencode-ai/core/fs-util"
 import { isRecord } from "@/util/record"
 import { optional } from "@opencode-ai/core/schema"
 import { ProviderTransform } from "./transform"
+import { ChinaTransform } from "./china-transform"
 import { ProviderV2 } from "@opencode-ai/core/provider"
 import { ModelV2 } from "@opencode-ai/core/model"
 import { ConfigTaskPolicy } from "@opencode-ai/core/config/task-policy"
@@ -1430,7 +1431,11 @@ const layer = Layer.effect(
               providerID: ProviderV2.ID.make(providerID),
               capabilities: {
                 temperature: model.temperature ?? existingModel?.capabilities.temperature ?? false,
-                reasoning: model.reasoning ?? existingModel?.capabilities.reasoning ?? false,
+                reasoning:
+                  model.reasoning ??
+                  existingModel?.capabilities.reasoning ??
+                  ChinaTransform.inferReasoning({ id: modelID, api: { id: apiID, npm: apiNpm } }) ??
+                  false,
                 attachment: model.attachment ?? existingModel?.capabilities.attachment ?? false,
                 toolcall: model.tool_call ?? existingModel?.capabilities.toolcall ?? true,
                 input: {

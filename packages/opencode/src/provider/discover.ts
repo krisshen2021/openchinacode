@@ -1,6 +1,7 @@
 import path from "path"
 import { Duration, Effect, Schema } from "effect"
 import { FSUtil } from "@opencode-ai/core/fs-util"
+import { ChinaTransform } from "./china-transform"
 
 export const TTL = Duration.toMillis(Duration.hours(1))
 export const CACHE_FILE = "discovered-models.json"
@@ -166,7 +167,7 @@ export const mergeInto = (
       limit: prefixLimit?.(model.id) ?? { context: 128000, output: 8192 },
       capabilities: {
         temperature: true,
-        reasoning: false,
+        reasoning: ChinaTransform.inferReasoning({ id: model.id, api: { id: model.id } }) ?? false,
         attachment: vision,
         toolcall: true,
         input: { text: true, audio: false, image: vision, video: false, pdf: false },

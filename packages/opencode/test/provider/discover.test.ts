@@ -173,6 +173,26 @@ describe("Discover.mergeInto", () => {
     expect(provider.models["deepseek-v4-flash"].capabilities.attachment).toBe(false)
   })
 
+  test("infers reasoning capability for known reasoning families when no catalog metadata exists", () => {
+    const provider: any = { models: {} }
+    Discover.mergeInto(
+      provider,
+      [
+        { id: "glm-5.3-flash", name: "glm-5.3-flash" },
+        { id: "kimi-k3", name: "kimi-k3" },
+        { id: "deepseek-v4-flash-vision-exp", name: "deepseek-v4-flash-vision-exp" },
+        { id: "glm-4.7", name: "glm-4.7" },
+        { id: "qwen3.8-max", name: "qwen3.8-max" },
+      ],
+      undefined,
+    )
+    expect(provider.models["glm-5.3-flash"].capabilities.reasoning).toBe(true)
+    expect(provider.models["kimi-k3"].capabilities.reasoning).toBe(true)
+    expect(provider.models["deepseek-v4-flash-vision-exp"].capabilities.reasoning).toBe(true)
+    expect(provider.models["glm-4.7"].capabilities.reasoning).toBe(false)
+    expect(provider.models["qwen3.8-max"].capabilities.reasoning).toBe(false)
+  })
+
   test("inherits limits from the longest family-prefix catalog entry", () => {
     const catalog: Array<readonly [string, { limit: { context: number; output: number } }]> = [
       ["deepseek-v4-flash", { limit: { context: 1000000, output: 384000 } }],

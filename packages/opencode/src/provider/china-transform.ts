@@ -2,6 +2,15 @@ import type * as Provider from "./provider"
 
 type Family = "glm" | "kimi" | "deepseek"
 
+// Minimal structural shape for the id-scanning predicates, so callers that
+// haven't assembled a full Provider.Model yet (config-stub assembly, model
+// discovery) can reuse the same rules.
+export type ModelRef = {
+  id: unknown
+  api: { id: unknown; npm?: unknown }
+  providerID?: unknown
+}
+
 const TEXT_SCAN_LIMIT = 200_000
 const LARGE_CONTEXT_CHARS = 50_000
 const GLM_SERIES_OUTPUT_MAX = 131_072
@@ -58,7 +67,7 @@ export type AutoMaxTokensResolved = {
   timeoutMs: number
 }
 
-function ids(model: Provider.Model, bodyModel?: string) {
+function ids(model: ModelRef, bodyModel?: string) {
   return {
     id: String(model.id ?? "").toLowerCase(),
     api: String(model.api?.id ?? "").toLowerCase(),
@@ -67,7 +76,7 @@ function ids(model: Provider.Model, bodyModel?: string) {
   }
 }
 
-function text(model: Provider.Model, bodyModel?: string) {
+function text(model: ModelRef, bodyModel?: string) {
   const modelIDs = ids(model, bodyModel)
   return `${modelIDs.provider}/${modelIDs.id}/${modelIDs.api}/${modelIDs.body}`
 }
@@ -122,13 +131,14 @@ export function isChinaModel(model: Provider.Model): boolean {
   return family(model) !== undefined
 }
 
-function isOpenAICompatible(model: Provider.Model) {
+function isOpenAICompatible(model: ModelRef) {
   return model.api.npm === "@ai-sdk/openai-compatible"
 }
 
-function isGLM52(model: Provider.Model) {
-  const id = text(model)
-  return includesAny(id, ["glm-5.2", "glm-5-2", "glm-5p2"])
+// GLM-5 series: glm-5, glm-5.1/5.2/5.3, glm-5-2, glm-5p2, plus suffixed variants
+// (glm-5-turbo, glm-5.3-flash, glm-5.2-highspeed). glm-4.x and glm-5v excluded.
+function isGLM5(model: ModelRef) {
+  return /glm-5($|[\/.\-_p])/i.test(text(model))
 }
 
 function isGLMVision(model: Provider.Model, bodyModel?: string) {
@@ -141,7 +151,7 @@ function isKimiK27Code(model: Provider.Model, bodyModel?: string) {
   return includesAny(id, ["kimi-k2.7-code", "kimi-k2-7-code", "k2p7"])
 }
 
-function isKimiK3(model: Provider.Model, bodyModel?: string) {
+function isKimiK3(model: ModelRef, bodyModel?: string) {
   const id = text(model, bodyModel)
   return includesAny(id, ["kimi-k3"])
 }
@@ -373,7 +383,7 @@ export function options(input: { model: Provider.Model; sessionID: string }): Re
           type: "enabled",
           clear_thinking: true,
         },
-        ...(isGLM52(input.model) ? { reasoningEffort: "high" } : {}),
+        ...(isGLM5(input.model) ? { reasoningEffort: "high" } : {}),
       }
 
     case "kimi":
@@ -406,7 +416,7 @@ export function variants(model: Provider.Model): Record<string, Record<string, a
     }
   }
 
-  if (isGLM52(model)) {
+  if (isGLM5(model)) {
     return {
       none: { reasoningEffort: "none" },
       high: { reasoningEffort: "high" },
@@ -422,6 +432,17 @@ export function variants(model: Provider.Model): Record<string, Record<string, a
     }
   }
 
+  return undefined
+}
+
+// Infers reasoning capability for config-stub and discovered models, which have
+// no catalog entry to copy the flag from. Mirrors the variant rules above so
+// every inferred model actually produces variants; unknown ids stay undefined
+// and fall back to false at the call site.
+export function inferReasoning(model: ModelRef): boolean | undefined {
+  if (model.api.npm !== undefined && model.api.npm !== "@ai-sdk/openai-compatible") return undefined
+  if (isKimiK3(model) || isGLM5(model)) return true
+  if (text(model).includes("deepseek-v4")) return true
   return undefined
 }
 
@@ -512,6 +533,7 @@ export const ChinaTransform = {
   maxOutputTokens,
   options,
   variants,
+  inferReasoning,
   rewriteRequestBody,
   shouldPreserveReasoningForMessage,
 }
