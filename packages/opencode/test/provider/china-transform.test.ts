@@ -50,17 +50,39 @@ describe("ChinaTransform.variants GLM-5 family", () => {
       expect(Object.keys(ChinaTransform.variants(model(id)) ?? {})).toEqual(["none", "high", "max"])
     }
   })
+
+  test("qwen3.8 family gets none/low/medium/xhigh variants", () => {
+    for (const id of ["qwen3.8-max", "qwen3.8-flash", "qwen3.8-max-0902"]) {
+      const v = ChinaTransform.variants(model(id))
+      expect(Object.keys(v ?? {})).toEqual(["none", "low", "medium", "xhigh"])
+      expect(v?.none).toEqual({ enable_thinking: false })
+      expect(v?.xhigh).toEqual({ reasoning_effort: "xhigh" })
+    }
+  })
+
+  test("older qwen3 gets no variants", () => {
+    expect(ChinaTransform.variants(model("qwen3-max"))).toBeUndefined()
+  })
 })
 
 describe("ChinaTransform.inferReasoning", () => {
   test("infers reasoning for known reasoning families", () => {
-    for (const id of ["glm-5", "glm-5.2", "glm-5.3-flash", "kimi-k3", "deepseek-v4-pro", "deepseek-v4-flash"]) {
+    for (const id of [
+      "glm-5",
+      "glm-5.2",
+      "glm-5.3-flash",
+      "kimi-k3",
+      "deepseek-v4-pro",
+      "deepseek-v4-flash",
+      "qwen3.8-max",
+      "qwen3.8-flash",
+    ]) {
       expect(ChinaTransform.inferReasoning(model(id))).toBe(true)
     }
   })
 
   test("returns undefined for models without reasoning rules", () => {
-    for (const id of ["glm-4.7", "qwen3.8-max", "doubao-seed-evolving", "deepseek-v3"]) {
+    for (const id of ["glm-4.7", "qwen3-max", "doubao-seed-evolving", "deepseek-v3"]) {
       expect(ChinaTransform.inferReasoning(model(id))).toBeUndefined()
     }
   })
@@ -71,5 +93,27 @@ describe("ChinaTransform.inferReasoning", () => {
 
   test("treats a missing npm (discovered-model shape) as openai-compatible", () => {
     expect(ChinaTransform.inferReasoning({ id: "glm-5.2", api: { id: "glm-5.2" } })).toBe(true)
+  })
+})
+
+describe("ChinaTransform qwen family", () => {
+  test("family recognizes qwen ids", () => {
+    expect(ChinaTransform.family(model("qwen3.8-max"))).toBe("qwen")
+    expect(ChinaTransform.family(model("qwen3-max"))).toBe("qwen")
+    expect(ChinaTransform.family(model("glm-5.2"))).not.toBe("qwen")
+  })
+
+  test("qwen3.8 gets a 64k/131k output policy", () => {
+    const decision = ChinaTransform.maxOutputDecision({ model: model("qwen3.8-max"), autoMaxTokens: false })
+    expect(decision?.tokens).toBe(65_536)
+    expect(decision?.policy?.max).toBe(131_072)
+  })
+
+  test("older qwen3 gets no output policy", () => {
+    expect(ChinaTransform.maxOutputDecision({ model: model("qwen3-max"), autoMaxTokens: false })).toBeUndefined()
+  })
+
+  test("reasoning is preserved for qwen multi-turn requests", () => {
+    expect(ChinaTransform.shouldPreserveReasoningForMessage(model("qwen3.8-max"), [])).toBe(true)
   })
 })

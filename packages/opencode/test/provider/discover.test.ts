@@ -190,7 +190,23 @@ describe("Discover.mergeInto", () => {
     expect(provider.models["kimi-k3"].capabilities.reasoning).toBe(true)
     expect(provider.models["deepseek-v4-flash-vision-exp"].capabilities.reasoning).toBe(true)
     expect(provider.models["glm-4.7"].capabilities.reasoning).toBe(false)
-    expect(provider.models["qwen3.8-max"].capabilities.reasoning).toBe(false)
+    expect(provider.models["qwen3.8-max"].capabilities.reasoning).toBe(true)
+  })
+
+  test("sets reasoning_content interleaved field for reasoning families that stream it", () => {
+    const provider: any = { models: {} }
+    Discover.mergeInto(
+      provider,
+      [
+        { id: "qwen3.8-flash", name: "qwen3.8-flash" },
+        { id: "deepseek-v4-flash", name: "deepseek-v4-flash" },
+        { id: "glm-4.7", name: "glm-4.7" },
+      ],
+      undefined,
+    )
+    expect(provider.models["qwen3.8-flash"].capabilities.interleaved).toEqual({ field: "reasoning_content" })
+    expect(provider.models["deepseek-v4-flash"].capabilities.interleaved).toEqual({ field: "reasoning_content" })
+    expect(provider.models["glm-4.7"].capabilities.interleaved).toBe(false)
   })
 
   test("inherits limits from the longest family-prefix catalog entry", () => {

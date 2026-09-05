@@ -172,7 +172,7 @@ export const mergeInto = (
         toolcall: true,
         input: { text: true, audio: false, image: vision, video: false, pdf: false },
         output: { text: true, audio: false, image: false, video: false, pdf: false },
-        interleaved: false,
+        interleaved: /deepseek|qwen3\.8/.test(model.id) ? { field: "reasoning_content" } : false,
       },
       release_date: "",
       variants: {},

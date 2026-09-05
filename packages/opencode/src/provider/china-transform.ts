@@ -1,6 +1,6 @@
 import type * as Provider from "./provider"
 
-type Family = "glm" | "kimi" | "deepseek"
+type Family = "glm" | "kimi" | "deepseek" | "qwen"
 
 // Minimal structural shape for the id-scanning predicates, so callers that
 // haven't assembled a full Provider.Model yet (config-stub assembly, model
@@ -24,6 +24,8 @@ const KIMI_K3_OUTPUT_DEFAULT = 131_072
 const KIMI_K3_OUTPUT_MAX = 1_048_576
 const DEEPSEEK_V4_OUTPUT_MAX = 393_216
 const DEEPSEEK_V4_OUTPUT_DEFAULT = 131_072
+const QWEN_38_OUTPUT_MAX = 131_072
+const QWEN_38_OUTPUT_DEFAULT = 65_536
 
 type OutputPolicy = {
   default: number
@@ -124,6 +126,7 @@ export function family(model: Provider.Model, bodyModel?: string): Family | unde
   if (includesAny(id, ["glm-", "zhipuai", "zai"])) return "glm"
   if (includesAny(id, ["kimi-", "moonshot", "k2p"])) return "kimi"
   if (includesAny(id, ["deepseek"])) return "deepseek"
+  if (includesAny(id, ["qwen"])) return "qwen"
   return undefined
 }
 
@@ -154,6 +157,12 @@ function isKimiK27Code(model: Provider.Model, bodyModel?: string) {
 function isKimiK3(model: ModelRef, bodyModel?: string) {
   const id = text(model, bodyModel)
   return includesAny(id, ["kimi-k3"])
+}
+
+// Qwen3.8 hybrid-thinking series (qwen3.8-max/flash/-0902/27b). Older qwen3 is
+// a different control scheme (enable_thinking only, no effort tiers).
+function isQwen38(model: ModelRef) {
+  return text(model).includes("qwen3.8")
 }
 
 function deepseekThinkingDefault(model: Provider.Model, bodyModel?: string) {
@@ -210,6 +219,10 @@ function officialOutputPolicy(model: Provider.Model): OutputPolicy | undefined {
       if (includesAny(id, ["deepseek-v4", "deepseek-chat", "deepseek-reasoner"])) {
         return { default: DEEPSEEK_V4_OUTPUT_DEFAULT, max: DEEPSEEK_V4_OUTPUT_MAX }
       }
+      return undefined
+
+    case "qwen":
+      if (isQwen38(model)) return { default: QWEN_38_OUTPUT_DEFAULT, max: QWEN_38_OUTPUT_MAX }
       return undefined
   }
 }
@@ -432,6 +445,18 @@ export function variants(model: Provider.Model): Record<string, Record<string, a
     }
   }
 
+  // Qwen3.8 tiers are low/medium/xhigh (no "high"); reasoning_effort and
+  // thinking_budget are mutually exclusive on this series, so tiers only set
+  // reasoning_effort and none only disables thinking.
+  if (isQwen38(model)) {
+    return {
+      none: { enable_thinking: false },
+      low: { reasoning_effort: "low" },
+      medium: { reasoning_effort: "medium" },
+      xhigh: { reasoning_effort: "xhigh" },
+    }
+  }
+
   return undefined
 }
 
@@ -443,6 +468,7 @@ export function inferReasoning(model: ModelRef): boolean | undefined {
   if (model.api.npm !== undefined && model.api.npm !== "@ai-sdk/openai-compatible") return undefined
   if (isKimiK3(model) || isGLM5(model)) return true
   if (text(model).includes("deepseek-v4")) return true
+  if (isQwen38(model)) return true
   return undefined
 }
 
