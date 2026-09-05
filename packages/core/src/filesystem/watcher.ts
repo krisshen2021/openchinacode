@@ -50,6 +50,16 @@ function protecteds(dir: string) {
 
 export const hasNativeBinding = () => !!watcher()
 
+// Raw escape hatch for watchers outside the project-directory/VCS flows above
+// (e.g. the global config dir). Returns undefined when the native binding or
+// platform backend is unavailable; callers must degrade gracefully.
+export const subscribeRaw = (directory: string, callback: ParcelWatcher.SubscribeCallback) => {
+  const w = watcher()
+  const backend = getBackend()
+  if (!w || !backend) return undefined
+  return w.subscribe(directory, callback, { backend })
+}
+
 export interface Interface {}
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/v2/FileWatcher") {}

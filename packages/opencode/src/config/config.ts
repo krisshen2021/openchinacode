@@ -28,6 +28,7 @@ import { ConfigPermissionV1 } from "@opencode-ai/core/v1/config/permission"
 import { ConfigPluginV1 } from "@opencode-ai/core/v1/config/plugin"
 import { ConfigAgent } from "./agent"
 import { ConfigCommand } from "./command"
+import { ConfigGlobalWatch } from "./global-watch"
 import { ConfigManaged } from "./managed"
 import { ConfigParse } from "./parse"
 import { ConfigPaths } from "./paths"
@@ -289,6 +290,7 @@ const layer = Layer.effect(
       ),
       Duration.infinity,
     )
+    yield* ConfigGlobalWatch.watch(Global.Path.config, invalidateGlobal)
 
     const getGlobal = Effect.fn("Config.getGlobal")(function* () {
       return yield* cachedGlobal
