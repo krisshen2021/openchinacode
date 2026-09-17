@@ -321,6 +321,20 @@
                       </td>
                     </tr>
                     <tr>
+                      <td><code>/memory</code></td>
+                      <td><code>/memory</code></td>
+                      <td data-i18n="commands.memory.effect">
+                        Opens the read-only session memory viewer.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><code>/connect</code></td>
+                      <td><code>/connect</code></td>
+                      <td data-i18n="commands.connect.effect">
+                        Opens the custom provider dialog.
+                      </td>
+                    </tr>
+                    <tr>
                       <td><code>/lsp</code></td>
                       <td><code>/lsp status</code><br /><code>/lsp on</code><br /><code>/lsp off</code></td>
                       <td data-i18n="commands.lsp.effect">
@@ -630,6 +644,15 @@
                   <p data-i18n-html="compaction.manual.desc">
                     <code>/compact keep N</code> asks OpenChinaCode to keep the latest N raw user turns and their
                     following assistant/tool messages.
+                  </p>
+                </div>
+                <div class="card" style="--accent: var(--azure)">
+                  <span class="tag tag-azure" data-i18n="compaction.memory.tag">Memory</span>
+                  <h3 data-i18n="compaction.memory.title">Session memory merge</h3>
+                  <p data-i18n="compaction.memory.desc">
+                    Every compaction also merges a structured memory document — objective, key files, decisions with
+                    rejected alternatives, pitfalls, open questions — injected into each subsequent turn, so long
+                    sessions never forget how they got here.
                   </p>
                 </div>
               </div>

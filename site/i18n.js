@@ -92,6 +92,9 @@ const I18N = {
     "features.costs.title": "Visible costs & diagnostics",
     "features.costs.desc":
       "The TUI shows RMB cost, model-aware context usage, route details, LSP diagnostics, and compaction debug stages so behavior is inspectable.",
+    "features.memory.title": "Session memory that survives compaction",
+    "features.memory.desc":
+      "A structured document — objective, decisions with rejected alternatives, pitfalls, verified facts — is merged by a judge at every compaction and injected into each turn, so months-long sessions stay coherent. View with <code>/memory</code>.",
 
     /* ── Media highlight ── */
     "media.eyebrow": "NATIVE MEDIA GENERATION",
@@ -115,13 +118,13 @@ const I18N = {
     "updates.tag.musttry": "MUST TRY",
     "updates.tag.new": "NEW",
     "updates.tag.enhance": "ENHANCE",
-    "updates.1": "Project permission policy panel — Trust All, Safe, Readonly, or Ask Everything per project",
-    "updates.2": "Extra task router — auto-dispatch subtasks via fast LLM judge",
-    "updates.3": "Session picker — arrow keys to switch current / all projects",
-    "updates.4": "Native image & video generation via Volcengine Ark",
-    "updates.5": "Paste-image visual preprocessing with GLM-5V for all models",
-    "updates.6": "Dual-layer routing — base routes plus optional extra dispatch",
-    "updates.7": "Soul persona selection — rigorous, friendly, or custom per project",
+    "updates.1": "Model variants — GLM-5.x, Kimi K3, DeepSeek V4, and Qwen3.8 thinking tiers on ctrl+t",
+    "updates.2": "Global config hot-reload — custom providers show up in every project instantly",
+    "updates.3": "Session Memory — goals, decisions, and pitfalls survive every compaction; /memory viewer",
+    "updates.4": "/connect custom providers — pull models from any OpenAI-compatible endpoint or type ids",
+    "updates.5": "Live model discovery — new GLM/Kimi/DeepSeek models appear automatically",
+    "updates.6": "Idle servers self-reap — zombie serve processes are gone for good",
+    "updates.7": "Compaction hardening — judge retries and overflow guards, no more re-compact loops",
     "updates.8": "Baidu Unlimited-OCR — native document parsing for PDF, DOC, PPT, and images",
 
     /* ── OCR hero ── */
@@ -218,7 +221,7 @@ const I18N = {
     "config.customProvider.desc":
       "Additional providers are declared in config under <code>provider</code>, with no code changes required. A typical use is a multi-model subscription endpoint such as the Volcengine Ark agent plan (<code>/api/plan/v3</code>), which proxies GLM, Kimi, DeepSeek, and Doubao models behind one base URL and one API key:",
     "config.customProvider.notes":
-      "Model names containing <code>kimi-k3</code> or <code>deepseek-v4</code> automatically inherit the China request transforms and variants (<code>#high</code>/<code>#max</code>, plus <code>#none</code> for deepseek) when <code>reasoning</code> is true; declare <code>variants</code> and <code>interleaved</code> explicitly for other names. Key precedence: <code>options.apiKey</code> &gt; auth.json &gt; env vars. Custom providers appear in the TUI model picker after restart; <code>openchinacode providers login</code> covers only the three built-ins. Use a provider id other than <code>volcengine-ark</code>, which is reserved for native media auth.",
+      "The easiest path is the TUI <code>/connect</code> dialog: enter a base URL and API key, then pull the model list automatically, or type model ids manually for endpoints without a list API. Models whose names hit known families — <code>glm-5.x</code>, <code>kimi-k3</code>, <code>deepseek-v4</code>, <code>qwen3.8</code> — automatically inherit reasoning capability and variants (GLM-5.x <code>#none/#high/#max</code>, qwen3.8 <code>#none/#low/#medium/#xhigh</code>, kimi/deepseek <code>#high/#max</code> plus <code>#none</code>); other names can declare <code>variants</code> and <code>interleaved</code> explicitly. The global config file is watched, so saved providers appear in every project's model picker within seconds — no restart. Key precedence: <code>options.apiKey</code> &gt; auth.json &gt; env vars. Do not use <code>volcengine-ark</code> as a provider id; it is reserved for native media auth.",
 
     /* ── Slash Commands ── */
     "commands.title": "Custom Slash Commands",
@@ -231,6 +234,10 @@ const I18N = {
       "Controls sliding output-token budgeting. Heuristic is the recommended daily mode; LLM mode uses a low-cost judge for ambiguous turns.",
     "commands.compact.effect":
       "Runs smart compaction. <code>keep N</code> also preserves the latest N raw user turns and follow-up assistant/tool messages.",
+    "commands.memory.effect":
+      "Opens the read-only session memory viewer: the structured document (objective, key files, decisions, pitfalls, milestones) that the compaction judge merges on every compaction and every turn injects.",
+    "commands.connect.effect":
+      "Opens the custom provider dialog: add or edit OpenAI-compatible providers with base URL + API key, pull the model list automatically, or enter model ids manually.",
     "commands.lsp.effect":
       "Enables language-server diagnostics so the model can see and fix type, syntax, and reference errors.",
     "commands.taskpolicy.effect":
@@ -304,6 +311,10 @@ const I18N = {
     "compaction.manual.title": "Raw tail retention",
     "compaction.manual.desc":
       "<code>/compact keep N</code> asks OpenChinaCode to keep the latest N raw user turns and their following assistant/tool messages.",
+    "compaction.memory.tag": "Memory",
+    "compaction.memory.title": "Session memory merge",
+    "compaction.memory.desc":
+      "Every compaction also merges a structured memory document — objective, key files, decisions with rejected alternatives, pitfalls, open questions — injected into each subsequent turn, so long sessions never forget how they got here.",
 
     /* ── LSP & Testing ── */
     "testing.title": "LSP and Browser Testing",
@@ -456,6 +467,9 @@ const I18N = {
     "features.costs.title": "可见成本与诊断",
     "features.costs.desc":
       "TUI 显示人民币成本、模型感知的上下文使用量、路由详情、LSP 诊断和压缩调试阶段，使行为可检查。",
+    "features.memory.title": "跨压缩存活的会话记忆",
+    "features.memory.desc":
+      "结构化文档——目标、被否决的备选、踩过的坑、已验证事实——每次压缩由评判模型增量合并，并注入每一轮对话，几个月的长 session 也不忘事。用 <code>/memory</code> 查看。",
 
     /* ── Media highlight ── */
     "media.eyebrow": "原生媒体生成",
@@ -478,13 +492,13 @@ const I18N = {
     "updates.tag.musttry": "推荐尝试",
     "updates.tag.new": "新功能",
     "updates.tag.enhance": "增强",
-    "updates.1": "项目权限策略面板 — 按项目选择 Trust All、Safe、Readonly 或 Ask Everything",
-    "updates.2": "Extra 任务路由 — 快速 LLM 判定后自动分发子任务",
-    "updates.3": "Session 选择器 — 方向键切换当前项目 / 全部项目",
-    "updates.4": "原生图片与视频生成，接入火山方舟",
-    "updates.5": "粘贴图片视觉预处理，GLM-5V 赋能所有模型",
-    "updates.6": "双层路由 — 基础路由加可选 extra 智能分发",
-    "updates.7": "Soul 人格选择 — 按项目选择严谨、友好或自定义人格",
+    "updates.1": "模型变体 — GLM-5.x、Kimi K3、DeepSeek V4、Qwen3.8 思考档位，ctrl+t 切换",
+    "updates.2": "全局配置热更新 — 自定义 provider 即时出现在所有项目",
+    "updates.3": "会话记忆 — 目标、决策、踩坑跨压缩保留，/memory 查看",
+    "updates.4": "/connect 自定义 provider — 从任意 OpenAI 兼容端点拉取模型或手动输入",
+    "updates.5": "模型实时发现 — GLM/Kimi/DeepSeek 新模型自动出现",
+    "updates.6": "闲置 server 自动回收 — 僵尸 serve 进程成为历史",
+    "updates.7": "压缩加固 — 评判重试与溢出防护，告别重复压缩死循环",
     "updates.8": "百度 Unlimited-OCR — 原生文档解析，支持 PDF、DOC、PPT 及图片",
 
     /* ── OCR hero ── */
@@ -578,7 +592,7 @@ const I18N = {
     "config.customProvider.desc":
       "额外提供商通过配置文件中的 <code>provider</code> 字段声明，无需修改代码。典型场景是多模型订阅端点，例如火山引擎 Ark agent plan（<code>/api/plan/v3</code>），用一个 base URL 和一个 API key 代理 GLM、Kimi、DeepSeek、Doubao 系列模型：",
     "config.customProvider.notes":
-      "模型名包含 <code>kimi-k3</code> 或 <code>deepseek-v4</code> 时，只要 <code>reasoning</code> 为 true，就会自动继承中国厂商的请求改写和变体（<code>#high</code>/<code>#max</code>，deepseek 另有 <code>#none</code>）；其他名字需显式声明 <code>variants</code> 和 <code>interleaved</code>。密钥优先级：<code>options.apiKey</code> &gt; auth.json &gt; 环境变量。自定义提供商在重启后自动出现在 TUI 模型选择器中；<code>openchinacode providers login</code> 仅覆盖三个内置提供商。请勿使用 <code>volcengine-ark</code> 作为提供商 ID，它已保留给原生媒体工具认证。",
+      "最方便的方式是 TUI 里的 <code>/connect</code> 对话框：输入 base URL 和 API key 后自动拉取模型列表，或在不支持列表接口的端点上手动输入模型 id。模型名命中已知家族——<code>glm-5.x</code>、<code>kimi-k3</code>、<code>deepseek-v4</code>、<code>qwen3.8</code>——自动继承 reasoning 能力和变体（GLM-5.x <code>#none/#high/#max</code>，qwen3.8 <code>#none/#low/#medium/#xhigh</code>，kimi/deepseek <code>#high/#max</code> 外加 <code>#none</code>）；其他名字可显式声明 <code>variants</code> 与 <code>interleaved</code>。全局配置文件带监听，保存后几秒内出现在所有项目的模型选择器中——无需重启。密钥优先级：<code>options.apiKey</code> &gt; auth.json &gt; 环境变量。请勿使用 <code>volcengine-ark</code> 作为提供商 ID，它已保留给原生媒体工具认证。",
 
     /* ── Slash Commands ── */
     "commands.title": "自定义斜杠命令",
@@ -589,6 +603,10 @@ const I18N = {
     "commands.maxtokens.effect":
       "控制滑动输出 token 预算。启发式是推荐的日常模式；LLM 模式使用低成本评判处理模糊轮次。",
     "commands.compact.effect": "运行智能压缩。<code>keep N</code> 还保留最近 N 个原始用户轮次及后续助手/工具消息。",
+    "commands.memory.effect":
+      "打开只读的会话记忆查看器：压缩评判模型在每次压缩时合并的结构化文档（目标、关键文件、决策、踩坑、里程碑），每轮对话都会注入。",
+    "commands.connect.effect":
+      "打开自定义 provider 对话框：用 base URL + API key 添加或编辑 OpenAI 兼容 provider，自动拉取模型列表，或手动输入模型 id。",
     "commands.lsp.effect": "启用语言服务器诊断，使模型可以看到并修复类型、语法和引用错误。",
     "commands.taskpolicy.effect":
       "打开本地 TUI 任务路由表。<code>on</code>/<code>off</code> 热切换整个 task policy 和 task subagent 入口；<code>extra-on</code>/<code>extra-off</code> 开关 extra 任务路由；<code>extra-status</code> 查看当前状态。不调用模型，不注入对话。",
@@ -656,6 +674,10 @@ const I18N = {
     "compaction.manual.title": "原始尾部保留",
     "compaction.manual.desc":
       "<code>/compact keep N</code> 要求 OpenChinaCode 保留最近 N 个原始用户轮次及其后续助手/工具消息。",
+    "compaction.memory.tag": "记忆",
+    "compaction.memory.title": "会话记忆合并",
+    "compaction.memory.desc":
+      "每次压缩还会合并一份结构化记忆文档——目标、关键文件、被否决的备选、踩过的坑、待决问题——并注入之后的每一轮对话，长 session 不会忘记自己一路怎么走过来的。",
 
     /* ── LSP & Testing ── */
     "testing.title": "LSP 与浏览器测试",
