@@ -7,7 +7,7 @@ export const ServeCommand = effectCmd({
   builder: (yargs) =>
     withNetworkOptions(yargs).option("idle-timeout", {
       type: "number",
-      describe: "exit after this many ms fully idle (no requests, bus events, or open connections); 0 stays resident",
+      describe: "exit after this many ms fully idle (no requests or open connections); 0 stays resident",
       default: 0,
     }),
   describe: "starts a headless opencode server",
@@ -50,13 +50,12 @@ export const ServeCommand = effectCmd({
     const idleTimeout = args["idle-timeout"]
     if (idleTimeout > 0) {
       const { ServerIdle } = yield* Effect.promise(() => import("../../server/idle"))
-      const { GlobalBus } = yield* Effect.promise(() => import("../../bus/global"))
-      // models-dev.refreshed fires hourly from the background ModelsDev refresh
-      // loop with no client attached; stamping it would defeat the timeout.
-      GlobalBus.on("event", (event) => {
-        if (event.payload?.type === "models-dev.refreshed") return
-        ServerIdle.stamp()
-      })
+      // Only client activity keeps the server alive: in-flight requests and open
+      // SSE/PTY connections (tracked via ServerIdle). Bus events are deliberately
+      // NOT stamped — file-watcher/LSP/MCP background events fire with no client
+      // attached and would pin the server alive forever. Dead SSE clients are
+      // reaped by the 10s heartbeat in the event handler, so their connection
+      // counts drop without bus-driven stamping.
       // The listening socket refs the event loop, so a plain interval suffices;
       // it is cleared by shutdown above.
       watcher = setInterval(() => {
