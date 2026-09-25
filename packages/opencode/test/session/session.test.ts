@@ -238,6 +238,88 @@ describe("Session", () => {
     }),
   )
 
+  it.instance("fork remaps parent links and compaction tails and carries usage totals", () =>
+    Effect.gen(function* () {
+      const session = yield* SessionNs.Service
+      const created = yield* Effect.acquireRelease(session.create({ title: "fork-fidelity" }), (info) =>
+        session.remove(info.id).pipe(Effect.ignore),
+      )
+
+      const ref = { providerID: created.id.slice(0, 4) as never, modelID: "m" as never }
+      const u1 = yield* session.updateMessage({
+        id: MessageID.ascending(),
+        role: "user",
+        sessionID: created.id,
+        agent: "build",
+        model: ref,
+        time: { created: Date.now() },
+      })
+      yield* session.updatePart({ id: PartID.ascending(), messageID: u1.id, sessionID: created.id, type: "text", text: "hi" })
+      const a1 = yield* session.updateMessage({
+        id: MessageID.ascending(),
+        role: "assistant",
+        sessionID: created.id,
+        mode: "build",
+        agent: "build",
+        path: { cwd: "/tmp", root: "/tmp" },
+        cost: 0,
+        tokens: { output: 0, input: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+        modelID: ref.modelID,
+        providerID: ref.providerID,
+        parentID: u1.id,
+        time: { created: Date.now() },
+        finish: "stop",
+      })
+      yield* session.updatePart({
+        id: PartID.ascending(),
+        messageID: a1.id,
+        sessionID: created.id,
+        type: "step-finish",
+        reason: "stop",
+        cost: 0.5,
+        tokens: { output: 11, input: 22, reasoning: 0, cache: { read: 0, write: 0 } },
+      } as never)
+      yield* session.updatePart({
+        id: PartID.ascending(),
+        messageID: a1.id,
+        sessionID: created.id,
+        type: "compaction",
+        auto: true,
+        tail_start_id: u1.id,
+      } as never)
+
+      const events = yield* EventV2Bridge.Service
+      let partEvents = 0
+      yield* events.listen((event) =>
+        Effect.sync(() => {
+          if (event.type === SessionV1.Event.PartUpdated.type) partEvents++
+        }),
+      )
+
+      const forked = yield* Effect.acquireRelease(session.fork({ sessionID: created.id }), (info) =>
+        session.remove(info.id).pipe(Effect.ignore),
+      )
+      const msgs = yield* session.messages({ sessionID: forked.id })
+      const [fu, fa] = msgs
+      expect(msgs.length).toBe(2)
+      expect(fu.info.role).toBe("user")
+      expect(fa.info.role).toBe("assistant")
+      expect((fa.info as { parentID?: string }).parentID).toBe(fu.info.id)
+
+      const compaction = fa.parts.find((p) => p.type === "compaction")
+      expect((compaction as { tail_start_id?: string } | undefined)?.tail_start_id).toBe(fu.info.id)
+
+      // Usage from step-finish parts must land on the forked session exactly once
+      const stored = yield* session.get(forked.id)
+      expect(stored.cost).toBe(0.5)
+      expect(stored.tokens?.output).toBe(11)
+      expect(stored.tokens?.input).toBe(22)
+
+      // Fork is a bulk copy: no per-part event storm for watchers to re-render on
+      expect(partEvents).toBe(0)
+    }),
+  )
+
   it.instance("omits metadata when not provided", () =>
     Effect.gen(function* () {
       const session = yield* SessionNs.Service

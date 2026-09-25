@@ -23,7 +23,7 @@ import { inArray } from "drizzle-orm"
 import { lt } from "drizzle-orm"
 import { or } from "drizzle-orm"
 import type { SQL } from "drizzle-orm"
-import { PartTable, SessionTable } from "@opencode-ai/core/session/sql"
+import { MessageTable, PartTable, SessionTable } from "@opencode-ai/core/session/sql"
 import { ProjectTable } from "@opencode-ai/core/project/sql"
 import { MessageV2 } from "./message-v2"
 import type { InstanceContext } from "../project/instance-context"
@@ -724,31 +724,74 @@ const layer: Layer.Layer<
       // time-field wrap (2026-08-14) sort after newer IDs.
       const target = input.messageID ? msgs.find((msg) => msg.info.id === input.messageID) : undefined
 
+      // Bulk copy in one transaction. Per-row MessageUpdated/PartUpdated events
+      // would take minutes for long sessions and storm every watching TUI into
+      // re-rendering the growing history continuously.
+      const messageRows: (typeof MessageTable.$inferInsert)[] = []
+      const partRows: (typeof PartTable.$inferInsert)[] = []
+      let cost = 0
+      const tokens = { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } }
+
       for (const msg of msgs) {
         if (target && (msg.info.id === target.info.id || MessageV2.after(msg.info, target.info))) break
         const newID = MessageID.ascending()
         idMap.set(msg.info.id, newID)
 
         const parentID = msg.info.role === "assistant" && msg.info.parentID ? idMap.get(msg.info.parentID) : undefined
-        const cloned = yield* updateMessage({
+        const cloned = {
           ...msg.info,
           sessionID: session.id,
           id: newID,
           ...(parentID && { parentID }),
+        }
+        const { id: _id, sessionID: _sessionID, ...messageData } = cloned
+        messageRows.push({
+          id: newID,
+          session_id: session.id,
+          time_created: cloned.time.created,
+          data: messageData as (typeof MessageTable.$inferInsert)["data"],
         })
 
         for (const part of msg.parts) {
           const p: SessionV1.Part = {
             ...part,
             id: PartID.ascending(),
-            messageID: cloned.id,
+            messageID: newID,
             sessionID: session.id,
           }
           if (p.type === "compaction" && p.tail_start_id) {
             p.tail_start_id = idMap.get(p.tail_start_id)
           }
-          yield* updatePart(p)
+          if (p.type === "step-finish") {
+            cost += p.cost
+            tokens.input += p.tokens.input
+            tokens.output += p.tokens.output
+            tokens.reasoning += p.tokens.reasoning
+            tokens.cache.read += p.tokens.cache.read
+            tokens.cache.write += p.tokens.cache.write
+          }
+          const { id: _pid, messageID: _messageID, sessionID: _partSessionID, ...partData } = p
+          partRows.push({
+            id: p.id,
+            message_id: newID,
+            session_id: session.id,
+            data: partData as (typeof PartTable.$inferInsert)["data"],
+          })
         }
+      }
+
+      yield* db
+        .transaction((tx) =>
+          Effect.gen(function* () {
+            if (messageRows.length > 0) yield* tx.insert(MessageTable).values(messageRows).run()
+            if (partRows.length > 0) yield* tx.insert(PartTable).values(partRows).run()
+          }),
+        )
+        .pipe(Effect.orDie)
+
+      // Mirror the projector's per-part usage accounting in one aggregate update.
+      if (cost > 0 || tokens.input > 0 || tokens.output > 0) {
+        yield* events.publish(SessionV1.Event.Updated, { sessionID: session.id, info: { ...session, cost, tokens } })
       }
       return session
     })

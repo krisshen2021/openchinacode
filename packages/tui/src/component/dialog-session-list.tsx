@@ -470,6 +470,11 @@ function DialogCrossProjectSession(props: { session: SessionListItem }) {
       return
     }
     try {
+      toast.show({
+        title: "Forking session…",
+        message: props.session.title,
+        variant: "info",
+      })
       // Fork directly into the current directory's project; a fork-then-move
       // via control plane is rejected for cross-project destinations.
       const forked = await sdk.client.session.fork(
