@@ -170,8 +170,6 @@ describe("isEmpty", () => {
   test("empty document is empty, any content makes it non-empty", () => {
     expect(SessionMemory.isEmpty(SessionMemory.empty())).toBe(true)
     expect(SessionMemory.isEmpty(withState({ objective: "x" }))).toBe(false)
-    expect(
-      SessionMemory.isEmpty(withLog({ pitfalls: [{ trap: "t", why: "w", workaround: "x", at: 1 }] })),
-    ).toBe(false)
+    expect(SessionMemory.isEmpty(withLog({ pitfalls: [{ trap: "t", why: "w", workaround: "x", at: 1 }] }))).toBe(false)
   })
 })

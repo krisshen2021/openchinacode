@@ -7591,6 +7591,9 @@
                   "messageID": {
                     "type": "string",
                     "pattern": "^msg"
+                  },
+                  "directory": {
+                    "type": "string"
                   }
                 },
                 "additionalProperties": false

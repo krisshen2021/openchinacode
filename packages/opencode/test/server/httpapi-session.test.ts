@@ -456,6 +456,32 @@ describe("session HttpApi", () => {
   )
 
   it.instance(
+    "forks a session into a different directory when payload.directory is set",
+    () =>
+      Effect.gen(function* () {
+        const test = yield* TestInstance
+        const dest = yield* tmpdirScoped()
+        const headers = { "x-opencode-directory": test.directory, "content-type": "application/json" }
+
+        const created = yield* requestJson<Session.Info>(SessionPaths.create, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ title: "cross-directory fork source" }),
+        })
+
+        const forked = yield* requestJson<Session.Info>(pathFor(SessionPaths.fork, { sessionID: created.id }), {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ directory: dest }),
+        })
+
+        expect(forked.id).not.toBe(created.id)
+        expect(forked.directory).toBe(dest)
+      }),
+    { git: true, config: { formatter: false, lsp: false, share: "disabled" } },
+  )
+
+  it.instance(
     "persists selected workspace id when creating a session",
     () =>
       Effect.gen(function* () {

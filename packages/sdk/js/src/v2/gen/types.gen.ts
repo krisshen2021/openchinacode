@@ -8221,6 +8221,7 @@ export type SessionMessageResponse = SessionMessageResponses[keyof SessionMessag
 export type SessionForkData = {
   body?: {
     messageID?: string
+    directory?: string
   }
   path: {
     sessionID: string

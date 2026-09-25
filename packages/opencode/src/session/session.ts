@@ -270,6 +270,10 @@ export type CreateInput = Types.DeepMutable<Schema.Schema.Type<typeof CreateInpu
 export const ForkInput = Schema.Struct({
   sessionID: SessionID,
   messageID: Schema.optional(MessageID),
+  // Session-scoped routes resolve the instance from the session's own location;
+  // an explicit destination redirects the fork into that directory's instance
+  // (the TUI "fork into current directory" flow).
+  directory: Schema.optional(Schema.String),
 })
 export const GetInput = SessionID
 export const ChildrenInput = SessionID

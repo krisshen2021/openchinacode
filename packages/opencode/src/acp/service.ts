@@ -357,7 +357,7 @@ export function make(input: {
       () =>
         input.sdk.session.fork(
           {
-            directory: params.cwd,
+            query_directory: params.cwd,
             sessionID: params.sessionId,
           },
           { throwOnError: true },

@@ -470,17 +470,14 @@ function DialogCrossProjectSession(props: { session: SessionListItem }) {
       return
     }
     try {
-      const forked = await sdk.client.session.fork({ sessionID: props.session.id }, { throwOnError: true })
-      const sessionID = forked.data?.id
-      if (!sessionID) throw new Error("No forked session returned")
-      await sdk.client.experimental.controlPlane.moveSession(
-        {
-          sessionID,
-          destination: { directory },
-          moveChanges: false,
-        },
+      // Fork directly into the current directory's project; a fork-then-move
+      // via control plane is rejected for cross-project destinations.
+      const forked = await sdk.client.session.fork(
+        { sessionID: props.session.id, body_directory: directory },
         { throwOnError: true },
       )
+      const sessionID = forked.data?.id
+      if (!sessionID) throw new Error("No forked session returned")
       await sdk.client.session
         .promptAsync({
           sessionID,

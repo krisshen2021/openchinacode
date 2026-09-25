@@ -4082,9 +4082,10 @@ export class Session2 extends HeyApiClient {
   public fork<ThrowOnError extends boolean = false>(
     parameters: {
       sessionID: string
-      directory?: string
+      query_directory?: string
       workspace?: string
       messageID?: string
+      body_directory?: string
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -4094,9 +4095,18 @@ export class Session2 extends HeyApiClient {
         {
           args: [
             { in: "path", key: "sessionID" },
-            { in: "query", key: "directory" },
+            {
+              in: "query",
+              key: "query_directory",
+              map: "directory",
+            },
             { in: "query", key: "workspace" },
             { in: "body", key: "messageID" },
+            {
+              in: "body",
+              key: "body_directory",
+              map: "directory",
+            },
           ],
         },
       ],

@@ -18,7 +18,10 @@ test("invokes invalidate when a global config file changes", async () => {
           }),
         )
         yield* Effect.promise(() => Bun.write(path.join(tmp.path, "openchinacode.jsonc"), "{}\n"))
-        yield* pollWithTimeout(Effect.sync(() => (calls > 0 ? (true as const) : undefined)), "watcher never fired")
+        yield* pollWithTimeout(
+          Effect.sync(() => (calls > 0 ? (true as const) : undefined)),
+          "watcher never fired",
+        )
       }),
     ),
   )
