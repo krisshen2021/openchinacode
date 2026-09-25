@@ -753,9 +753,9 @@ const layer: Layer.Layer<
       // time-field wrap (2026-08-14) sort after newer IDs.
       const target = input.messageID ? msgs.find((msg) => msg.info.id === input.messageID) : undefined
 
-      // Bulk copy in one transaction. Per-row MessageUpdated/PartUpdated events
-      // would take minutes for long sessions and storm every watching TUI into
-      // re-rendering the growing history continuously.
+      // Bulk copy without per-row MessageUpdated/PartUpdated events: emitting
+      // one event per row takes minutes for long sessions and storms every
+      // watching TUI into re-rendering the growing history continuously.
       const messageRows: (typeof MessageTable.$inferInsert)[] = []
       const partRows: (typeof PartTable.$inferInsert)[] = []
       let cost = 0
@@ -809,22 +809,22 @@ const layer: Layer.Layer<
         }
       }
 
-      // Chunked inserts stay under SQLite's bound-variable limit (32766); one
-      // transaction, so the copy is atomic and event-free.
+      // Chunked inserts stay under SQLite's bound-variable limit (32766).
+      // Deliberately NOT wrapped in one transaction: SQLite is single-writer,
+      // so a giant copy transaction locks every other session's writes (and
+      // balloons the WAL) for its whole duration — a long fork froze all other
+      // TUI work. Per-chunk commits interleave with normal traffic; an
+      // interrupted fork simply leaves a deletable partial copy.
       const forkT1 = Date.now()
       const BATCH = 4_000
-      yield* db
-        .transaction((tx) =>
-          Effect.gen(function* () {
-            for (let i = 0; i < messageRows.length; i += BATCH) {
-              yield* tx.insert(MessageTable).values(messageRows.slice(i, i + BATCH)).run()
-            }
-            for (let i = 0; i < partRows.length; i += BATCH) {
-              yield* tx.insert(PartTable).values(partRows.slice(i, i + BATCH)).run()
-            }
-          }),
-        )
-        .pipe(Effect.orDie)
+      yield* Effect.gen(function* () {
+        for (let i = 0; i < messageRows.length; i += BATCH) {
+          yield* db.insert(MessageTable).values(messageRows.slice(i, i + BATCH)).run().pipe(Effect.orDie)
+        }
+        for (let i = 0; i < partRows.length; i += BATCH) {
+          yield* db.insert(PartTable).values(partRows.slice(i, i + BATCH)).run().pipe(Effect.orDie)
+        }
+      })
       yield* Effect.logInfo("session fork profile: write", { ms: Date.now() - forkT1, buildMs: forkT1 - forkT0 })
 
       // Mirror the projector's per-part usage accounting in one aggregate update.
