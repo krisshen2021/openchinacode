@@ -718,7 +718,36 @@ const layer: Layer.Layer<
         title,
         metadata: structuredClone(original.metadata),
       })
-      const msgs = yield* messages({ sessionID: input.sessionID })
+      // Bulk read: the hydrated messages() pager fetches 50 messages per round
+      // trip, which dominates fork time on long sessions. Two direct scans plus
+      // in-memory grouping turn the copy into a constant number of queries.
+      const forkT0 = Date.now()
+      const [sourceMessages, sourceParts] = yield* Effect.all([
+        db
+          .select()
+          .from(MessageTable)
+          .where(eq(MessageTable.session_id, input.sessionID))
+          .orderBy(MessageTable.time_created, MessageTable.id)
+          .all(),
+        db
+          .select()
+          .from(PartTable)
+          .where(eq(PartTable.session_id, input.sessionID))
+          .orderBy(PartTable.message_id, PartTable.id)
+          .all(),
+      ]).pipe(Effect.orDie)
+      yield* Effect.logInfo("session fork profile: read", { ms: Date.now() - forkT0, messages: sourceMessages.length, parts: sourceParts.length })
+      const partsByMessage = new Map<string, SessionV1.Part[]>()
+      for (const row of sourceParts) {
+        const p = { ...row.data, id: row.id, sessionID: row.session_id, messageID: row.message_id } as SessionV1.Part
+        const list = partsByMessage.get(row.message_id)
+        if (list) list.push(p)
+        else partsByMessage.set(row.message_id, [p])
+      }
+      const msgs = sourceMessages.map((row) => ({
+        info: { ...row.data, id: row.id, sessionID: row.session_id } as SessionV1.Info,
+        parts: partsByMessage.get(row.id) ?? [],
+      }))
       const idMap = new Map<string, MessageID>()
       // Compare by created time, not raw ID: IDs generated before the 48-bit
       // time-field wrap (2026-08-14) sort after newer IDs.
@@ -780,14 +809,23 @@ const layer: Layer.Layer<
         }
       }
 
+      // Chunked inserts stay under SQLite's bound-variable limit (32766); one
+      // transaction, so the copy is atomic and event-free.
+      const forkT1 = Date.now()
+      const BATCH = 4_000
       yield* db
         .transaction((tx) =>
           Effect.gen(function* () {
-            if (messageRows.length > 0) yield* tx.insert(MessageTable).values(messageRows).run()
-            if (partRows.length > 0) yield* tx.insert(PartTable).values(partRows).run()
+            for (let i = 0; i < messageRows.length; i += BATCH) {
+              yield* tx.insert(MessageTable).values(messageRows.slice(i, i + BATCH)).run()
+            }
+            for (let i = 0; i < partRows.length; i += BATCH) {
+              yield* tx.insert(PartTable).values(partRows.slice(i, i + BATCH)).run()
+            }
           }),
         )
         .pipe(Effect.orDie)
+      yield* Effect.logInfo("session fork profile: write", { ms: Date.now() - forkT1, buildMs: forkT1 - forkT0 })
 
       // Mirror the projector's per-part usage accounting in one aggregate update.
       if (cost > 0 || tokens.input > 0 || tokens.output > 0) {
