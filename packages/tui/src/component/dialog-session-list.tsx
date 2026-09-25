@@ -74,7 +74,9 @@ export function DialogSessionList(props?: { initialScope?: SessionListScope }) {
   const event = useEvent()
   const local = useLocal()
   const toast = useToast()
-  const globalClient = createMemo(() => createOpencodeClient({ baseUrl: sdk.url, fetch: sdk.fetch }))
+  const globalClient = createMemo(() =>
+    createOpencodeClient({ baseUrl: sdk.url, fetch: sdk.fetch, headers: sdk.headers }),
+  )
   const [scope, setScope] = createSignal<SessionListScope>(props?.initialScope ?? "project")
   const [toDelete, setToDelete] = createSignal<string>()
   const [deleted, setDeleted] = createSignal(new Set<string>())
