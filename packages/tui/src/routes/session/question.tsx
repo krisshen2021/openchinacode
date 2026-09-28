@@ -5,6 +5,8 @@ import type { TextareaRenderable } from "@opentui/core"
 import { selectedForeground, tint, useTheme } from "../../context/theme"
 import type { QuestionAnswer, QuestionRequest } from "@opencode-ai/sdk/v2"
 import { useSDK } from "../../context/sdk"
+import { useToast } from "../../ui/toast"
+import { submitQuestion } from "./question-submit"
 import { SplitBorder } from "../../ui/border"
 import { useTuiConfig } from "../../config"
 import { useBindings, useOpencodeModeStack } from "../../keymap"
@@ -17,6 +19,8 @@ export function QuestionPrompt(props: { request: QuestionRequest; directory?: st
   const renderer = useRenderer()
   const tuiConfig = useTuiConfig()
   const modeStack = useOpencodeModeStack()
+  const toast = useToast()
+  const [submitting, setSubmitting] = createSignal(false)
 
   const questions = createMemo(() => props.request.questions)
   const single = createMemo(() => questions().length === 1 && questions()[0]?.multiple !== true)
@@ -45,20 +49,32 @@ export function QuestionPrompt(props: { request: QuestionRequest; directory?: st
     return store.answers[store.tab]?.includes(value) ?? false
   })
 
+  async function send(input: { answers?: QuestionAnswer[]; reject?: boolean }) {
+    if (submitting()) return
+    setSubmitting(true)
+    const failure = await submitQuestion({
+      send: () =>
+        input.reject
+          ? sdk.client.question.reject({ requestID: props.request.id, directory: props.directory })
+          : sdk.client.question.reply({ requestID: props.request.id, directory: props.directory, answers: input.answers! }),
+    })
+    setSubmitting(false)
+    if (failure) {
+      toast.show({
+        variant: "error",
+        title: input.reject ? "Failed to dismiss question" : "Failed to submit answers",
+        message: `${failure} — try again`,
+      })
+    }
+  }
+
   function submit() {
     const answers = questions().map((_, i) => store.answers[i] ?? [])
-    void sdk.client.question.reply({
-      requestID: props.request.id,
-      directory: props.directory,
-      answers,
-    })
+    void send({ answers })
   }
 
   function reject() {
-    void sdk.client.question.reject({
-      requestID: props.request.id,
-      directory: props.directory,
-    })
+    void send({ reject: true })
   }
 
   function pick(answer: string, custom: boolean = false) {
@@ -71,11 +87,7 @@ export function QuestionPrompt(props: { request: QuestionRequest; directory?: st
       setStore("custom", inputs)
     }
     if (single()) {
-      void sdk.client.question.reply({
-        requestID: props.request.id,
-        directory: props.directory,
-        answers: [[answer]],
-      })
+      void send({ answers: [[answer]] })
       return
     }
     setStore("tab", store.tab + 1)
