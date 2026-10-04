@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>旋转立方体：生命 · 升维 · 世代</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;background:#000;overflow:hidden;
+  font-family:"Georgia","Songti SC","STSong","Noto Serif SC",serif;color:#fff}
+canvas{display:block}
+#narrative{background:rgba(0,0,0,.45);padding:10px 18px;border-radius:8px;position:fixed;left:50%;bottom:48px;transform:translateX(-50%);
+  width:min(90vw,860px);text-align:center;pointer-events:none;transition:opacity .7s}
+#narrative .main{font-size:20px;letter-spacing:2px;line-height:1.7;
+  text-shadow:0 1px 4px rgba(0,0,0,.95),0 0 10px rgba(0,0,0,.8)}
+#narrative .verse{margin-top:8px;font-size:14px;color:rgba(190,205,255,.65);font-style:italic;line-height:1.6}
+#hud{position:fixed;top:24px;left:28px;font-size:13px;letter-spacing:1px;color:rgba(255,255,255,.6)}
+#hud .title{font-size:16px;color:rgba(255,255,255,.88);margin-bottom:12px;letter-spacing:3px}
+.legend{display:flex;align-items:center;gap:8px;margin:6px 0;opacity:.25;transition:opacity .8s}
+.legend.on{opacity:1}
+#hud .note{margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,.15);font-size:12px;line-height:1.7;color:rgba(255,255,255,.55);max-width:220px}
+.dot{width:10px;height:10px;border-radius:50%;box-shadow:0 0 8px currentColor}
+#controls{position:fixed;top:24px;right:28px;display:flex;gap:8px}
+button{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.25);
+  color:rgba(255,255,255,.85);padding:8px 14px;font-size:13px;font-family:inherit;
+  border-radius:4px;cursor:pointer;letter-spacing:1px;transition:.25s}
+button:hover{background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.5)}
+#hint{position:fixed;bottom:14px;right:28px;font-size:12px;color:rgba(255,255,255,.3);letter-spacing:1px}
+
+/* —— iPad / 触屏 —— */
+canvas{touch-action:none}                       /* 手势交给 3D 场景，不让页面跟着缩放/滚动 */
+html,body{overscroll-behavior:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+#hud{top:max(24px,env(safe-area-inset-top));left:max(28px,env(safe-area-inset-left))}
+#controls{top:max(24px,env(safe-area-inset-top));right:max(28px,env(safe-area-inset-right))}
+@media (pointer:coarse){
+  button{padding:12px 18px;font-size:15px;min-height:44px}   /* 手指好按 */
+  #hint{bottom:max(14px,env(safe-area-inset-bottom))}
+}
+@media (max-width:900px){ #hud .note{display:none} #narrative .main{font-size:17px} }
+.touch{display:none}@media (pointer:coarse){.pc{display:none}.touch{display:inline}}
+</style>
+</head>
+<body>
+<div id="hud">
+  <div class="title">生命 · 升维 · 世代</div>
+  <div class="legend" id="lg0"><span class="dot" style="background:#ffc857;color:#ffc857"></span>亚伯拉罕 <span style="opacity:.55;font-size:11px">· 领受应许 · 凭信相信</span></div>
+  <div class="legend" id="lg1"><span class="dot" style="background:#4cc9f0;color:#4cc9f0"></span>以撒 <span style="opacity:.55;font-size:11px">· 承接应许 · 凭信相信</span></div>
+  <div class="legend" id="lg2"><span class="dot" style="background:#ff4d9d;color:#ff4d9d"></span>雅各 <span style="opacity:.55;font-size:11px">· 承接应许 · 凭信相信</span></div>
+  <div class="legend" id="lg3"><span class="dot" style="background:#7dffb3;color:#7dffb3"></span>摩西 <span style="opacity:.55;font-size:11px">· 经历应许 · 真正「知道」</span></div>
+  <div class="note">神看得见立方体的四面——<br>祂从过去说到未来的应许，<br>在祂眼中早已是真实。</div>
+</div>
+<div id="controls">
+  <button id="btnPause">⏸ 暂停</button>
+  <button id="btnSpeed">速度 1×</button>
+  <button id="btnCaption">字幕 开</button>
+  <button id="btnReplay">↺ 重播</button>
+</div>
+<div id="narrative"><div class="main"></div><div class="verse"></div></div>
+<div id="hint">紫色圆面 = 梦境 · 虚线 = 时间之轴 · <span class="pc">拖动旋转 · 滚轮缩放 · 右键平移</span><span class="touch">单指旋转 · 双指捏合缩放 · 双指拖动平移</span> —— 你就是那双“从上面看”的眼睛</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { Line2 } from 'three/addons/lines/Line2.js';
+import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
+import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
+
+/* ================= 参数区（可自行修改） ================= */
+const BLOOM_STRENGTH = 0.4;      // 光晕强度（原 0.95）；0 = 无光晕
+const S = 4, H = S / 2;          // 立方体边长 / 半边长
+const L = H * 0.85;              // 波形路径在面上的半宽
+const RISE = 1.6;                // 升维高度
+const ANC_DX = 1.5, ANC_DY = 0.45; // “上方的祖先”：每多一代，更早的祖先向左（过去）、向上各挪一格
+const N = 240;                   // 路径采样点数
+const GENS = [                   // 每一代：人物、所认识的神名、颜色、波的周期数、振幅、行走时长(秒)
+  { name: '亚伯拉罕', known: '凭信相信', color: 0xffc857, cycles: 1.5, amp: 0.55, walk: 7 },
+  { name: '以撒',     known: '凭信相信', color: 0x4cc9f0, cycles: 2.0, amp: 0.45, walk: 7 },
+  { name: '雅各',     known: '凭信相信', color: 0xff4d9d, cycles: 2.5, amp: 0.60, walk: 12, connectFrom: 1 },
+  { name: '摩西',     known: '真正知道',   color: 0x7dffb3, cycles: 3.0, amp: 0.50, walk: 12, connectFrom: 2 },
+];
+
+// 每一代所属平面上贴的“代表章节”（远端一行：章节；近端：钥节）。可自行修改
+const SCRIPTURE = [
+  { book: '创世记', chs: '12 · 15 · 22', sub: '蒙召 · 立约 · 献以撒',
+    verse: '亚伯兰信耶和华，耶和华就以此为他的义。', ref: '创世记 15:6' },
+  { book: '创世记', chs: '22 · 24 · 26', sub: '被献 · 娶妻 · 重挖父井',
+    verse: '我是你父亲亚伯拉罕的神，不要惧怕！因为我与你同在。', ref: '创世记 26:24' },
+  { book: '创世记', chs: '28 · 32 · 35', sub: '伯特利之梦 · 毗努伊勒摔跤 · 重回伯特利',
+    verse: '我也与你同在……总不离弃你，直到我成全了向你所应许的。', ref: '创世记 28:15' },
+  { book: '出埃及记', chs: '3 · 6 · 14', sub: '荆棘火焰 · 显明圣名 · 过红海',
+    verse: '你们要知道我是耶和华你们的神，是救你们脱离埃及人之重担的。', ref: '出埃及记 6:7' },
+];
+const SCR_OPACITY = 0.9, SCR_OPACITY_PAST = 0.35;   // 当代 / 升维之后 的经文透明度
+const LIFE_OPACITY_PAST = 0.4;                       // 升维之后“生/死”标记的透明度
+
+const DREAM_LABEL = '梦境';      // 光线中途穿过的圆形中介平面
+const DREAM_R = 0.8;             // 梦境圆面半径
+// 时间之轴：中轴正对观看者（Z 轴），立方体像车轮一样绕它转动
+// Point 在顶面向右（+X）行走；立方体逆时针转动（从观看者看），顶面向左退去 —— 与行走方向相反
+// 于是：右侧面（前方/未来）转上来成为新的“现在”，上一代的面向左退去成为“过去”
+// 四代人依次落在环绕中轴的四个侧面：上 → 右 → 下 → 左（以立方体自身而言）
+const TIME_AXIS = new THREE.Vector3(0, 0, 1);
+const TURN_DEG  = 90;
+const ROTS = [[TIME_AXIS, TURN_DEG], [TIME_AXIS, TURN_DEG], [TIME_AXIS, TURN_DEG]];
+const TEXT = {
+  intro:   ['你是观看者。拖动画面，从任何角度凝视这个世界。',
+            '「我未成形的体质，你的眼早已看见了；你所定的日子，我尚未度一日，你都写在你的册上了。」——诗篇 139:16'],
+  walk: [
+    ['亚伯拉罕：离开本地，走上一条不知道终点的路。', '「你要离开本地、本族、父家，往我所要指示你的地去。」——创世记 12:1'],
+    ['以撒：在父亲走过的地上，重新挖开父亲的井。', '「当他父亲亚伯拉罕在世之日，仆人所挖的井……以撒就重新挖出来。」——创世记 26:18'],
+    ['雅各：在逃亡的路上，枕着石头睡去……', '「梦见一个梯子立在地上，梯子的头顶着天。」——创世记 28:12'],
+    ['摩西：同样的旷野，同样的起伏，却要第一次听见那个名字。', '「神对摩西说：“我是自有永有的。”」——出埃及记 3:14'],
+  ],
+  connect: [null, null,
+    ['已升维的以撒，从上方向行走中的雅各发出一道光。', '「我是耶和华——你祖亚伯拉罕的神，也是以撒的神。」——创世记 28:13'],
+    ['已升维的雅各，把光再一次传给行走中的摩西。', '「我是你父亲的神，是亚伯拉罕的神，以撒的神，雅各的神。」——出埃及记 3:6'],
+  ],
+  dream:   ['光线穿过“梦境”——上方与地上，在这里相通。', '「人躺在床上沉睡的时候，神就用梦和夜间的异象……开通他们的耳朵。」——约伯记 33:15-16'],
+  glow:    ['相遇的一刻：行走者停下，被照亮。', '「我们有这许多的见证人，如同云彩围着我们。」——希伯来书 12:1'],
+  fade:    ['光线隐去，但被照亮的人继续前行。', ''],
+  ascend:  ['走到尽头，不是终结——而是升维。', '「所见的是暂时的，所不见的是永远的。」——哥林多后书 4:18'],
+  ancestor:['升维之后，他离开了转动的地面，留在上方——成为“上方的祖先”。', '「这些人都是存着信心死的……从远处望见，且欢喜迎接。」——希伯来书 11:13'],
+  rotate: [null,
+    ['人向前走，世界向后转。上一代的地面退向“过去”，前方的一面迎上来，成为新的“现在”。', '「主啊，你世世代代作我们的居所。」——诗篇 90:1'],
+    ['同一根轴，同一个方向，再转 90°。时间只向一个方向流动。', '「一代过去，一代又来。」——传道书 1:4'],
+    ['第三次转动。第四个侧面，第四代人。', '「他的慈爱存到永远；他的信实直到万代。」——诗篇 100:5'],
+  ],
+  finale:  ['四代走完，祖先都留在上方。前三代领受应许，凭信相信；到第四代，摩西亲历应许成就，才真正“知道”神所说的是真实的。', '「我从前向亚伯拉罕、以撒、雅各显为全能的神；至于我名耶和华，他们未曾知道。」——出埃及记 6:3'],
+};
+
+/* ================= 场景 ================= */
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+document.body.prepend(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x02030a);
+const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 500);
+camera.position.set(2.2, 3.2, 12);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 5;
+controls.maxDistance = 40;
+controls.target.set(0, 1.2, 0);
+controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };   // iPad：单指转、双指缩放+平移
+camera.position.set(2.2, 4.2, 13);
+
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), BLOOM_STRENGTH, 0.4, 0.2);
+composer.addPass(bloom);
+composer.addPass(new OutputPass());
+
+// 星空
+{
+  const g = new THREE.BufferGeometry(), arr = [];
+  for (let i = 0; i < 2500; i++) {
+    const v = new THREE.Vector3().randomDirection().multiplyScalar(60 + Math.random() * 60);
+    arr.push(v.x, v.y, v.z);
+  }
+  g.setAttribute('position', new THREE.Float32BufferAttribute(arr, 3));
+  scene.add(new THREE.Points(g, new THREE.PointsMaterial({ color: 0x8899cc, size: 0.18, transparent: true, opacity: 0.7 })));
+}
+
+// 立方体
+const cube = new THREE.Group();
+scene.add(cube);
+cube.add(new THREE.Mesh(new THREE.BoxGeometry(S, S, S),
+  new THREE.MeshBasicMaterial({ color: 0x1a2a55, transparent: true, opacity: 0.10, side: THREE.DoubleSide, depthWrite: false })));
+cube.add(new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(S, S, S)),
+  new THREE.LineBasicMaterial({ color: 0x6f8fd8, transparent: true, opacity: 0.6 })));
+
+// 时间之轴（中轴虚线，正对观看者，不随立方体转动）
+{
+  const ext = H + 1.6;
+  const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, -ext), new THREE.Vector3(0, 0, ext)]);
+  const axisLine = new THREE.Line(g, new THREE.LineDashedMaterial({ color: 0x9fb4ff, dashSize: 0.15, gapSize: 0.1, transparent: true, opacity: 0.5 }));
+  axisLine.computeLineDistances();
+  scene.add(axisLine);
+  // 前后两端的旋转方向箭头（绕 Z 轴，方向与 TURN_DEG 一致）
+  const r = 0.55, sign = Math.sign(TURN_DEG);
+  for (const z of [-ext + 0.3, ext - 0.3]) {
+    const a0 = Math.PI * 0.5, a1 = a0 + sign * Math.PI * 1.4;
+    const pts = [];
+    for (let k = 0; k <= 60; k++) { const a = a0 + (a1 - a0) * k / 60; pts.push(new THREE.Vector3(r * Math.cos(a), r * Math.sin(a), z)); }
+    scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
+      new THREE.LineBasicMaterial({ color: 0x9fb4ff, transparent: true, opacity: 0.6 })));
+    const cone = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.2, 16),
+      new THREE.MeshBasicMaterial({ color: 0x9fb4ff, transparent: true, opacity: 0.75 }));
+    cone.position.copy(pts[60]);
+    const tan = new THREE.Vector3(-Math.sin(a1), Math.cos(a1), 0).multiplyScalar(sign);
+    cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), tan);
+    scene.add(cone);
+  }
+  // 行走方向提示（顶面上方的淡箭头 →）与转动方向提示
+  const mk = (txt, x, y) => {
+    const c = document.createElement('canvas'); c.width = 256; c.height = 64;
+    const x2 = c.getContext('2d'); x2.fillStyle = 'rgba(180,200,255,0.75)';
+    x2.font = '28px Georgia, serif'; x2.textAlign = 'center'; x2.textBaseline = 'middle'; x2.fillText(txt, 128, 32);
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false }));
+    s.scale.set(2, 0.5, 1); s.position.set(x, y, 0); scene.add(s);
+  };
+  mk('← 过去', -H - 1.9, 0.0);
+  mk('未来 →',  H + 1.9, 0.0);
+}
+
+// 文字精灵（人物名 / 梦境标签）
+const LABEL_LAYER = 1;
+function makeLabel(lines, color = '#ffffff', scale = 1) {
+  const c = document.createElement('canvas'); c.width = 512; c.height = 160;
+  const x = c.getContext('2d'); x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.fillStyle = 'rgba(0,0,0,.55)';                              // 深色底板，保证可读
+  if (x.roundRect) { x.beginPath(); x.roundRect(36, 10, 440, 140, 28); x.fill(); } else x.fillRect(36, 10, 440, 140);
+  x.shadowColor = 'rgba(0,0,0,.9)'; x.shadowBlur = 6;
+  x.fillStyle = color; x.font = 'bold 54px "Songti SC","STSong","Noto Serif SC",serif';
+  x.fillText(lines[0], 256, lines[1] ? 55 : 80);
+  if (lines[1]) { x.globalAlpha = 0.7; x.font = '32px "Songti SC","STSong","Noto Serif SC",serif'; x.fillText(lines[1], 256, 118); }
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true,
+    depthWrite: false, depthTest: false, opacity: 0.85 }));
+  s.scale.set(1.6 * scale, 0.5 * scale, 1); s.renderOrder = 10;
+  s.layers.set(LABEL_LAYER);                                    // 不进入光晕通道
+  return s;
+}
+
+
+// 平面经文贴图：上方（远端）写章节，下方（近端）写钥节，中间留给波形
+function wrapText(x, text, maxW) {
+  const out = []; let line = '';
+  for (const ch of text) { if (x.measureText(line + ch).width > maxW && line) { out.push(line); line = ch; } else line += ch; }
+  if (line) out.push(line); return out;
+}
+function makeScriptureTexture(sc, name, color) {
+  const c = document.createElement('canvas'); c.width = c.height = 1024;
+  const x = c.getContext('2d'); x.textAlign = 'center'; x.textBaseline = 'middle';
+  const font = '"Songti SC","STSong","Noto Serif SC",serif';
+  x.fillStyle = color;
+  x.globalAlpha = 0.95; x.font = `bold 64px ${font}`; x.fillText(`${sc.book} ${sc.chs}`, 512, 110);
+  x.globalAlpha = 0.7;  x.font = `36px ${font}`;      x.fillText(sc.sub, 512, 190);
+  x.globalAlpha = 0.25; x.fillRect(312, 240, 400, 2);
+  x.globalAlpha = 0.85; x.font = `42px ${font}`;
+  const lines = wrapText(x, `「${sc.verse}」`, 860);
+  const y0 = 800 - (lines.length - 1) * 30;
+  lines.forEach((ln, k) => x.fillText(ln, 512, y0 + k * 60));
+  x.globalAlpha = 0.6; x.font = `32px ${font}`; x.fillText(`—— ${sc.ref}`, 512, y0 + lines.length * 60 + 10);
+  const t = new THREE.CanvasTexture(c); t.anisotropy = 8; t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+// 小小的“生 / 死”标记：一个文字牌 + 一个落在路径端点的小环
+function makeLifeMark(txt, color) {
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const x = c.getContext('2d'); x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.fillStyle = 'rgba(0,0,0,.55)'; x.beginPath(); x.arc(64, 64, 56, 0, Math.PI * 2); x.fill();
+  x.strokeStyle = color; x.lineWidth = 4; x.stroke();
+  x.fillStyle = color; x.font = 'bold 70px "Songti SC","STSong","Noto Serif SC",serif'; x.fillText(txt, 64, 68);
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true,
+    depthWrite: false, depthTest: false, opacity: 0 }));
+  s.scale.setScalar(0.34); s.renderOrder = 11; s.layers.set(LABEL_LAYER);
+  return s;
+}
+
+// 光晕贴图
+const glowTex = (() => {
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const x = c.getContext('2d'), gr = x.createRadialGradient(64, 64, 0, 64, 64, 64);
+  gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.25, 'rgba(255,255,255,.55)');
+  gr.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = gr; x.fillRect(0, 0, 128, 128);
+  return new THREE.CanvasTexture(c);
+})();
+
+/* ================= 时间引擎（支持暂停/变速/重播） ================= */
+let paused = false, speed = 1, elapsed = 0;
+let tasks = new Set();
+function tween(d, fn) {
+  return new Promise((res, rej) => tasks.add({ t: 0, d, fn, res, rej }));
+}
+const wait = d => tween(d, () => {});
+function step(dt) {
+  for (const k of [...tasks]) {
+    k.t += dt; const p = Math.min(k.t / k.d, 1); k.fn(p);
+    if (p >= 1) { tasks.delete(k); k.res(); }
+  }
+}
+const easeIO = p => p < .5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+const easeOut = p => 1 - Math.pow(1 - p, 3);
+
+/* ================= 工具 ================= */
+const lineMats = [];
+let dynamic = [], stars = [], ancestors = [];
+const addDyn = o => { cube.add(o); dynamic.push(o); return o; };        // 随立方体转动的物体
+const addWorld = o => { scene.add(o); dynamic.push(o); return o; };    // 不随立方体转动（世界坐标）
+
+function makeOrb(color, r = 0.075) {
+  const g = new THREE.Group();
+  const core = new THREE.Mesh(new THREE.SphereGeometry(r, 24, 24),
+    new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(1.3), toneMapped: false }));
+  const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color, transparent: true,
+    blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.45 }));
+  halo.scale.setScalar(0.5);
+  g.add(core, halo); g.userData = { core, halo };
+  return g;
+}
+function makeLine2(points, color, width, opacity) {
+  const geo = new LineGeometry();
+  geo.setPositions(points.flatMap(v => [v.x, v.y, v.z]));
+  const mat = new LineMaterial({ color: new THREE.Color(color).multiplyScalar(1.1), linewidth: width,
+    transparent: true, opacity, worldUnits: false });
+  mat.resolution.set(innerWidth, innerHeight);
+  lineMats.push(mat);
+  const line = new Line2(geo, mat);
+  geo.instanceCount = 0; line.visible = false;
+  return { line, geo, mat };
+}
+const snap = v => v.set(Math.round(v.x), Math.round(v.y), Math.round(v.z));
+function currentFrame() {           // 把“世界的上/左右/前后”换算到立方体局部坐标
+  const qi = cube.quaternion.clone().invert();
+  return {
+    n: snap(new THREE.Vector3(0, 1, 0).applyQuaternion(qi)),
+    u: snap(new THREE.Vector3(1, 0, 0).applyQuaternion(qi)),
+    w: snap(new THREE.Vector3(0, 0, 1).applyQuaternion(qi)),
+  };
+}
+
+const nar = document.getElementById('narrative');
+let captionsOn = true, capTimer;
+function caption([main, verse]) {
+  nar.style.opacity = 0; clearTimeout(capTimer);
+  capTimer = setTimeout(() => {
+    nar.querySelector('.main').textContent = main;
+    nar.querySelector('.verse').textContent = verse || '';
+    nar.style.opacity = captionsOn ? 1 : 0;
+  }, 600);
+}
+
+/* ================= 一代人 ================= */
+function createGen(i, frame) {
+  const cfg = GENS[i];
+  const posAt = p => {
+    const x = -L + 2 * L * p, z = cfg.amp * Math.sin(2 * Math.PI * cfg.cycles * p);
+    return frame.n.clone().multiplyScalar(H + 0.02).addScaledVector(frame.u, x).addScaledVector(frame.w, z);
+  };
+  const pts = Array.from({ length: N }, (_, k) => posAt(k / (N - 1)));
+  const path = makeLine2(pts, cfg.color, 3, 0.95);
+  addDyn(path.line);
+
+  const hl = new THREE.Mesh(new THREE.PlaneGeometry(S, S),
+    new THREE.MeshBasicMaterial({ color: cfg.color, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false }));
+  hl.position.copy(frame.n).multiplyScalar(H + 0.005);
+  hl.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), frame.n);
+  addDyn(hl);
+
+  // ★ 经文平面：文字沿行走方向（u）从左往右读，远端（-w）为上
+  const hex = '#' + new THREE.Color(cfg.color).getHexString();
+  const scr = new THREE.Mesh(new THREE.PlaneGeometry(S * 0.96, S * 0.96),
+    new THREE.MeshBasicMaterial({ map: makeScriptureTexture(SCRIPTURE[i], cfg.name, hex), transparent: true,
+      opacity: 0, side: THREE.DoubleSide, depthWrite: false }));
+  scr.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(frame.u, frame.w.clone().negate(), frame.n));
+  scr.position.copy(frame.n).multiplyScalar(H + 0.01);
+  addDyn(scr);
+
+  // ★ 生 / 死 标记：起点（p=0）与终点（p=1），略浮于面上
+  const lift = v => v.addScaledVector(frame.n, 0.22);
+  const birth = addDyn(makeLifeMark('生', hex));
+  const death = addDyn(makeLifeMark('死', hex));
+
+  const orb = addDyn(makeOrb(cfg.color));
+  orb.scale.setScalar(0.001);
+  const tag = makeLabel([cfg.name, `「${cfg.known}」`], '#' + new THREE.Color(cfg.color).getHexString(), 0.8);
+  tag.position.set(0, 0.42, 0); orb.add(tag);           // 名字跟着点走（行走时、升维后都跟着）
+  birth.position.copy(lift(posAt(0))); death.position.copy(lift(posAt(1)));
+  const gen = { i, cfg, frame, posAt, orb, path, hl, scr, birth, death, p: 0 };
+  gen.setProgress = p => {
+    gen.p = p; orb.position.copy(posAt(p));
+    const k = Math.floor(p * (N - 1));
+    path.line.visible = k > 0; path.geo.instanceCount = k;
+  };
+  gen.setProgress(0);
+  document.getElementById('lg' + i).classList.add('on');
+  return gen;
+}
+const walk = (g, a, b, d) => tween(d, p => g.setProgress(a + (b - a) * p));
+
+async function connect(src, dst) {
+  const start = cube.worldToLocal(src.orb.getWorldPosition(new THREE.Vector3())), target = dst.posAt(0.5);
+  const mid = start.clone().add(target).multiplyScalar(0.5);
+  const ctrl = mid.clone().add(mid.clone().normalize().multiplyScalar(1.6)); // 向外拱起的光弧
+  const curve = new THREE.QuadraticBezierCurve3(start, ctrl, target);
+  const pts = curve.getPoints(100);
+  const geo = new THREE.BufferGeometry().setFromPoints(pts);
+  const base = new THREE.Color(src.cfg.color);
+  const mat = new THREE.LineDashedMaterial({ color: base.clone().multiplyScalar(1.2), dashSize: 0.12, gapSize: 0.08,
+    transparent: true, opacity: 0.9, toneMapped: false });
+  const line = addDyn(new THREE.Line(geo, mat));
+  line.computeLineDistances(); geo.setDrawRange(0, 0);
+  const spark = addDyn(makeOrb(src.cfg.color, 0.05));
+
+  // ★ 梦境圆面：放在光弧中点，与光线垂直，让光“穿过”它
+  const DM = 0.5;
+  const dream = new THREE.Group();
+  dream.position.copy(curve.getPoint(DM));
+  dream.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), curve.getTangent(DM).normalize());
+  const dCol = new THREE.Color(0xb59cff);
+  const dPlane = new THREE.Mesh(new THREE.CircleGeometry(DREAM_R, 64),
+    new THREE.MeshBasicMaterial({ color: dCol, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false }));
+  const dEdge = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(
+      new THREE.Path().absarc(0, 0, DREAM_R, 0, Math.PI * 2).getSpacedPoints(96)),
+    new THREE.LineBasicMaterial({ color: dCol, transparent: true, opacity: 0 }));
+  const ripple = new THREE.Mesh(new THREE.RingGeometry(DREAM_R * 0.9, DREAM_R, 64),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false }));
+  ripple.scale.setScalar(0.05);
+  dream.add(dPlane, dEdge, ripple);
+  addDyn(dream);
+  const dTag = addDyn(makeLabel([DREAM_LABEL], '#d6c8ff', 0.9));
+  dTag.position.copy(dream.position).addScaledVector(dst.frame.n, DREAM_R + 0.3);
+  dTag.material.opacity = 0;
+  const dreamAlpha = a => { dPlane.material.opacity = 0.16 * a; dEdge.material.opacity = 0.75 * a; dTag.material.opacity = 0.9 * a; };
+
+  caption(TEXT.connect[dst.i]);
+  await tween(1.0, p => dreamAlpha(easeOut(p)));                     // 梦境圆面先浮现
+  let hit = false;
+  await Promise.all([
+    tween(3.0, p => { const e = easeIO(p); geo.setDrawRange(0, Math.max(2, Math.floor(e * pts.length)));
+                      spark.position.copy(curve.getPoint(e));
+                      if (!hit && e >= DM) { hit = true; caption(TEXT.dream);
+                        tween(1.6, q => { ripple.scale.setScalar(0.05 + 0.95 * q); ripple.material.opacity = 0.8 * (1 - q);
+                                          dPlane.material.opacity = 0.16 + 0.3 * Math.sin(q * Math.PI); }); } }),
+    tween(3.0, p => dst.setProgress(0.4 + 0.1 * easeOut(p))),       // 行走者渐渐停下（入梦）
+  ]);
+  spark.visible = false;
+
+  caption(TEXT.glow);                                                // 连线发光
+  await tween(2.0, p => {
+    const s = Math.sin(p * Math.PI);
+    mat.opacity = 0.9 + 0.1 * s;
+    mat.color.copy(base).multiplyScalar(1.2 + 0.8 * s);
+    dst.orb.scale.setScalar(1 + 0.8 * s);
+    dst.path.mat.linewidth = 3 + 2 * s;
+  });
+  await wait(0.6);
+  caption(TEXT.fade);                                                // 虚线消失
+  await tween(1.8, p => { mat.opacity = 0.9 * (1 - p); dreamAlpha(1 - p); });
+  line.visible = false; dream.visible = false; dTag.visible = false;
+}
+
+async function ascend(g) {
+  const start = g.posAt(1), end = start.clone().addScaledVector(g.frame.n, RISE);
+  const M = 40, pts = Array.from({ length: M }, (_, k) => start.clone().lerp(end, k / (M - 1)));
+  const rise = makeLine2(pts, g.cfg.color, 1.5, 0.55);
+  addDyn(rise.line);
+  caption(TEXT.ascend);
+  await tween(2.6, p => {
+    const e = easeIO(p); g.orb.position.lerpVectors(start, end, e);
+    const k = Math.floor(e * (M - 1)); rise.line.visible = k > 0; rise.geo.instanceCount = k;
+  });
+  await tween(1.0, p => g.orb.scale.setScalar(1 + 1.3 * Math.sin(p * Math.PI)));
+  await tween(1.0, p => { g.hl.material.opacity = 0.07 * (1 - p) + 0.025 * p;
+                          g.scr.material.opacity = SCR_OPACITY + (SCR_OPACITY_PAST - SCR_OPACITY) * p;
+                          g.birth.material.opacity = g.death.material.opacity = 0.95 + (LIFE_OPACITY_PAST - 0.95) * p; });
+
+  // ★ 脱离立方体：保持当前世界位置，从此不再随地面转动
+  scene.attach(g.orb);
+  caption(TEXT.ancestor);
+  ancestors.unshift(g);                       // 最新的祖先排在 0 号位
+  const from = ancestors.map(a => a.orb.position.clone());
+  const to = ancestors.map((a, k) => ancestorSlot(k));
+  await Promise.all([
+    tween(2.4, p => { const e = easeIO(p); ancestors.forEach((a, k) => a.orb.position.lerpVectors(from[k], to[k], e)); }),
+    tween(2.4, p => { rise.mat.opacity = 0.55 * (1 - p); }),   // 升维的竖线随之淡去
+  ]);
+  rise.line.visible = false;
+  stars.push(g);
+}
+// 祖先在世界中的位置：最新一代在升维处，更早的向左（过去）、向上
+function ancestorSlot(k) {
+  return new THREE.Vector3(L - k * ANC_DX, H + RISE + k * ANC_DY, 0);
+}
+
+async function rotateCube([axis, deg]) {
+  const q0 = cube.quaternion.clone();
+  const q1 = new THREE.Quaternion().setFromAxisAngle(axis, THREE.MathUtils.degToRad(deg)).multiply(q0);
+  await tween(3.0, p => cube.quaternion.slerpQuaternions(q0, q1, easeIO(p)));
+}
+
+/* ================= 主叙事线 ================= */
+async function run() {
+  const gens = [];
+  caption(TEXT.intro);
+  await wait(5);
+  for (let i = 0; i < GENS.length; i++) {
+    if (i > 0) { caption(TEXT.rotate[i]); await rotateCube(ROTS[i - 1]); await wait(0.8); }
+    const g = createGen(i, currentFrame());
+    caption(TEXT.walk[i]);
+    await tween(1.0, p => { g.orb.scale.setScalar(Math.max(p, 0.001)); g.hl.material.opacity = 0.07 * p;
+                              g.scr.material.opacity = SCR_OPACITY * p; g.birth.material.opacity = 0.95 * p; });
+    const c = GENS[i];
+    if (c.connectFrom == null) {
+      await walk(g, 0, 1, c.walk);
+    } else {
+      await walk(g, 0, 0.4, c.walk * 0.4);
+      await connect(gens[c.connectFrom], g);
+      await walk(g, 0.5, 1, c.walk * 0.5);
+    }
+    await tween(0.8, p => { g.death.material.opacity = 0.95 * p; });   // 走到尽头：标出“死”
+    await ascend(g);
+    gens.push(g);
+    await wait(0.8);
+  }
+  // 终章：一条淡淡的线串起所有“升维之点”，镜头保持静止
+  const curve = new THREE.CatmullRomCurve3([...ancestors].reverse().map(g => g.orb.position.clone()));
+  const thread = addWorld(new THREE.Line(new THREE.BufferGeometry().setFromPoints(curve.getPoints(200)),
+    new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0 })));
+  caption(TEXT.finale);
+  // 播放完毕后镜头静止，可自行拖动观看
+  await tween(3, p => { thread.material.opacity = 0.3 * p; });
+}
+function start() {
+  run().catch(e => { if (e !== 'cancel') console.error(e); });
+}
+
+function reset() {
+  for (const k of tasks) k.rej('cancel');
+  tasks = new Set();
+  dynamic.forEach(o => o.removeFromParent()); dynamic = []; stars = []; ancestors = [];
+  lineMats.length = 0;
+  cube.quaternion.identity();
+  controls.autoRotate = false;
+  document.querySelectorAll('.legend').forEach(e => e.classList.remove('on'));
+  start();
+}
+
+/* ================= UI ================= */
+const bP = document.getElementById('btnPause'), bS = document.getElementById('btnSpeed'), bC = document.getElementById('btnCaption');
+bP.onclick = () => { paused = !paused; bP.textContent = paused ? '▶ 继续' : '⏸ 暂停'; };
+bS.onclick = () => { speed = speed === 1 ? 2 : speed === 2 ? 0.5 : 1; bS.textContent = `速度 ${speed}×`; };
+bC.onclick = () => { captionsOn = !captionsOn; bC.textContent = captionsOn ? '字幕 开' : '字幕 关'; nar.style.opacity = captionsOn ? 1 : 0; };
+document.getElementById('btnReplay').onclick = () => { paused = false; bP.textContent = '⏸ 暂停'; reset(); };
+// 双击 / 双指轻点空白处：镜头回到初始位置
+renderer.domElement.addEventListener('dblclick', () => { camera.position.set(2.2, 4.2, 13); controls.target.set(0, 1.2, 0); controls.update(); });
+addEventListener('keydown', e => { if (e.code === 'Space') bP.click(); });
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight); composer.setSize(innerWidth, innerHeight);
+  lineMats.forEach(m => m.resolution.set(innerWidth, innerHeight));
+});
+
+const clock = new THREE.Clock();
+(function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  elapsed += dt;
+  if (!paused) step(dt * speed);
+  stars.forEach(g => g.orb.userData.halo.scale.setScalar(0.5 * (1 + 0.15 * Math.sin(elapsed * 2 + g.i))));
+  controls.update();
+  composer.render();
+  // 文字层单独叠加在最上面，不被光晕晕开
+  // 注意：scene.background 是纯色时，render() 会强制清屏，把刚画好的立方体整个盖掉，
+  // 所以叠加文字层时要先把背景暂时拿掉
+  const bg = scene.background;
+  scene.background = null;
+  renderer.autoClear = false;
+  camera.layers.set(LABEL_LAYER); renderer.render(scene, camera); camera.layers.set(0);
+  renderer.autoClear = true;
+  scene.background = bg;
+})();
+
+start();
+</script>
+</body>
+</html>
