@@ -1,5 +1,6 @@
 import { render, TimeToFirstDraw, useRenderer, useTerminalDimensions } from "@opentui/solid"
 import { registerOpencodeSpinner } from "./component/register-spinner"
+import { installKeymapDiagnostics } from "./keymap-diagnostics"
 import { createDefaultOpenTuiKeymap } from "@opentui/keymap/opentui"
 import { Deferred, Effect } from "effect"
 import { Global } from "@opencode-ai/core/global"
@@ -218,6 +219,10 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
       yield* Effect.acquireRelease(
         Effect.sync(() => registerOpencodeKeymap(keymap, renderer, input.config)),
         (unregister) => Effect.sync(unregister),
+      )
+      yield* Effect.acquireRelease(
+        Effect.sync(() => installKeymapDiagnostics({ keymap, renderer, logDir: global.log })),
+        (dispose) => Effect.sync(dispose),
       )
       yield* Effect.addFinalizer(() =>
         Effect.promise(async () => {
