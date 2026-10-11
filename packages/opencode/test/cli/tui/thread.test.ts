@@ -80,7 +80,7 @@ describe("tui thread", () => {
       const result = yield* opencode.spawn(["attach", "http://127.0.0.1:1", "--mini"])
 
       opencode.expectExit(result, 1)
-      expect(result.stderr).toContain("--mini requires a TTY stdout")
+      expect(result.stderr).toContain("interactive mode requires a TTY stdout")
     }),
   )
 

@@ -38,31 +38,24 @@ function normalize(text: string): string {
   })
 }
 
-// Top-level commands. Order matches what `opencode --help` prints today;
+// Top-level commands. Order matches what `openchinacode --help` prints today;
 // keep it in that order so the snapshot file reads as a table of contents.
 // `completion` is intentionally excluded — it's a yargs built-in that emits
-// top-level help on `--help` and exits 1; not a real opencode command.
+// top-level help on `--help` and exits 1; not a real openchinacode command.
+// `generate` is hidden (describe: false) and excluded for the same reason.
+// The upstream-only commands (acp, agent, session, stats, db, export, import,
+// github, pr, plugin, uninstall, web) were removed by the OpenChinaCode
+// bootstrap (1ee5badab), so they have no snapshots here.
 const TOP_LEVEL = [
-  "acp",
-  "mcp",
-  "attach",
   "run",
   "debug",
   "providers", // aliased to `auth`
-  "agent",
-  "upgrade",
-  "uninstall",
-  "serve",
-  "web",
   "models",
-  "stats",
-  "export",
-  "import",
-  "github",
-  "pr",
-  "session",
-  "plugin",
-  "db",
+  "mcp",
+  "test",
+  "upgrade",
+  "serve",
+  "attach",
 ] as const
 
 // Subcommands worth pinning. Not exhaustive — the goal is one snapshot per
@@ -76,13 +69,6 @@ const SUBCOMMANDS = [
   ["providers", "list"],
   ["providers", "login"],
   ["providers", "logout"],
-  ["agent", "create"],
-  ["agent", "list"],
-  ["session", "list"],
-  ["session", "delete"],
-  ["github", "install"],
-  ["github", "run"],
-  ["db", "path"],
 ] as const
 
 // Fixed wrap width so a developer's terminal doesn't affect snapshots.

@@ -11,17 +11,21 @@
 // If a future change should make one of these commands intentionally fail in
 // an empty env, update the assertion + add a note explaining the new contract.
 //
-// Speed: each test pays ~1.5s for bun startup. 7 tests serialize within this
+// Speed: each test pays ~1.5s for bun startup. 3 tests serialize within this
 // file. See script/prebuild-test-cli.ts for an opt-in pre-built binary that
 // cuts per-spawn cost when this suite gets bigger.
+//
+// The upstream smoke set also covered `agent list`, `session list`, `stats`,
+// and `db path`; the OpenChinaCode bootstrap (1ee5badab) removed those
+// commands from the CLI surface, so their smoke tests went with them.
 import { describe, expect } from "bun:test"
 import { Effect } from "effect"
 import { cliIt } from "../../lib/cli-process"
 
 describe("opencode read-only commands (smoke)", () => {
-  // `mcp list` reads MCP server config and pings each one. With the empty
-  // OPENCODE_CONFIG_CONTENT={} we provide, no servers should be configured
-  // and the command should report that cleanly.
+  // `mcp list` reads MCP server config and pings each one. With the harness's
+  // inline OPENCODE_CONFIG_CONTENT (no mcp section), no servers should be
+  // configured and the command should report that cleanly.
   cliIt.live(
     "mcp list: exits 0",
     ({ opencode }) =>
@@ -58,57 +62,6 @@ describe("opencode read-only commands (smoke)", () => {
         const r = yield* opencode.spawn(["models"])
         opencode.expectExit(r, 0, "models")
         expect(r.stdout).toContain("test/test-model")
-      }),
-    60_000,
-  )
-
-  // `agent list` walks the agent config. Empty config means no agents
-  // configured; the command should still exit 0 with a "no agents" line or
-  // similar. We don't pin the message — just exit cleanly.
-  cliIt.live(
-    "agent list: exits 0",
-    ({ opencode }) =>
-      Effect.gen(function* () {
-        const r = yield* opencode.spawn(["agent", "list"])
-        opencode.expectExit(r, 0, "agent list")
-      }),
-    60_000,
-  )
-
-  // `session list` reads the session DB. Fresh OPENCODE_TEST_HOME means
-  // empty DB. Exit 0 with no sessions.
-  cliIt.live(
-    "session list: exits 0",
-    ({ opencode }) =>
-      Effect.gen(function* () {
-        const r = yield* opencode.spawn(["session", "list"])
-        opencode.expectExit(r, 0, "session list")
-      }),
-    60_000,
-  )
-
-  // `stats` aggregates token usage from the session DB. Empty DB → all zeros.
-  cliIt.live(
-    "stats: exits 0",
-    ({ opencode }) =>
-      Effect.gen(function* () {
-        const r = yield* opencode.spawn(["stats"])
-        opencode.expectExit(r, 0, "stats")
-      }),
-    60_000,
-  )
-
-  // `db path` prints the DB file location. Under harness isolation the DB
-  // resolves to SQLite's `:memory:` (no on-disk pollution between tests);
-  // in production it'd be a path under OPENCODE_TEST_HOME / XDG_DATA_HOME.
-  // Accept either form — both prove the resolver ran without crashing.
-  cliIt.live(
-    "db path: exits 0 and prints a path or :memory:",
-    ({ opencode }) =>
-      Effect.gen(function* () {
-        const r = yield* opencode.spawn(["db", "path"])
-        opencode.expectExit(r, 0, "db path")
-        expect(r.stdout.trim()).toMatch(/^(:memory:|[/\\].+\.(db|sqlite|sqlite3))$/i)
       }),
     60_000,
   )
