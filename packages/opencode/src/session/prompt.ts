@@ -43,7 +43,7 @@ import { Truncate } from "@/tool/truncate"
 import { Image } from "@/image/image"
 import { decodeDataUrl } from "@/util/data-url"
 import { Process } from "@/util/process"
-import { Cause, Effect, Exit, Latch, Layer, Option, Scope, Context, Schema, Types } from "effect"
+import { Cause, Effect, Exit, Fiber, Latch, Layer, Option, Scope, Context, Schema, Types } from "effect"
 import { InstanceState } from "@/effect/instance-state"
 import { TaskTool, type TaskPromptOps } from "@/tool/task"
 import { SessionRunState } from "./run-state"
@@ -56,6 +56,7 @@ import { eq } from "drizzle-orm"
 import { SessionTable } from "@opencode-ai/core/session/sql"
 import { SessionReminders } from "./reminders"
 import { SessionTools } from "./tools"
+import { SessionSteer } from "./steer"
 import { LLMEvent } from "@opencode-ai/llm"
 import { TaskRouterJudge } from "./judge/task-router"
 
@@ -218,6 +219,7 @@ const layer = Layer.effect(
   Effect.gen(function* () {
     const status = yield* SessionStatus.Service
     const sessions = yield* Session.Service
+    const steers = yield* SessionSteer.Service
     const agents = yield* Agent.Service
     const provider = yield* Provider.Service
     const processor = yield* SessionProcessor.Service
@@ -1522,6 +1524,8 @@ const layer = Layer.effect(
             })
             .pipe(Effect.onInterrupt(() => finalizeInterruptedAssistant))
 
+          const steerWatcher = yield* steers.watch(sessionID, () => handle.steer()).pipe(Effect.forkChild)
+
           const outcome: "break" | "continue" = yield* Effect.gen(function* () {
             const lastUserMsg = msgs.findLast((m) => m.info.role === "user")
             const bypassAgentCheck = lastUserMsg?.parts.some((p) => p.type === "agent") ?? false
@@ -1671,7 +1675,9 @@ const layer = Layer.effect(
             }
             return "continue" as const
           }).pipe(
-            Effect.ensuring(instruction.clear(handle.message.id)),
+            Effect.ensuring(
+              Effect.all([instruction.clear(handle.message.id), Fiber.interrupt(steerWatcher)], { discard: true }),
+            ),
             Effect.onInterrupt(() => finalizeInterruptedAssistant),
           )
           if (outcome === "break") break
@@ -1952,6 +1958,7 @@ export const node = LayerNode.make({
   layer: layer,
   deps: [
     SessionStatus.node,
+    SessionSteer.node,
     Session.node,
     Agent.node,
     Provider.node,
