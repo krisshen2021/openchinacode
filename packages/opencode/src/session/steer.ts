@@ -5,7 +5,8 @@ import { Effect, Layer, Context, PubSub } from "effect"
 
 export interface Interface {
   readonly signal: (sessionID: SessionID) => Effect.Effect<void>
-  readonly watch: (sessionID: SessionID, onSteer: () => void) => Effect.Effect<never>
+  // The subscription begins asynchronously; signals published before it are not delivered.
+  readonly watch: (sessionID: SessionID, onSteer: () => void, ready?: Effect.Effect<void>) => Effect.Effect<never>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/SessionSteer") {}
@@ -22,18 +23,21 @@ const layer = Layer.effect(
       yield* PubSub.publish(bus, sessionID)
     })
 
-    const watch = (sessionID: SessionID, onSteer: () => void): Effect.Effect<never> =>
-      Effect.scoped(
-        Effect.gen(function* () {
-          const bus = yield* InstanceState.get(state)
-          const subscription = yield* PubSub.subscribe(bus)
-          return yield* Effect.forever(
-            Effect.flatMap(PubSub.take(subscription), (id) =>
-              id === sessionID ? Effect.sync(onSteer) : Effect.void,
-            ),
-          )
-        }),
-      )
+    const watch = Effect.fn("SessionSteer.watch")(
+      (sessionID: SessionID, onSteer: () => void, ready?: Effect.Effect<void>): Effect.Effect<never> =>
+        Effect.scoped(
+          Effect.gen(function* () {
+            const bus = yield* InstanceState.get(state)
+            const subscription = yield* PubSub.subscribe(bus)
+            if (ready) yield* ready
+            return yield* Effect.forever(
+              Effect.flatMap(PubSub.take(subscription), (id) =>
+                id === sessionID ? Effect.sync(onSteer) : Effect.void,
+              ),
+            )
+          }),
+        ),
+    )
 
     return Service.of({ signal, watch })
   }),
