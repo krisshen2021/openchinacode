@@ -45,6 +45,7 @@ export interface Handle {
     },
   ) => Effect.Effect<void>
   readonly process: (streamInput: LLM.StreamInput) => Effect.Effect<Result>
+  readonly steer: () => void
 }
 
 type Input = {
@@ -70,6 +71,7 @@ interface ProcessorContext extends Input {
   snapshot: string | undefined
   blocked: boolean
   needsCompaction: boolean
+  needsSteer: boolean
   currentText: SessionV1.TextPart | undefined
   reasoningMap: Record<string, SessionV1.ReasoningPart>
 }
@@ -123,6 +125,7 @@ const layer = Layer.effect(
         snapshot: initialSnapshot,
         blocked: false,
         needsCompaction: false,
+        needsSteer: false,
         currentText: undefined,
         reasoningMap: {},
       }
@@ -657,6 +660,12 @@ const layer = Layer.effect(
             const stream = llm.stream(streamInput)
 
             yield* stream.pipe(
+              // Steer cut point: takeWhile (not takeUntil — that one emits the
+              // triggering element) so the event caught here is dropped before
+              // handleEvent can persist anything for it; a tool-input-start cut
+              // here never creates a half-persisted tool part. Never cuts while
+              // a tool call is unsettled.
+              Stream.takeWhile(() => !(ctx.needsSteer && Object.keys(ctx.toolcalls).length === 0)),
               Stream.tap((event) => handleEvent(event)),
               Stream.takeUntil(() => ctx.needsCompaction),
               Stream.runDrain,
@@ -706,6 +715,9 @@ const layer = Layer.effect(
         updateToolCall,
         completeToolCall,
         process,
+        steer: () => {
+          ctx.needsSteer = true
+        },
       } satisfies Handle
     })
 

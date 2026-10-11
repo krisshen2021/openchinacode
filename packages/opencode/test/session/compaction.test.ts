@@ -279,6 +279,7 @@ function fake(
     process: Effect.fn("TestSessionProcessor.process")((input) =>
       Effect.sync(() => capture?.process?.(input)).pipe(Effect.as(result)),
     ),
+    steer: () => {},
   } satisfies SessionProcessorModule.SessionProcessor.Handle
 }
 
