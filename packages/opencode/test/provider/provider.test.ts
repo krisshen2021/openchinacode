@@ -21,6 +21,7 @@ import { Filesystem } from "@/util/filesystem"
 import { InstanceBootstrap } from "@/project/bootstrap"
 import { InstanceStore } from "@/project/instance-store"
 import { testEffect } from "../lib/effect"
+import { catalogReplacement } from "../lib/models-fixture"
 import { ProviderV2 } from "@opencode-ai/core/provider"
 import { ModelV2 } from "@opencode-ai/core/model"
 
@@ -71,7 +72,7 @@ const providerLayer = (flags: Partial<RuntimeFlags.Info> = {}) =>
       ModelsDev.node,
       RuntimeFlags.node,
     ]),
-    [[RuntimeFlags.node, RuntimeFlags.layer(flags)]],
+    [[RuntimeFlags.node, RuntimeFlags.layer(flags)], catalogReplacement],
   )
 
 const list = Provider.use.list()
@@ -84,7 +85,7 @@ const paid = (providers: Record<string, { models: Record<string, { cost: { input
 
 const languageBaseURL = (language: unknown) => (language as { config: { baseURL: string } }).config.baseURL
 
-const it = testEffect(LayerNode.compile(LayerNode.group([Provider.node, Env.node, Plugin.node])))
+const it = testEffect(LayerNode.compile(LayerNode.group([Provider.node, Env.node, Plugin.node]), [catalogReplacement]))
 const experimentalModels = testEffect(providerLayer({ enableExperimentalModels: true }))
 
 const alphaProviderConfig = {
@@ -663,19 +664,22 @@ it.instance(
 
 it.instance("getSmallModel returns appropriate small model", () =>
   Effect.gen(function* () {
-    yield* set("ANTHROPIC_API_KEY", "test-api-key")
-    const model = yield* Provider.use.getSmallModel(ProviderV2.ID.anthropic)
+    yield* set("DEEPSEEK_API_KEY", "test-api-key")
+    const model = yield* Provider.use.getSmallModel(ProviderV2.ID.make("deepseek"))
     expect(model).toBeDefined()
-    expect(model?.id).toContain("haiku")
+    expect(String(model?.id)).toBe("deepseek-chat")
   }),
 )
 
-it.instance("getSmallModel prefers Gemini for Google Vertex", () =>
+// OpenChinaCode's smallModelFamilyPriority is China-focused
+// (["glm-flash", "kimi-k2", "deepseek"]), so Vertex resolves to the latest
+// deepseek-family model rather than Gemini.
+it.instance("getSmallModel prefers deepseek family for Google Vertex", () =>
   Effect.gen(function* () {
     yield* set("GOOGLE_VERTEX_PROJECT", "test-project")
     const model = yield* Provider.use.getSmallModel(ProviderV2.ID.googleVertex)
     expect(model).toBeDefined()
-    expect(model?.id).toContain("gemini")
+    expect(String(model?.id)).toBe("deepseek-ai/deepseek-v3.2-maas")
   }),
 )
 
@@ -692,9 +696,9 @@ it.instance(
           name: "Test Provider",
           npm: "@ai-sdk/openai-compatible",
           models: {
-            "old-flash": { family: "gemini-flash", release_date: "2025-01-01" },
-            "new-flash": { family: "gemini-flash", release_date: "2026-01-01" },
-            "newer-haiku": { family: "claude-haiku", release_date: "2026-06-01" },
+            "old-flash": { family: "glm-flash", release_date: "2025-01-01" },
+            "new-flash": { family: "glm-flash", release_date: "2026-01-01" },
+            "newer-kimi": { family: "kimi-k2", release_date: "2026-06-01" },
           },
           options: { apiKey: "test-key" },
         },
@@ -707,7 +711,7 @@ it.instance(
   "getSmallModel matches exact model families",
   Effect.gen(function* () {
     const model = yield* Provider.use.getSmallModel(ProviderV2.ID.make("test-provider"))
-    expect(model?.id).toBe(ModelV2.ID.make("claude-haiku"))
+    expect(model?.id).toBe(ModelV2.ID.make("deepseek-chat"))
   }),
   {
     config: {
@@ -716,8 +720,8 @@ it.instance(
           name: "Test Provider",
           npm: "@ai-sdk/openai-compatible",
           models: {
-            "glm-flash": { family: "glm-flash", release_date: "2026-06-01" },
-            "claude-haiku": { family: "claude-haiku", release_date: "2026-01-01" },
+            "glm-flash-pro": { family: "glm-flash-pro", release_date: "2026-06-01" },
+            "deepseek-chat": { family: "deepseek", release_date: "2026-01-01" },
           },
           options: { apiKey: "test-key" },
         },
@@ -789,18 +793,21 @@ it.instance(
 )
 
 test("provider.sort prioritizes preferred models", () => {
+  // OpenChinaCode's priority list is China-focused (glm-5.2, kimi, deepseek, ...).
   const models = [
     { id: "random-model", name: "Random" },
-    { id: "claude-sonnet-4-latest", name: "Claude Sonnet 4" },
-    { id: "gpt-5-turbo", name: "GPT-5 Turbo" },
+    { id: "deepseek-reasoner", name: "DeepSeek Reasoner" },
+    { id: "glm-5.2", name: "GLM 5.2" },
+    { id: "deepseek-reasoner-latest", name: "DeepSeek Reasoner Latest" },
     { id: "other-model", name: "Other" },
   ] as any[]
 
   const sorted = Provider.sort(models)
-  expect(sorted[0].id).toContain("sonnet-4")
-  expect(sorted[0].id).toContain("latest")
-  expect(sorted[sorted.length - 1].id).not.toContain("gpt-5")
-  expect(sorted[sorted.length - 1].id).not.toContain("sonnet-4")
+  expect(sorted[0].id).toBe("glm-5.2")
+  expect(sorted[1].id).toContain("deepseek-reasoner")
+  expect(sorted[1].id).toContain("latest")
+  expect(sorted[sorted.length - 1].id).not.toContain("deepseek")
+  expect(sorted[sorted.length - 1].id).not.toContain("glm")
 })
 
 it.instance(
@@ -1732,6 +1739,7 @@ it.instance(
 
 const instanceStoreLayer = LayerNode.compile(InstanceStore.node, [
   [InstanceStore.bootstrapNode, InstanceBootstrap.node],
+  catalogReplacement,
 ])
 const provideMultiInstance = <A, E, R>(eff: Effect.Effect<A, E, R>) =>
   eff.pipe(Effect.provide(instanceStoreLayer), Effect.provide(AppNodeBuilder.build(CrossSpawnSpawner.node)))
@@ -1739,7 +1747,7 @@ const provideMultiInstance = <A, E, R>(eff: Effect.Effect<A, E, R>) =>
 it.effect("plugin config providers persist after instance dispose", () =>
   Effect.gen(function* () {
     const dir = yield* tmpdirScoped()
-    const configDir = path.join(dir, ".opencode")
+    const configDir = path.join(dir, ".openchinacode")
     const root = path.join(configDir, "plugin")
     yield* Effect.promise(() => mkdir(root, { recursive: true }))
     yield* Effect.promise(() => markPluginDependenciesReady(configDir))
@@ -1796,7 +1804,7 @@ it.instance(
   "plugin config enabled and disabled providers are honored",
   Effect.gen(function* () {
     const instance = yield* TestInstance
-    const configDir = path.join(instance.directory, ".opencode")
+    const configDir = path.join(instance.directory, ".openchinacode")
     const root = path.join(configDir, "plugin")
     yield* Effect.promise(() => mkdir(root, { recursive: true }))
     yield* Effect.promise(() => markPluginDependenciesReady(configDir))

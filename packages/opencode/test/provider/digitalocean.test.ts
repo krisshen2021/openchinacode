@@ -4,10 +4,11 @@ import { Provider } from "../../src/provider/provider"
 
 import { Effect } from "effect"
 import { testEffect } from "../lib/effect"
+import { catalogReplacement } from "../lib/models-fixture"
 import { ProviderV2 } from "@opencode-ai/core/provider"
 
 const DIGITALOCEAN = ProviderV2.ID.make("digitalocean")
-const it = testEffect(LayerNode.compile(Provider.node))
+const it = testEffect(LayerNode.compile(Provider.node, [catalogReplacement]))
 
 const withEnv = <A, E, R>(values: Record<string, string>, effect: Effect.Effect<A, E, R>) =>
   Effect.acquireUseRelease(
@@ -29,7 +30,7 @@ const withEnv = <A, E, R>(values: Record<string, string>, effect: Effect.Effect<
 const withAuth = <A, E, R>(metadata: Record<string, string> | undefined, effect: Effect.Effect<A, E, R>) =>
   withEnv(
     {
-      OPENCODE_AUTH_CONTENT: JSON.stringify({
+      OPENCHINACODE_AUTH_CONTENT: JSON.stringify({
         digitalocean: {
           type: "api",
           key: "sk_do_test",

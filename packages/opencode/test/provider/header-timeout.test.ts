@@ -8,6 +8,7 @@ import { ProviderV2 } from "@opencode-ai/core/provider"
 import { ModelV2 } from "@opencode-ai/core/model"
 import { disposeAllInstances, provideTmpdirInstance } from "../fixture/fixture"
 import { testEffect } from "../lib/effect"
+import { catalogReplacement } from "../lib/models-fixture"
 import { testProviderConfig } from "../lib/test-provider"
 import { Env } from "@/env"
 import { Plugin } from "@/plugin"
@@ -19,7 +20,9 @@ afterEach(async () => {
 })
 
 const it = testEffect(
-  LayerNode.compile(LayerNode.group([Provider.node, Env.node, Plugin.node, CrossSpawnSpawner.node])),
+  LayerNode.compile(LayerNode.group([Provider.node, Env.node, Plugin.node, CrossSpawnSpawner.node]), [
+    catalogReplacement,
+  ]),
 )
 
 it.live("headerTimeout does not abort delayed SSE body after headers arrive", () =>
@@ -214,15 +217,15 @@ async function delayedBodyServer(delay: number): Promise<{ server: Server; url: 
 function withAuthContent<A, E, R>(self: Effect.Effect<A, E, R>, value: Record<string, unknown> = defaultAuthContent()) {
   return Effect.acquireUseRelease(
     Effect.sync(() => {
-      const previous = process.env.OPENCODE_AUTH_CONTENT
-      process.env.OPENCODE_AUTH_CONTENT = JSON.stringify(value)
+      const previous = process.env.OPENCHINACODE_AUTH_CONTENT
+      process.env.OPENCHINACODE_AUTH_CONTENT = JSON.stringify(value)
       return previous
     }),
     () => self,
     (previous) =>
       Effect.sync(() => {
-        if (previous === undefined) delete process.env.OPENCODE_AUTH_CONTENT
-        else process.env.OPENCODE_AUTH_CONTENT = previous
+        if (previous === undefined) delete process.env.OPENCHINACODE_AUTH_CONTENT
+        else process.env.OPENCHINACODE_AUTH_CONTENT = previous
       }),
   )
 }

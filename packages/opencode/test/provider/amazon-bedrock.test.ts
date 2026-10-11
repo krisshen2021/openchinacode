@@ -10,10 +10,11 @@ import { Provider } from "@/provider/provider"
 
 import { disposeAllInstances } from "../fixture/fixture"
 import { testEffect } from "../lib/effect"
+import { catalogReplacement } from "../lib/models-fixture"
 import { ProviderV2 } from "@opencode-ai/core/provider"
 import { ModelV2 } from "@opencode-ai/core/model"
 
-const it = testEffect(LayerNode.compile(LayerNode.group([Provider.node, Env.node])))
+const it = testEffect(LayerNode.compile(LayerNode.group([Provider.node, Env.node]), [catalogReplacement]))
 
 const originalEnv = new Map<string, string | undefined>()
 

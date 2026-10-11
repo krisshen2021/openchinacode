@@ -7,6 +7,7 @@ import { resetDatabase } from "../fixture/db"
 import { TestInstance } from "../fixture/fixture"
 import { markPluginDependenciesReady } from "../fixture/plugin"
 import { testEffect } from "../lib/effect"
+import { catalogProviderConfig } from "../lib/models-fixture"
 import { httpApiLayer, request } from "./httpapi-layer"
 
 const testStateLayer = Layer.effectDiscard(
@@ -18,6 +19,12 @@ const testStateLayer = Layer.effectDiscard(
 
 const it = testEffect(Layer.mergeAll(testStateLayer, LayerNode.compile(FSUtil.node), httpApiLayer))
 const projectOptions = { config: { formatter: false, lsp: false } }
+// OpenChinaCode's models.dev catalog is China-only (openChinaCatalog), so
+// google is absent from the database; inline the fixture provider so plugin
+// auth/model hooks targeting google have state to operate on.
+const googleOptions = {
+  config: { formatter: false, lsp: false, provider: { google: catalogProviderConfig("google") } },
+}
 const providerID = "test-oauth-parity"
 const oauthURL = "https://example.com/oauth"
 const oauthInstructions = "Finish OAuth"
@@ -106,10 +113,10 @@ function requestCallback(input: { providerID: string; method: number; headers: H
 function writeProviderAuthPlugin(dir: string) {
   return Effect.gen(function* () {
     const fs = yield* FSUtil.Service
-    yield* Effect.promise(() => markPluginDependenciesReady(path.join(dir, ".opencode")))
+    yield* Effect.promise(() => markPluginDependenciesReady(path.join(dir, ".openchinacode")))
 
     yield* fs.writeWithDirs(
-      path.join(dir, ".opencode", "plugin", "provider-oauth-parity.ts"),
+      path.join(dir, ".openchinacode", "plugin", "provider-oauth-parity.ts"),
       [
         "export default {",
         '  id: "test.provider-oauth-parity",',
@@ -141,10 +148,10 @@ function writeProviderAuthPlugin(dir: string) {
 function writeProviderAuthValidationPlugin(dir: string) {
   return Effect.gen(function* () {
     const fs = yield* FSUtil.Service
-    yield* Effect.promise(() => markPluginDependenciesReady(path.join(dir, ".opencode")))
+    yield* Effect.promise(() => markPluginDependenciesReady(path.join(dir, ".openchinacode")))
 
     yield* fs.writeWithDirs(
-      path.join(dir, ".opencode", "plugin", "provider-oauth-validation.ts"),
+      path.join(dir, ".openchinacode", "plugin", "provider-oauth-validation.ts"),
       [
         "export default {",
         '  id: "test.provider-oauth-validation",',
@@ -183,10 +190,10 @@ function writeProviderAuthValidationPlugin(dir: string) {
 function writeFunctionOptionsPlugin(dir: string) {
   return Effect.gen(function* () {
     const fs = yield* FSUtil.Service
-    yield* Effect.promise(() => markPluginDependenciesReady(path.join(dir, ".opencode")))
+    yield* Effect.promise(() => markPluginDependenciesReady(path.join(dir, ".openchinacode")))
 
     yield* fs.writeWithDirs(
-      path.join(dir, ".opencode", "plugin", "provider-function-options.ts"),
+      path.join(dir, ".openchinacode", "plugin", "provider-function-options.ts"),
       [
         "export default {",
         '  id: "test.provider-function-options",',
@@ -215,10 +222,10 @@ function writeFunctionOptionsPlugin(dir: string) {
 function writeProviderModelsMutationPlugin(dir: string) {
   return Effect.gen(function* () {
     const fs = yield* FSUtil.Service
-    yield* Effect.promise(() => markPluginDependenciesReady(path.join(dir, ".opencode")))
+    yield* Effect.promise(() => markPluginDependenciesReady(path.join(dir, ".openchinacode")))
 
     yield* fs.writeWithDirs(
-      path.join(dir, ".opencode", "plugin", "provider-models-mutation.ts"),
+      path.join(dir, ".openchinacode", "plugin", "provider-models-mutation.ts"),
       [
         "export default {",
         '  id: "test.provider-models-mutation",',
@@ -356,7 +363,7 @@ describe("provider HttpApi", () => {
     Effect.gen(function* () {
       const directory = (yield* TestInstance).directory
       yield* setEnvScoped(
-        "OPENCODE_AUTH_CONTENT",
+        "OPENCHINACODE_AUTH_CONTENT",
         JSON.stringify({
           google: { type: "oauth", refresh: "dummy", access: "dummy", expires: 9999999999999 },
         }),
@@ -375,7 +382,7 @@ describe("provider HttpApi", () => {
       expect(hasNonZeroModelCost(providerBody, "all", "google")).toBe(true)
       expect(hasNonZeroModelCost(configBody, "providers", "google")).toBe(true)
     }),
-    { ...projectOptions, init: writeFunctionOptionsPlugin },
+    { ...googleOptions, init: writeFunctionOptionsPlugin },
   )
 
   it.instance(
@@ -396,6 +403,6 @@ describe("provider HttpApi", () => {
       expect(hasProviderMutationMarker(configBody, "providers", "google")).toBe(false)
       expect(hasNonZeroModelCost(providerBody, "all", "google")).toBe(true)
     }),
-    { ...projectOptions, init: writeProviderModelsMutationPlugin },
+    { ...googleOptions, init: writeProviderModelsMutationPlugin },
   )
 })
