@@ -8285,6 +8285,40 @@ export type SessionAbortResponses = {
 
 export type SessionAbortResponse = SessionAbortResponses[keyof SessionAbortResponses]
 
+export type SessionSteerData = {
+  body?: never
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/steer"
+}
+
+export type SessionSteerErrors = {
+  /**
+   * BadRequest | InvalidRequestError
+   */
+  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
+}
+
+export type SessionSteerError = SessionSteerErrors[keyof SessionSteerErrors]
+
+export type SessionSteerResponses = {
+  /**
+   * Steered session
+   */
+  200: boolean
+}
+
+export type SessionSteerResponse = SessionSteerResponses[keyof SessionSteerResponses]
+
 export type SessionInitData = {
   body?: {
     modelID: string
