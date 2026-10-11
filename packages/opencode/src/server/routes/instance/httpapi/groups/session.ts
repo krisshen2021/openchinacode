@@ -101,6 +101,7 @@ export const SessionPaths = {
   update: `${root}/:sessionID`,
   fork: `${root}/:sessionID/fork`,
   abort: `${root}/:sessionID/abort`,
+  steer: `${root}/:sessionID/steer`,
   share: `${root}/:sessionID/share`,
   init: `${root}/:sessionID/init`,
   summarize: `${root}/:sessionID/summarize`,
@@ -284,6 +285,19 @@ export const SessionApi = HttpApi.make("session")
             identifier: "session.abort",
             summary: "Abort session",
             description: "Abort an active session and stop any ongoing AI processing or command execution.",
+          }),
+        ),
+        HttpApiEndpoint.post("steer", SessionPaths.steer, {
+          params: { sessionID: SessionID },
+          query: WorkspaceRoutingQuery,
+          success: described(Schema.Boolean, "Steered session"),
+          error: [HttpApiError.BadRequest, ApiNotFoundError],
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "session.steer",
+            summary: "Steer session",
+            description:
+              "Deliver queued user messages into the active run as soon as possible: interrupts in-flight text generation at the next safe point (never mid-tool-call) so the next model request includes them.",
           }),
         ),
         HttpApiEndpoint.post("init", SessionPaths.init, {
