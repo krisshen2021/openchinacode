@@ -29,15 +29,18 @@ afterAll(() => {
 
 const cacheFile = path.join(Global.Path.cache, "models.json")
 
+// Fixtures must use OpenChinaProviderIDs: the service passes every catalog
+// through openChinaCatalog, which drops non-China providers entirely. Model
+// ids avoid OpenChinaOfficialPricing keys so the catalog survives unchanged.
 const fixture: Record<string, ModelsDev.Provider> = {
-  acme: {
-    id: "acme",
-    name: "Acme",
-    env: ["ACME_API_KEY"],
+  deepseek: {
+    id: "deepseek",
+    name: "DeepSeek",
+    env: ["DEEPSEEK_API_KEY"],
     models: {
-      "acme-1": {
-        id: "acme-1",
-        name: "Acme One",
+      "deepseek-lab-1": {
+        id: "deepseek-lab-1",
+        name: "DeepSeek Lab One",
         release_date: "2026-01-01",
         attachment: false,
         reasoning: false,
@@ -50,14 +53,14 @@ const fixture: Record<string, ModelsDev.Provider> = {
 }
 
 const fixture2: Record<string, ModelsDev.Provider> = {
-  beta: {
-    id: "beta",
-    name: "Beta",
-    env: ["BETA_API_KEY"],
+  "zhipuai-pay2go": {
+    id: "zhipuai-pay2go",
+    name: "Zhipu AI Pay2Go",
+    env: ["ZHIPUAI_PAY2GO_API_KEY"],
     models: {
-      "beta-1": {
-        id: "beta-1",
-        name: "Beta One",
+      "glm-lab-1": {
+        id: "glm-lab-1",
+        name: "GLM Lab One",
         release_date: "2026-02-01",
         attachment: false,
         reasoning: true,

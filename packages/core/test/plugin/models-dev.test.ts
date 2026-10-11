@@ -145,15 +145,17 @@ describe("ModelsDevPlugin", () => {
               integration: integrationHost(integrations),
             }),
           )
+          // The fixture catalog passes through openChinaCatalog, so only
+          // China providers (deepseek here) register integration methods.
           expect(yield* integrations.list()).toEqual([
             new Integration.Info({
-              id: Integration.ID.make("acme"),
-              name: "Acme",
+              id: Integration.ID.make("deepseek"),
+              name: "DeepSeek",
               methods: [
                 { type: "key" },
                 {
                   type: "env",
-                  names: ["ACME_API_KEY"],
+                  names: ["DEEPSEEK_API_KEY"],
                 },
               ],
               connections: [],
