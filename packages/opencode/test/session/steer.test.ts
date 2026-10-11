@@ -1,6 +1,6 @@
 import { describe, expect } from "bun:test"
 import { LayerNode } from "@opencode-ai/core/effect/layer-node"
-import { Effect, Fiber } from "effect"
+import { Deferred, Effect, Fiber } from "effect"
 import { SessionID } from "../../src/session/schema"
 import { SessionSteer } from "../../src/session/steer"
 import { testEffect } from "../lib/effect"
@@ -14,8 +14,11 @@ describe("session.steer", () => {
     Effect.gen(function* () {
       const steer = yield* SessionSteer.Service
       let fired = 0
-      const watcher = yield* steer.watch(id, () => fired++).pipe(Effect.forkChild)
-      yield* Effect.yieldNow
+      const ready = yield* Deferred.make<void>()
+      const watcher = yield* steer
+        .watch(id, () => fired++, Deferred.succeed(ready, undefined))
+        .pipe(Effect.forkChild)
+      yield* Deferred.await(ready)
       yield* steer.signal(id)
       yield* Effect.yieldNow
       expect(fired).toBe(1)
@@ -31,10 +34,16 @@ describe("session.steer", () => {
       const steer = yield* SessionSteer.Service
       yield* steer.signal(id) // no subscribers, must not throw
       let fired = 0
-      const watcher = yield* steer.watch(id, () => fired++).pipe(Effect.forkChild)
-      yield* Effect.yieldNow
+      const ready = yield* Deferred.make<void>()
+      const watcher = yield* steer
+        .watch(id, () => fired++, Deferred.succeed(ready, undefined))
+        .pipe(Effect.forkChild)
+      yield* Deferred.await(ready)
       yield* Effect.sleep("10 millis")
       expect(fired).toBe(0) // earlier signal must not linger for later watchers
+      yield* steer.signal(id)
+      yield* Effect.yieldNow
+      expect(fired).toBe(1) // watcher was genuinely subscribed during the check above
       yield* Fiber.interrupt(watcher)
     }),
   )
@@ -44,8 +53,11 @@ describe("session.steer", () => {
       const steer = yield* SessionSteer.Service
       const other = SessionID.make("ses_other")
       let fired = 0
-      const watcher = yield* steer.watch(id, () => fired++).pipe(Effect.forkChild)
-      yield* Effect.yieldNow
+      const ready = yield* Deferred.make<void>()
+      const watcher = yield* steer
+        .watch(id, () => fired++, Deferred.succeed(ready, undefined))
+        .pipe(Effect.forkChild)
+      yield* Deferred.await(ready)
       yield* steer.signal(other)
       yield* Effect.yieldNow
       expect(fired).toBe(0)
@@ -57,12 +69,18 @@ describe("session.steer", () => {
     Effect.gen(function* () {
       const steer = yield* SessionSteer.Service
       let first = 0
-      const watcher = yield* steer.watch(id, () => first++).pipe(Effect.forkChild)
-      yield* Effect.yieldNow
+      const firstReady = yield* Deferred.make<void>()
+      const watcher = yield* steer
+        .watch(id, () => first++, Deferred.succeed(firstReady, undefined))
+        .pipe(Effect.forkChild)
+      yield* Deferred.await(firstReady)
       yield* Fiber.interrupt(watcher)
       let second = 0
-      const next = yield* steer.watch(id, () => second++).pipe(Effect.forkChild)
-      yield* Effect.yieldNow
+      const secondReady = yield* Deferred.make<void>()
+      const next = yield* steer
+        .watch(id, () => second++, Deferred.succeed(secondReady, undefined))
+        .pipe(Effect.forkChild)
+      yield* Deferred.await(secondReady)
       yield* steer.signal(id)
       yield* Effect.yieldNow
       expect(first).toBe(0) // interrupted watcher stays dead
