@@ -52,7 +52,7 @@
 ### 截断后收尾（复用现有机制）
 
 - 走现有 `cleanup()`：当前文本 part 封口保留（方案 A：残段进入后续上下文）、reasoning part 封口、未 settle 工具 part 标 `interrupted`（被 `isOrphanedInterruptedTool` 自动过滤出后续上下文）、`time.completed` 落库。
-- assistant 消息**不打 error 标记**，与 ESC 的 abort 区分；`metadata.steered = true`；`finish` 保持未收到 finish 事件时的原状（不伪造）。
+- assistant 消息**不打 error 标记**，与 ESC 的 abort 区分；`finish` 保持未收到 finish 事件时的原状（不伪造）。（实现注：`metadata.steered` 标记未实现——`SessionV1.Assistant` schema 无 `metadata` 字段，加字段属契约变更，超出本期范围。）
 - `process()` 返回 `"continue"`：runLoop 下一轮重读消息，发现排队 user 消息 → 不退出 → 下一次请求同时带上"assistant 残段 + 用户新消息"。循环主逻辑零改动。
 - reasoning 残段保留在 DB 供 TUI 展示，但不进后续模型上下文（半截 thinking 发给 provider 会 400；模型上下文只含文本 part）。
 
@@ -65,7 +65,7 @@
 - `packages/tui/src/config/keybind.ts` 新增 `session_steer: keybind("ctrl+s", "Steer: deliver queued messages now")`。
 - `packages/tui/src/component/prompt/index.tsx`（或会话路由的键绑定处）：
   - 判定条件：session 忙（pending 非空）且存在 queued 消息（复用现有 `message.id > pending` 判定）。
-  - 满足 → `sdk.client.session.steer({ sessionID })`；被催生的消息角标由 `QUEUED` 切换为 `STEER`，直到下一条 assistant 消息完成。
+  - 满足 → `sdk.client.session.steer({ sessionID })`；toast 反馈"Steering — will interrupt at the next safe point"。（实现注：QUEUED→STEER 角标切换未实现——User 消息 schema 无 `metadata` 字段，无法服务端标记；反馈以 toast 为准。）
   - 不满足 → toast 提示，不发请求。
 - `QUEUED` 角标补一句提示文案（hover/title 或状态栏），说明排队消息将在当前 step 边界生效（方案 C 附属）。
 
