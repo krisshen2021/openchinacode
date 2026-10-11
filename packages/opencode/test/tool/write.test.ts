@@ -177,12 +177,24 @@ describe("tool.write", () => {
       Effect.gen(function* () {
         const test = yield* TestInstance
         const filepath = path.join(test.directory, "sensitive.json")
-        yield* run({ filePath: filepath, content: JSON.stringify({ secret: "data" }) })
 
-        if (process.platform !== "win32") {
-          const stats = yield* Effect.promise(() => fs.stat(filepath))
-          expect(stats.mode & 0o777).toBe(0o644)
+        if (process.platform === "win32") {
+          yield* run({ filePath: filepath, content: JSON.stringify({ secret: "data" }) })
+          return
         }
+
+        // Default file mode is 0o666 masked by the process umask; pin it so the
+        // assertion does not depend on the developer shell's umask.
+        const previous = process.umask(0o022)
+        yield* Effect.addFinalizer(() =>
+          Effect.sync(() => {
+            process.umask(previous)
+          }),
+        )
+
+        yield* run({ filePath: filepath, content: JSON.stringify({ secret: "data" }) })
+        const stats = yield* Effect.promise(() => fs.stat(filepath))
+        expect(stats.mode & 0o777).toBe(0o644)
       }),
     )
   })
