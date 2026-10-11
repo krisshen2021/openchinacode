@@ -224,7 +224,7 @@ describe("acp usage", () => {
             sessionUpdate: "usage_update",
             used: 15,
             size: 128_000,
-            cost: { amount: 3, currency: "USD" },
+            cost: { amount: 3, currency: "CNY" },
           },
         },
       ])
