@@ -739,6 +739,31 @@ function configModel(model: ModelsDev.Model) {
   }
 }
 
+// OpenChinaCode's models.dev catalog is China-only (openChinaCatalog), so
+// providers like cerebras/google are not available from the catalog. Inline
+// the fixture provider and model into the config to keep these tests
+// self-contained.
+function catalogConfig(
+  providerID: string,
+  modelID: string,
+  options: Record<string, unknown>,
+): Partial<ConfigV1.Info> {
+  const { provider, model } = loadFixture(providerID, modelID)
+  return {
+    enabled_providers: [providerID],
+    provider: {
+      [providerID]: {
+        name: provider.name,
+        env: [...provider.env],
+        npm: provider.npm,
+        api: provider.api,
+        models: { [model.id]: configModel(model) as ConfigModel },
+        options,
+      },
+    },
+  }
+}
+
 function createEventStream(chunks: unknown[], includeDone = false) {
   const lines = chunks.map((chunk) => `data: ${typeof chunk === "string" ? chunk : JSON.stringify(chunk)}`)
   if (includeDone) {
@@ -831,14 +856,11 @@ describe("session.llm.stream", () => {
         expect(reasoning).toBe("high")
       }),
     {
-      config: () => ({
-        enabled_providers: [vivgridFixture.providerID],
-        provider: {
-          [vivgridFixture.providerID]: {
-            options: { apiKey: "test-key", baseURL: `${state.server!.url.origin}/v1` },
-          },
-        },
-      }),
+      config: () =>
+        catalogConfig(vivgridFixture.providerID, vivgridFixture.modelID, {
+          apiKey: "test-key",
+          baseURL: `${state.server!.url.origin}/v1`,
+        }),
     },
   )
 
@@ -905,14 +927,11 @@ describe("session.llm.stream", () => {
         expect(assistant && "reasoning_content" in assistant).toBe(false)
       }),
     {
-      config: () => ({
-        enabled_providers: [cerebrasFixture.providerID],
-        provider: {
-          [cerebrasFixture.providerID]: {
-            options: { apiKey: "test-key", baseURL: `${state.server!.url.origin}/v1` },
-          },
-        },
-      }),
+      config: () =>
+        catalogConfig(cerebrasFixture.providerID, cerebrasFixture.modelID, {
+          apiKey: "test-key",
+          baseURL: `${state.server!.url.origin}/v1`,
+        }),
     },
   )
 
@@ -968,14 +987,11 @@ describe("session.llm.stream", () => {
         yield* Effect.promise(() => Promise.race([pending.requestAborted, timeout(500)]).catch(() => undefined))
       }),
     {
-      config: () => ({
-        enabled_providers: [alibabaQwenFixture.providerID],
-        provider: {
-          [alibabaQwenFixture.providerID]: {
-            options: { apiKey: "test-key", baseURL: `${state.server!.url.origin}/v1` },
-          },
-        },
-      }),
+      config: () =>
+        catalogConfig(alibabaQwenFixture.providerID, alibabaQwenFixture.modelID, {
+          apiKey: "test-key",
+          baseURL: `${state.server!.url.origin}/v1`,
+        }),
     },
   )
 
@@ -1036,14 +1052,11 @@ describe("session.llm.stream", () => {
         expect(tools?.some((item) => item.function?.name === "question")).toBe(true)
       }),
     {
-      config: () => ({
-        enabled_providers: [alibabaQwenFixture.providerID],
-        provider: {
-          [alibabaQwenFixture.providerID]: {
-            options: { apiKey: "test-key", baseURL: `${state.server!.url.origin}/v1` },
-          },
-        },
-      }),
+      config: () =>
+        catalogConfig(alibabaQwenFixture.providerID, alibabaQwenFixture.modelID, {
+          apiKey: "test-key",
+          baseURL: `${state.server!.url.origin}/v1`,
+        }),
     },
   )
 
@@ -1698,14 +1711,11 @@ describe("session.llm.stream", () => {
         expect(body.top_p).toBe(0.9)
       }),
     {
-      config: () => ({
-        enabled_providers: [minimaxFixture.providerID],
-        provider: {
-          [minimaxFixture.providerID]: {
-            options: { apiKey: "test-anthropic-key", baseURL: `${state.server!.url.origin}/v1` },
-          },
-        },
-      }),
+      config: () =>
+        catalogConfig(minimaxFixture.providerID, minimaxFixture.modelID, {
+          apiKey: "test-anthropic-key",
+          baseURL: `${state.server!.url.origin}/v1`,
+        }),
     },
   )
 
@@ -2000,14 +2010,11 @@ describe("session.llm.stream", () => {
         expect(config?.maxOutputTokens).toBe(ProviderTransform.maxOutputTokens(resolved))
       }),
     {
-      config: () => ({
-        enabled_providers: [geminiFixture.providerID],
-        provider: {
-          [geminiFixture.providerID]: {
-            options: { apiKey: "test-google-key", baseURL: `${state.server!.url.origin}/v1beta` },
-          },
-        },
-      }),
+      config: () =>
+        catalogConfig(geminiFixture.providerID, geminiFixture.modelID, {
+          apiKey: "test-google-key",
+          baseURL: `${state.server!.url.origin}/v1beta`,
+        }),
     },
   )
 })
