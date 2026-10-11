@@ -1842,6 +1842,37 @@ export function Prompt(props: PromptProps) {
         },
       },
       {
+        title: "Steer queued messages",
+        name: "session.steer",
+        category: "Session",
+        hidden: true,
+        enabled: status().type !== "idle",
+        run: () => {
+          if (!props.sessionID) return
+          const msgs = sync.data.message[props.sessionID] ?? []
+          const completed = msgs.findLast((x) => x.role === "assistant" && x.time.completed)
+          const pending = msgs.findLast(
+            (x) =>
+              x.role === "assistant" && !x.time.completed && (!completed || x.time.created > completed.time.created),
+          )
+          const queued = pending && msgs.some((x) => x.role === "user" && x.time.created > pending.time.created)
+          if (!queued) {
+            toast.show({ title: "Nothing to steer", message: "No queued message", variant: "info" })
+            return
+          }
+          void sdk.client.session
+            .steer({ sessionID: props.sessionID })
+            .then(() =>
+              toast.show({
+                title: "Steering",
+                message: "Will interrupt generation at the next safe point",
+                variant: "info",
+              }),
+            )
+            .catch((error) => toast.show({ title: "Steer failed", message: errorMessage(error), variant: "error" }))
+        },
+      },
+      {
         title: "Smart compaction",
         desc: "Usage: /compact [auto|smart|keep N|keep auto] - smart compaction with optional raw recent-turn retention",
         name: "openchinacode.compact",
@@ -2131,6 +2162,7 @@ export function Prompt(props: PromptProps) {
       "openchinacode.task_policy",
       "openchinacode.task_classify",
       "session.interrupt",
+      "session.steer",
       "workspace.set",
       "session.move",
     ]),
