@@ -414,7 +414,7 @@ const seed = Effect.fn("test.seed")(function* (sessionID: SessionID, opts?: { fi
   return { user: msg, assistant }
 })
 
-const addSubtask = (sessionID: SessionID, messageID: MessageID, model = ref) =>
+const addSubtask = (sessionID: SessionID, messageID: MessageID, model?: typeof ref) =>
   Effect.gen(function* () {
     const session = yield* Session.Service
     yield* session.updatePart({
@@ -425,7 +425,7 @@ const addSubtask = (sessionID: SessionID, messageID: MessageID, model = ref) =>
       prompt: "look into the cache key path",
       description: "inspect bug",
       agent: "general",
-      model,
+      ...(model ? { model } : {}),
     })
   })
 
@@ -982,7 +982,7 @@ it.instance("subtask child inherits parent session external_directory allow", ()
     })
     yield* llm.text("done")
     const msg = yield* user(chat.id, "hello")
-    yield* addSubtask(chat.id, msg.id)
+    yield* addSubtask(chat.id, msg.id, ref)
 
     yield* prompt.loop({ sessionID: chat.id })
 
@@ -998,31 +998,34 @@ it.instance("subtask child inherits parent session external_directory allow", ()
   }),
 )
 
-noLLMServer.instance("prompt tools replace previous prompt tool rules", () =>
-  Effect.gen(function* () {
-    const prompt = yield* SessionPrompt.Service
-    const sessions = yield* Session.Service
-    const session = yield* sessions.create({ title: "Prompt tools" })
+noLLMServer.instance(
+  "prompt tools replace previous prompt tool rules",
+  () =>
+    Effect.gen(function* () {
+      const prompt = yield* SessionPrompt.Service
+      const sessions = yield* Session.Service
+      const session = yield* sessions.create({ title: "Prompt tools" })
 
-    yield* prompt.prompt({
-      sessionID: session.id,
-      agent: "build",
-      noReply: true,
-      tools: { bash: false },
-      parts: [{ type: "text", text: "first" }],
-    })
-    yield* prompt.prompt({
-      sessionID: session.id,
-      agent: "build",
-      noReply: true,
-      tools: { read: true },
-      parts: [{ type: "text", text: "second" }],
-    })
+      yield* prompt.prompt({
+        sessionID: session.id,
+        agent: "build",
+        noReply: true,
+        tools: { bash: false },
+        parts: [{ type: "text", text: "first" }],
+      })
+      yield* prompt.prompt({
+        sessionID: session.id,
+        agent: "build",
+        noReply: true,
+        tools: { read: true },
+        parts: [{ type: "text", text: "second" }],
+      })
 
-    const reloaded = yield* sessions.get(session.id)
-    expect(reloaded.permission).toEqual([{ permission: "read", pattern: "*", action: "allow" }])
-    expect(Permission.evaluate("bash", "anything", reloaded.permission ?? []).action).toBe("ask")
-  }),
+      const reloaded = yield* sessions.get(session.id)
+      expect(reloaded.permission).toEqual([{ permission: "read", pattern: "*", action: "allow" }])
+      expect(Permission.evaluate("bash", "anything", reloaded.permission ?? []).action).toBe("ask")
+    }),
+  { config: cfg },
 )
 
 it.instance(
@@ -1035,7 +1038,7 @@ it.instance(
       const chat = yield* sessions.create({ title: "Pinned" })
       yield* llm.hang
       const msg = yield* user(chat.id, "hello")
-      yield* addSubtask(chat.id, msg.id)
+      yield* addSubtask(chat.id, msg.id, ref)
 
       const fiber = yield* prompt.loop({ sessionID: chat.id }).pipe(Effect.forkChild)
 
@@ -1287,7 +1290,7 @@ noLLMServer.instance(
 
       const { prompt, chat } = yield* boot()
       const msg = yield* user(chat.id, "hello")
-      yield* addSubtask(chat.id, msg.id)
+      yield* addSubtask(chat.id, msg.id, ref)
 
       const fiber = yield* prompt.loop({ sessionID: chat.id }).pipe(Effect.forkChild)
       yield* awaitWithTimeout(Deferred.await(ready), "timed out waiting for task tool to start", "10 seconds")
@@ -1325,7 +1328,7 @@ it.instance(
       const chat = yield* sessions.create({ title: "Pinned" })
       yield* llm.hang
       const msg = yield* user(chat.id, "hello")
-      yield* addSubtask(chat.id, msg.id)
+      yield* addSubtask(chat.id, msg.id, ref)
 
       const fiber = yield* prompt.loop({ sessionID: chat.id }).pipe(Effect.forkChild)
       yield* llm.wait(1)
