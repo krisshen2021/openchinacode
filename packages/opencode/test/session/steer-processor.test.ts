@@ -235,7 +235,7 @@ it.live("session.processor steer cuts a pure text stream at the next event", () 
         yield* hello.off
 
         handle.steer()
-        // Triggers the takeUntil check; it must be discarded before tap persists it.
+        // Triggers the takeWhile check; it must be discarded before tap persists it.
         yield* Queue.offer(feed.queue, LLMEvent.textDelta({ id: "text-1", text: "world" }))
 
         const result = yield* Fiber.join(run)

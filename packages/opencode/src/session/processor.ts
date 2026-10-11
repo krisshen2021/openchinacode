@@ -650,6 +650,7 @@ const layer = Layer.effect(
           messageID: input.assistantMessage.id,
         })
         ctx.needsCompaction = false
+        ctx.needsSteer = false
         ctx.shouldBreak = (yield* config.get()).experimental?.continue_loop_on_deny !== true
 
         return yield* Effect.gen(function* () {
@@ -665,6 +666,12 @@ const layer = Layer.effect(
               // handleEvent can persist anything for it; a tool-input-start cut
               // here never creates a half-persisted tool part. Never cuts while
               // a tool call is unsettled.
+              // Known limitation: if a retryable stream error hits while a tool
+              // call is unsettled AND a steer is pending, the retried attempt
+              // starts with stale ctx.toolcalls entries (cleanup only runs in
+              // the outer ensuring), so this predicate stays closed for the
+              // retried stream and the steer is deferred to the natural turn
+              // end — bounded degradation, no corruption.
               Stream.takeWhile(() => !(ctx.needsSteer && Object.keys(ctx.toolcalls).length === 0)),
               Stream.tap((event) => handleEvent(event)),
               Stream.takeUntil(() => ctx.needsCompaction),
