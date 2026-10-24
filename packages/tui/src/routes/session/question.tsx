@@ -56,7 +56,11 @@ export function QuestionPrompt(props: { request: QuestionRequest; directory?: st
       send: () =>
         input.reject
           ? sdk.client.question.reject({ requestID: props.request.id, directory: props.directory })
-          : sdk.client.question.reply({ requestID: props.request.id, directory: props.directory, answers: input.answers! }),
+          : sdk.client.question.reply({
+              requestID: props.request.id,
+              directory: props.directory,
+              answers: input.answers!,
+            }),
     })
     setSubmitting(false)
     if (failure) {
@@ -78,6 +82,7 @@ export function QuestionPrompt(props: { request: QuestionRequest; directory?: st
   }
 
   function pick(answer: string, custom: boolean = false) {
+    setStore("editing", false)
     const answers = [...store.answers]
     answers[store.tab] = [answer]
     setStore("answers", answers)
@@ -110,6 +115,7 @@ export function QuestionPrompt(props: { request: QuestionRequest; directory?: st
   }
 
   function selectTab(index: number) {
+    if (store.editing) commitEdit()
     setStore("tab", index)
     setStore("selected", 0)
   }
@@ -135,6 +141,47 @@ export function QuestionPrompt(props: { request: QuestionRequest; directory?: st
       return
     }
     pick(opt.label)
+  }
+
+  function commitEdit() {
+    const text = textarea?.plainText?.trim() ?? ""
+    const prev = store.custom[store.tab]
+
+    if (!text) {
+      if (prev) {
+        const inputs = [...store.custom]
+        inputs[store.tab] = ""
+        setStore("custom", inputs)
+
+        const answers = [...store.answers]
+        answers[store.tab] = (answers[store.tab] ?? []).filter((x) => x !== prev)
+        setStore("answers", answers)
+      }
+      setStore("editing", false)
+      return
+    }
+
+    if (multi()) {
+      const inputs = [...store.custom]
+      inputs[store.tab] = text
+      setStore("custom", inputs)
+
+      const existing = store.answers[store.tab] ?? []
+      const next = [...existing]
+      if (prev) {
+        const index = next.indexOf(prev)
+        if (index !== -1) next.splice(index, 1)
+      }
+      if (!next.includes(text)) next.push(text)
+      const answers = [...store.answers]
+      answers[store.tab] = next
+      setStore("answers", answers)
+      setStore("editing", false)
+      return
+    }
+
+    pick(text, true)
+    setStore("editing", false)
   }
 
   onMount(() => {
@@ -174,46 +221,7 @@ export function QuestionPrompt(props: { request: QuestionRequest; directory?: st
         key: "return",
         desc: "Submit answer edit",
         group: "Question",
-        cmd: () => {
-          const text = textarea?.plainText?.trim() ?? ""
-          const prev = store.custom[store.tab]
-
-          if (!text) {
-            if (prev) {
-              const inputs = [...store.custom]
-              inputs[store.tab] = ""
-              setStore("custom", inputs)
-
-              const answers = [...store.answers]
-              answers[store.tab] = (answers[store.tab] ?? []).filter((x) => x !== prev)
-              setStore("answers", answers)
-            }
-            setStore("editing", false)
-            return
-          }
-
-          if (multi()) {
-            const inputs = [...store.custom]
-            inputs[store.tab] = text
-            setStore("custom", inputs)
-
-            const existing = store.answers[store.tab] ?? []
-            const next = [...existing]
-            if (prev) {
-              const index = next.indexOf(prev)
-              if (index !== -1) next.splice(index, 1)
-            }
-            if (!next.includes(text)) next.push(text)
-            const answers = [...store.answers]
-            answers[store.tab] = next
-            setStore("answers", answers)
-            setStore("editing", false)
-            return
-          }
-
-          pick(text, true)
-          setStore("editing", false)
-        },
+        cmd: commitEdit,
       },
     ],
   }))
